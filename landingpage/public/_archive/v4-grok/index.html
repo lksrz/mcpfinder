@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Registry - Discover & Register Tools</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <!-- Header -->
+    <header class="bg-white shadow-sm py-4 sticky top-0 z-50">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-blue-600">MCP Registry</h1>
+            <nav class="hidden md:flex space-x-8">
+                <a href="#features" class="text-gray-600 hover:text-blue-600 transition">Features</a>
+                <a href="#api-cli" class="text-gray-600 hover:text-blue-600 transition">API & CLI</a>
+                <a href="#roadmap" class="text-gray-600 hover:text-blue-600 transition">Roadmap</a>
+                <a href="/DOCS.md" class="text-gray-600 hover:text-blue-600 transition">Docs</a>
+            </nav>
+            <button class="md:hidden focus:outline-none" aria-label="Menu">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-20">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-4xl md:text-5xl font-bold mb-4">Discover and Register MCP Tools Effortlessly</h2>
+            <p class="text-lg md:text-xl max-w-3xl mx-auto mb-8">A serverless platform for AI agents and developers to find, publish, and monitor Model Context Protocol tools with ease.</p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="#features" class="bg-white text-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition">Learn More</a>
+                <a href="/DOCS.md" class="border border-white text-white px-6 py-3 rounded-lg font-medium hover:bg-white hover:bg-opacity-10 transition">Register a Tool</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-16">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-bold text-center mb-12 text-gray-800">Key Features</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="bg-blue-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Tool Registration</h3>
+                    <p class="text-gray-600">Easily register your MCP tools via our CLI or REST API for seamless integration.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="bg-blue-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Tool Discovery</h3>
+                    <p class="text-gray-600">Search and find the right tools with powerful filtering by tags and keywords.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="bg-blue-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Health Monitoring</h3>
+                    <p class="text-gray-600">Automated checks ensure your tools are always up and running as expected.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- API & CLI Section -->
+    <section id="api-cli" class="bg-gray-100 py-16">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-bold text-center mb-12 text-gray-800">For Developers</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">REST API</h3>
+                    <p class="text-gray-600 mb-4">Integrate with our simple and secure API to register and search for MCP tools programmatically.</p>
+                    <pre class="bg-gray-900 text-gray-200 p-4 rounded-md overflow-x-auto">
+                        <code>POST /api/v1/register
+GET /api/v1/tools/:id
+GET /api/v1/search?tag=&q=</code>
+                    </pre>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800">CLI Tool</h3>
+                    <p class="text-gray-600 mb-4">Use our command-line interface for quick and easy tool registration.</p>
+                    <pre class="bg-gray-900 text-gray-200 p-4 rounded-md overflow-x-auto">
+                        <code>mcp-cli register path/to/mcp.json</code>
+                    </pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap Section -->
+    <section id="roadmap" class="py-16">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-bold text-center mb-12 text-gray-800">What's Next?</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-gray-50 border border-gray-200 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Web UI</h3>
+                    <p class="text-gray-600">A user-friendly interface to browse and manage tools directly from your browser.</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-200 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Semantic Search</h3>
+                    <p class="text-gray-600">Advanced search capabilities with vector embeddings for precise tool discovery.</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-200 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Federation</h3>
+                    <p class="text-gray-600">Connect with other registries to expand the ecosystem and avoid duplication.</p>
+                </div>
+            </div>
+            <p class="text-center text-gray-600 mt-8">And much more! Check our full roadmap in the documentation.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-300 py-8">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p class="mb-2">© 2023 MCP Registry. All rights reserved.</p>
+            <p class="text-sm">A central hub for Model Context Protocol tools.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Simple mobile menu toggle
+        document.querySelector('button[aria-label="Menu"]').addEventListener('click', function() {
+            // A simple mobile menu could be implemented here when needed
+            alert('Mobile menu coming soon!');
+        });
+    </script>
+</body>
+</html> 

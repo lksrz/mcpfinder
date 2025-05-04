@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>MCP Registry</title>
+  <!-- Tailwind CSS CDN -->
+  <script src='https://cdn.tailwindcss.com'></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#5A67D8',
+            secondary: '#4C51BF'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class='bg-gray-50 text-gray-800'>
+
+  <!-- Navbar -->
+  <nav class='bg-white shadow'>
+    <div class='container mx-auto px-6 py-4 flex justify-between items-center'>
+      <a href='#' class='text-2xl font-bold text-primary'>MCP Registry</a>
+      <div class='space-x-6'>
+        <a href='#features' class='hover:text-primary'>Features</a>
+        <a href='#api' class='hover:text-primary'>API</a>
+        <a href='#cli' class='hover:text-primary'>CLI</a>
+        <a href='https://github.com/' class='hover:text-primary'>GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class='bg-primary text-white'>
+    <div class='container mx-auto px-6 py-20 text-center'>
+      <h1 class='text-5xl font-extrabold mb-4'>Effortless Tool Registry for AI Agents</h1>
+      <p class='text-xl mb-8'>Register, discover, and monitor Model Context Protocol tools seamlessly with a serverless registry.</p>
+      <a href='#features' class='bg-white text-primary font-semibold px-8 py-3 rounded-md shadow hover:bg-gray-100 transition duration-300'>Explore Features</a>
+    </div>
+  </header>
+
+  <!-- Features Section -->
+  <section id='features' class='container mx-auto px-6 py-20'>
+    <h2 class='text-3xl font-bold text-center mb-12'>Core Features</h2>
+    <div class='grid grid-cols-1 md:grid-cols-3 gap-8'>
+      <div class='bg-white p-6 rounded-lg shadow hover:shadow-lg transition'>
+        <div class='flex justify-center mb-4'>
+          <!-- Clipboard Check Icon -->
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-12 w-12 text-primary' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+            <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 3h6a2 2 0 012 2v0a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2z M9 13l2 2l4-4'/>
+          </svg>
+        </div>
+        <h3 class='text-xl font-semibold mb-2'>Tool Registration</h3>
+        <p class='text-gray-600'>Authenticate and register tools with HMAC signature and schema validation.</p>
+      </div>
+      <div class='bg-white p-6 rounded-lg shadow hover:shadow-lg transition'>
+        <div class='flex justify-center mb-4'>
+          <!-- Search Icon -->
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-12 w-12 text-primary' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+            <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'/>
+          </svg>
+        </div>
+        <h3 class='text-xl font-semibold mb-2'>Tool Discovery</h3>
+        <p class='text-gray-600'>Search and filter registered tools via REST endpoints by tag or keyword.</p>
+      </div>
+      <div class='bg-white p-6 rounded-lg shadow hover:shadow-lg transition'>
+        <div class='flex justify-center mb-4'>
+          <!-- Heartbeat Icon -->
+          <svg xmlns='http://www.w3.org/2000/svg' class='h-12 w-12 text-primary' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+            <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M4.318 6.318a4.5 4.5 0 016.364 0L12 7.636l1.318-1.318a4.5 4.5 0 116.364 6.364L12 21.364l-7.682-7.682a4.5 4.5 0 010-6.364z'/>
+          </svg>
+        </div>
+        <h3 class='text-xl font-semibold mb-2'>Health Monitoring</h3>
+        <p class='text-gray-600'>Automated uptime checks and status tracking for all registered tools.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- API Section -->
+  <section id='api' class='bg-gray-100 py-20'>
+    <div class='container mx-auto px-6'>
+      <h2 class='text-3xl font-bold text-center mb-12'>API Endpoints</h2>
+      <div class='space-y-6 max-w-2xl mx-auto'>
+        <div>
+          <h3 class='font-semibold'>POST /api/v1/register</h3>
+          <p class='text-gray-600'>Register a tool using a signed HMAC manifest. Returns <code>success</code> and <code>id</code>.</p>
+        </div>
+        <div>
+          <h3 class='font-semibold'>GET /api/v1/tools/:id</h3>
+          <p class='text-gray-600'>Fetch the full manifest and status for a specific tool.</p>
+        </div>
+        <div>
+          <h3 class='font-semibold'>GET /api/v1/search?tag=&q=</h3>
+          <p class='text-gray-600'>Search tools by tag or keyword. Returns a list of summaries.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLI Section -->
+  <section id='cli' class='container mx-auto px-6 py-20'>
+    <h2 class='text-3xl font-bold text-center mb-12'>Command Line Interface</h2>
+    <div class='max-w-xl mx-auto bg-white p-6 rounded-lg shadow'>
+      <p class='text-gray-600 mb-4'>Use the <code>mcp-cli</code> to register your tool manifests:</p>
+      <pre class='bg-gray-200 p-4 rounded'><code>mcp-cli register path/to/mcp.json</code></pre>
+      <p class='text-gray-600 mt-4'>The CLI computes the HMAC signature and sends it to the registry.</p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class='bg-white border-t'>
+    <div class='container mx-auto px-6 py-6 text-center text-gray-600'>
+      <p>© 2023 MCP Registry. All rights reserved.</p>
+      <p><a href='https://github.com/' class='hover:text-primary'>View Source on GitHub</a></p>
+    </div>
+  </footer>
+
+</body>
+</html> 

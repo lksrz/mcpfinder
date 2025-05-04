@@ -1,8 +1,8 @@
-# MCP Registry Documentation
+# MCP Finder Documentation
 
 ## Overview
 
-MCP Registry is a lightweight serverless platform for listing and discovering MCP (Model Context Protocol) tools. It provides:
+MCP Finder (mcpfinder.dev) is a lightweight serverless platform for listing and discovering MCP (Model Context Protocol) tools. It provides:
 
 - **Tool registration** via a CLI and REST API
 - **Tool discovery** via REST search endpoints
@@ -15,6 +15,32 @@ MCP Registry is a lightweight serverless platform for listing and discovering MC
 - Keep files under **500 lines** for readability.
 - Structure code in small, **modular** components.
 - Leverage Cloudflare Workers (stateless), KV, and R2 for storage.
+
+## Project Structure
+
+Organize code into clear, purpose-driven folders:
+
+```
+/ (root)
+├── api-worker/        # Core registry Worker code for REST API
+│   └── index.js       # Entry point
+├── health-worker/     # Cron-triggered Worker for health checks
+│   └── index.js
+├── landingpage/       # Worker + static site for landing page
+│   ├── worker.js      # Worker to serve landing page
+│   └── public/        # Static assets (HTML, CSS, images)
+│       └── index.html
+├── cli/               # Publisher CLI implementation
+│   └── bin/
+│       └── mcp-cli.js
+├── schemas/           # JSON schemas for manifest validation
+│   └── mcp.v0.1.schema.json
+└── README.md          # High-level overview and folder structure
+```
+
+- Each Worker lives in its own folder with a simple `index.js` (or `worker.js`).
+- Static assets for the landing page go under `landingpage/public/`.
+- Reuse shared helpers (e.g., HMAC, validation) by placing them in a common `lib/` folder if needed.
 
 ---
 

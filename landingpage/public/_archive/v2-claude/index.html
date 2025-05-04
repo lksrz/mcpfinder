@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Registry - The Hub for Model Context Protocol Tools</title>
+    <meta name="description" content="Discover and publish MCP tools for AI agents">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="manifest.json">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-text {
+            background: linear-gradient(90deg, #0ea5e9, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .hero-gradient {
+            background: radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.15), rgba(99, 102, 241, 0.05));
+        }
+        
+        .feature-icon {
+            background: linear-gradient(135deg, #0ea5e9, #6366f1);
+        }
+        
+        .code-block {
+            background-color: #1e293b;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            color: #e2e8f0;
+            font-family: "Fira Code", monospace;
+            overflow-x: auto;
+        }
+        
+        .highlight {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-800 bg-gray-50">
+    <!-- Navigation -->
+    <nav class="fixed w-full z-10 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <img src="logo.svg" alt="MCP Registry Logo" class="h-8 w-auto mr-3">
+                    <span class="text-2xl font-bold gradient-text">MCP Registry</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#features" class="text-gray-700 hover:text-primary-600 transition-colors gradient-underline">Features</a>
+                    <a href="#how-it-works" class="text-gray-700 hover:text-primary-600 transition-colors gradient-underline">How It Works</a>
+                    <a href="#api" class="text-gray-700 hover:text-primary-600 transition-colors gradient-underline">API</a>
+                    <a href="#roadmap" class="text-gray-700 hover:text-primary-600 transition-colors gradient-underline">Roadmap</a>
+                </div>
+                <div class="flex items-center">
+                    <a href="#" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        Get Started
+                    </a>
+                    <button id="mobile-menu-button" class="md:hidden ml-4 text-gray-600">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile menu, show/hide based on menu state -->
+        <div id="mobile-menu" class="md:hidden hidden bg-white border-b border-gray-200">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="#features" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">Features</a>
+                <a href="#how-it-works" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">How It Works</a>
+                <a href="#api" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">API</a>
+                <a href="#roadmap" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-50">Roadmap</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="pt-32 pb-20 hero-gradient">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="lg:grid lg:grid-cols-12 lg:gap-8">
+                <div class="lg:col-span-6">
+                    <h1 class="text-4xl md:text-5xl font-bold tracking-tight">
+                        The Central Hub for 
+                        <span class="gradient-text block">AI Tool Discovery</span>
+                    </h1>
+                    <p class="mt-6 text-xl text-gray-600">
+                        MCP Registry connects AI agents with the tools they need. Publish your MCP-compatible tools or discover capabilities for your AI agents in our lightweight, serverless registry.
+                    </p>
+                    <div class="mt-10 flex flex-col sm:flex-row gap-4">
+                        <a href="#" class="inline-flex items-center justify-center px-5 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-primary-600 hover:bg-primary-700">
+                            Register Your Tool
+                        </a>
+                        <a href="#" class="inline-flex items-center justify-center px-5 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50">
+                            Explore Registry
+                        </a>
+                    </div>
+                </div>
+                <div class="mt-12 lg:mt-0 lg:col-span-6">
+                    <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 code-window">
+                        <div class="bg-gray-800 px-4 py-2 flex items-center">
+                            <div class="flex space-x-1.5">
+                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                            </div>
+                            <div class="ml-4 text-gray-200 text-sm">mcp-cli.js</div>
+                        </div>
+                        <div class="p-4 bg-gray-900 text-gray-200 font-mono text-sm overflow-x-auto">
+                            <div><span class="text-purple-400">const</span> <span class="text-blue-300">mcpCli</span> = <span class="text-yellow-300">require</span>(<span class="text-green-300">'mcp-cli'</span>);</div>
+                            <div class="mt-2"><span class="text-green-200">// Register your MCP tool with just one command</span></div>
+                            <div class="mt-1"><span class="text-blue-300">mcpCli</span>.<span class="text-yellow-300">register</span>(<span class="text-green-300">'./mcp.json'</span>)</div>
+                            <div class="mt-1">&nbsp;&nbsp;.<span class="text-yellow-300">then</span>(<span class="text-purple-400">response</span> => {</div>
+                            <div class="mt-1">&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-yellow-300">console</span>.<span class="text-blue-300">log</span>(<span class="text-green-300">`Tool registered! ID: ${</span><span class="text-purple-400">response</span>.<span class="text-blue-300">id</span><span class="text-green-300">}`</span>);</div>
+                            <div class="mt-1">&nbsp;&nbsp;});</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-gray-900">Why Use MCP Registry?</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+                    A lightweight serverless platform connecting AI agents with the tools they need
+                </p>
+            </div>
+
+            <div class="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3 feature-grid">
+                <!-- Feature 1 -->
+                <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow feature-card">
+                    <div class="feature-icon w-12 h-12 rounded-full flex items-center justify-center text-white mb-4">
+                        <i class="fas fa-tools text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900">Tool Registration</h3>
+                    <p class="mt-3 text-gray-600">
+                        Easily register your MCP-compatible tools via CLI or REST API, making them discoverable by AI agents worldwide.
+                    </p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow feature-card">
+                    <div class="feature-icon w-12 h-12 rounded-full flex items-center justify-center text-white mb-4">
+                        <i class="fas fa-search text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900">Tool Discovery</h3>
+                    <p class="mt-3 text-gray-600">
+                        Find the perfect tools for your AI agent using our powerful search API with tagging and categorization.
+                    </p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow feature-card">
+                    <div class="feature-icon w-12 h-12 rounded-full flex items-center justify-center text-white mb-4">
+                        <i class="fas fa-heartbeat text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900">Health Monitoring</h3>
+                    <p class="mt-3 text-gray-600">
+                        Continuous health checks ensure your agents only connect to available and functioning MCP tools.
+                    </p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow feature-card">
+                    <div class="feature-icon w-12 h-12 rounded-full flex items-center justify-center text-white mb-4">
+                        <i class="fas fa-feather-alt text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900">Lightweight & Serverless</h3>
+                    <p class="mt-3 text-gray-600">
+                        Built on Cloudflare Workers with KV and R2 storage for maximum performance, reliability and minimal overhead.
+                    </p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow feature-card">
+                    <div class="feature-icon w-12 h-12 rounded-full flex items-center justify-center text-white mb-4">
+                        <i class="fas fa-shield-alt text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900">Secure</h3>
+                    <p class="mt-3 text-gray-600">
+                        HMAC authentication for registration and simple rate limiting to protect the ecosystem.
+                    </p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow feature-card">
+                    <div class="feature-icon w-12 h-12 rounded-full flex items-center justify-center text-white mb-4">
+                        <i class="fas fa-robot text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900">Agent Friendly</h3>
+                    <p class="mt-3 text-gray-600">
+                        Designed for AI agents to autonomously discover, evaluate, and integrate new capabilities.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="py-16 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-gray-900">How It Works</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+                    Simple workflow for both tool publishers and AI agents
+                </p>
+            </div>
+
+            <div class="mt-16">
+                <div class="lg:grid lg:grid-cols-2 lg:gap-12 items-center">
+                    <div>
+                        <h3 class="text-2xl font-semibold text-gray-900">For Tool Publishers</h3>
+                        <ul class="mt-6 space-y-6">
+                            <li class="flex">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">1</div>
+                                </div>
+                                <div class="ml-4">
+                                    <h4 class="text-lg font-medium text-gray-900">Create Your MCP Tool</h4>
+                                    <p class="mt-1 text-gray-600">Build a server implementing the MCP protocol to provide capabilities to AI agents.</p>
+                                </div>
+                            </li>
+                            <li class="flex">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">2</div>
+                                </div>
+                                <div class="ml-4">
+                                    <h4 class="text-lg font-medium text-gray-900">Define Your Manifest</h4>
+                                    <p class="mt-1 text-gray-600">Create an mcp.json file describing your tool's capabilities, authentication requirements, and other metadata.</p>
+                                </div>
+                            </li>
+                            <li class="flex">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">3</div>
+                                </div>
+                                <div class="ml-4">
+                                    <h4 class="text-lg font-medium text-gray-900">Register with MCP Registry</h4>
+                                    <p class="mt-1 text-gray-600">Use our CLI or REST API to register your tool, making it discoverable by AI agents.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="mt-10 lg:mt-0">
+                        <h3 class="text-2xl font-semibold text-gray-900">For AI Agents</h3>
+                        <ul class="mt-6 space-y-6">
+                            <li class="flex">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">1</div>
+                                </div>
+                                <div class="ml-4">
+                                    <h4 class="text-lg font-medium text-gray-900">Search for Capabilities</h4>
+                                    <p class="mt-1 text-gray-600">Query the registry's search API to find tools that match your requirements.</p>
+                                </div>
+                            </li>
+                            <li class="flex">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">2</div>
+                                </div>
+                                <div class="ml-4">
+                                    <h4 class="text-lg font-medium text-gray-900">Get Tool Details</h4>
+                                    <p class="mt-1 text-gray-600">Retrieve complete tool metadata including endpoint URL, capabilities, and authentication requirements.</p>
+                                </div>
+                            </li>
+                            <li class="flex">
+                                <div class="flex-shrink-0">
+                                    <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">3</div>
+                                </div>
+                                <div class="ml-4">
+                                    <h4 class="text-lg font-medium text-gray-900">Connect & Utilize</h4>
+                                    <p class="mt-1 text-gray-600">Connect directly to the tool using the MCP protocol and expand your capabilities.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- API Section -->
+    <section id="api" class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-gray-900">Simple & Powerful API</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+                    Easy-to-use endpoints for registration, discovery, and search
+                </p>
+            </div>
+
+            <div class="mt-12 bg-gray-900 rounded-lg shadow-lg overflow-hidden code-window">
+                <div class="bg-gray-800 px-4 py-2 flex items-center">
+                    <div class="flex space-x-1.5">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    </div>
+                    <div class="ml-4 text-gray-200 text-sm">API Examples</div>
+                </div>
+                <div class="p-6 text-gray-300 font-mono text-sm">
+                    <div class="mb-6">
+                        <div class="text-purple-400 mb-2"># Register a new tool</div>
+                        <div class="text-blue-300">POST /api/v1/register</div>
+                        <div class="mt-2 text-gray-400">Headers: Authorization: HMAC &lt;signature&gt;</div>
+                        <div class="mt-2 p-3 bg-gray-800 rounded">
+{<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"name"</span>: <span class="text-green-300">"WeatherMCP"</span>,<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"description"</span>: <span class="text-green-300">"Get current weather and forecasts"</span>,<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"url"</span>: <span class="text-green-300">"https://weather-mcp.example.com"</span>,<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"protocol_version"</span>: <span class="text-green-300">"MCP/1.0"</span>,<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"capabilities"</span>: [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="text-yellow-300">"name"</span>: <span class="text-green-300">"getCurrentWeather"</span>, <span class="text-yellow-300">"type"</span>: <span class="text-green-300">"resource"</span> },<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="text-yellow-300">"name"</span>: <span class="text-green-300">"getForecast"</span>, <span class="text-yellow-300">"type"</span>: <span class="text-green-300">"resource"</span> }<br>
+&nbsp;&nbsp;],<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"tags"</span>: [<span class="text-green-300">"weather"</span>, <span class="text-green-300">"forecast"</span>]<br>
+}
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <div class="text-purple-400 mb-2"># Search for tools</div>
+                        <div class="text-blue-300">GET /api/v1/search?tag=weather&q=forecast</div>
+                    </div>
+
+                    <div>
+                        <div class="text-purple-400 mb-2"># Get tool details</div>
+                        <div class="text-blue-300">GET /api/v1/tools/:id</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap Section -->
+    <section id="roadmap" class="py-16 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-gray-900">Roadmap</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+                    What's next for MCP Registry
+                </p>
+            </div>
+
+            <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div class="bg-white p-6 rounded-lg shadow feature-card">
+                    <div class="text-primary-600 text-xl mb-3">
+                        <i class="fas fa-window-restore"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Web UI</h3>
+                    <p class="mt-2 text-gray-600">
+                        Interactive web interface for browsing, filtering, and managing tools.
+                    </p>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow feature-card">
+                    <div class="text-primary-600 text-xl mb-3">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Publisher Accounts</h3>
+                    <p class="mt-2 text-gray-600">
+                        JWT/OAuth login for secure tool publishing and management.
+                    </p>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow feature-card">
+                    <div class="text-primary-600 text-xl mb-3">
+                        <i class="fas fa-signature"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Manifest Signing</h3>
+                    <p class="mt-2 text-gray-600">
+                        Ed25519 signatures and DNS TXT verification for enhanced security.
+                    </p>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow feature-card">
+                    <div class="text-primary-600 text-xl mb-3">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Semantic Search</h3>
+                    <p class="mt-2 text-gray-600">
+                        Vector-based embeddings for more intelligent tool discovery.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-16 bg-primary-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl font-bold text-white">Ready to Join the MCP Ecosystem?</h2>
+            <p class="mt-4 text-xl text-primary-100 max-w-3xl mx-auto">
+                Whether you're building tools or looking to enhance your AI agents, MCP Registry connects you to a world of possibilities.
+            </p>
+            <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center cta-buttons">
+                <a href="#" class="inline-flex items-center justify-center px-5 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-primary-700 bg-white hover:bg-gray-100">
+                    Get Started
+                </a>
+                <a href="#" class="inline-flex items-center justify-center px-5 py-3 border border-white rounded-md shadow-sm text-base font-medium text-white hover:bg-primary-600">
+                    Read Documentation
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-400">
+        <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div class="md:col-span-2">
+                    <div class="flex items-center">
+                        <img src="logo.svg" alt="MCP Registry Logo" class="h-8 w-auto mr-3">
+                        <span class="text-2xl font-bold text-white">MCP Registry</span>
+                    </div>
+                    <p class="mt-2">The hub for Model Context Protocol tools.</p>
+                    <p class="mt-4">Built on Cloudflare Workers &middot; KV &middot; R2</p>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-300 tracking-wider uppercase">Resources</h3>
+                    <ul class="mt-4 space-y-2">
+                        <li><a href="#" class="hover:text-white">Documentation</a></li>
+                        <li><a href="#" class="hover:text-white">API Reference</a></li>
+                        <li><a href="#" class="hover:text-white">GitHub</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-300 tracking-wider uppercase">Community</h3>
+                    <ul class="mt-4 space-y-2">
+                        <li><a href="#" class="hover:text-white">Discord</a></li>
+                        <li><a href="#" class="hover:text-white">Twitter</a></li>
+                        <li><a href="#" class="hover:text-white">Blog</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-8 pt-8 border-t border-gray-700 flex flex-col md:flex-row justify-between items-center">
+                <p>&copy; 2023 MCP Registry. All rights reserved.</p>
+                <div class="mt-4 md:mt-0 flex space-x-6">
+                    <a href="#" class="text-gray-400 hover:text-white">
+                        <i class="fab fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white">
+                        <i class="fab fa-twitter text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white">
+                        <i class="fab fa-discord text-xl"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <script src="script.js"></script>
+</body>
+</html> 

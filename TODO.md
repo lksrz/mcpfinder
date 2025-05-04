@@ -1,11 +1,11 @@
-# MCP Registry - MVP TODO List
+# MCP Finder - MVP TODO List
 
 ## 1. Setup & Configuration
 
 - Initialize project:
   - `npm init -y`
   - Install Cloudflare Wrangler: `npm install -g @cloudflare/wrangler`
-  - Create worker: `wrangler init mcp-registry --type=javascript`
+  - Create worker: `wrangler init mcp-finder --type=javascript`
 - Initialize Git repository and connect to remote.
 - Configure `wrangler.toml`:
   - Bind KV namespaces: `TOOLS_KV`, `TAGS_KV`, `API_KEYS_KV`

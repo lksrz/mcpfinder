@@ -201,7 +201,7 @@ Całość da się zrobić na Cloudflare Workers + Durable Objects (rejestr + kol
 
 MVP – Cloudflare Workers + KV + R2, Node / wrangler
 	1.	Bootstrap
-	•	npm/pnpm create cf → repo mcp-registry
+	•	npm/pnpm create cf → repo mcpfinder
 	•	wrangler dev + deploy CI (GitHub Actions)
 	•	Environment vars: REGISTRY_SECRET, API_KEYS_KV, TOOLS_KV
 	2.	Manifest spec v0.1

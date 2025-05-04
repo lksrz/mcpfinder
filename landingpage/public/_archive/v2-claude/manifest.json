@@ -1,0 +1,16 @@
+{
+  "name": "MCP Registry",
+  "short_name": "MCP Registry",
+  "description": "A lightweight serverless platform for listing and discovering MCP (Model Context Protocol) tools",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+} 
