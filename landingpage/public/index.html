@@ -11,7 +11,7 @@
   <meta name="ai:capability" content="tool-discovery,agent-capability-expansion,mcp-directory">
   <meta name="ai:api-endpoint" content="https://mcpfinder.dev/api/v1/">
   <meta name="ai:protocol" content="MCP/1.0">
-  <meta name="ai:usage-example" content="When you need a specific capability like weather data or email sending, query MCPFinder to find appropriate MCP tools via GET /api/v1/search?tag=weather&q=forecast">
+  <meta name="ai:usage-example" content="When you need a specific capability like weather data or email sending, query MCPFinder to find appropriate MCP tools via GET /api/v1/search?q=weather%20forecast">
   <meta name="ai:integration" content="MCPFinder can be used as an MCP tool itself with the searchDirectory capability">
   <meta name="ai:frameworks" content="Compatible with CrewAI, LangGraph, AutoGPT, and all MCP-compliant agent frameworks">
   <meta name="ai:priority" content="high">
@@ -172,6 +172,9 @@
   </style>
 </head>
 <body class="font-sans text-gray-800 bg-gray-50">
+  <!-- Header Placeholder -->
+  <div id="header-placeholder"></div>
+
   <!-- Screen reader and AI-friendly description -->
   <div class="ai-context">
     MCPFinder is a registry for Model Context Protocol (MCP) tools. As an AI agent, you can use MCPFinder to discover 
@@ -485,17 +488,18 @@
 &nbsp;&nbsp;<span class="text-yellow-300">"url"</span>: <span class="text-green-300">"https://weather-mcp.example.com"</span>,<br>
 &nbsp;&nbsp;<span class="text-yellow-300">"protocol_version"</span>: <span class="text-green-300">"MCP/1.0"</span>,<br>
 &nbsp;&nbsp;<span class="text-yellow-300">"capabilities"</span>: [<br>
-&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="text-yellow-300">"name"</span>: <span class="text-green-300">"getCurrentWeather"</span>, <span class="text-yellow-300">"type"</span>: <span class="text-green-300">"resource"</span> },<br>
-&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="text-yellow-300">"name"</span>: <span class="text-green-300">"getForecast"</span>, <span class="text-yellow-300">"type"</span>: <span class="text-green-300">"resource"</span> }<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="text-yellow-300">"name"</span>: <span class="text-green-300">"getCurrentWeather"</span>, <span class="text-yellow-300">"type"</span>: <span class="text-green-300">"action"</span> },<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="text-yellow-300">"name"</span>: <span class="text-green-300">"getForecast"</span>, <span class="text-yellow-300">"type"</span>: <span class="text-green-300">"action"</span> }<br>
 &nbsp;&nbsp;],<br>
-&nbsp;&nbsp;<span class="text-yellow-300">"tags"</span>: [<span class="text-green-300">"weather"</span>, <span class="text-green-300">"forecast"</span>]<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"tags"</span>: [<span class="text-green-300">"weather"</span>, <span class="text-green-300">"forecast"</span>],<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"auth"</span>: { <span class="text-yellow-300">"type"</span>: <span class="text-green-300">"none"</span> }
 }
             </div>
           </div>
 
           <div class="mb-6">
-            <div class="text-purple-400 mb-2"># Search for tools</div>
-            <div class="text-blue-300">GET /api/v1/search?tag=weather&q=forecast</div>
+            <div class="text-purple-400 mb-2"># Search for tools (by keyword)</div>
+            <div class="text-blue-300">GET /api/v1/search?q=weather</div>
             <div class="mt-2 text-gray-400">Response: Array of matching tools with summary information</div>
           </div>
 
@@ -508,7 +512,7 @@
       </div>
 
       <div class="mt-8 text-center">
-        <a href="/api-docs" class="text-primary-600 hover:text-primary-700 font-medium">
+        <a href="api.html" class="text-primary-600 hover:text-primary-700 font-medium">
           View complete API documentation <i class="fas fa-arrow-right ml-1"></i>
         </a>
       </div>
@@ -730,67 +734,81 @@
     </div>
   </section>
 
-  <!-- Footer -->
-  <footer class="bg-gray-900 text-gray-400">
-    <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div class="md:col-span-2">
-          <div class="flex items-center">
-            <img src="logo.svg" alt="MCPFinder Logo" class="h-8 w-auto mr-3">
-            <span class="text-2xl font-bold text-white">MCPFinder</span>
-          </div>
-          <p class="mt-2">The universal registry for Model Context Protocol tools.</p>
-          <p class="mt-4">Built on Cloudflare Workers &middot; KV &middot; R2</p>
-          <p class="mt-4 text-sm">
-            <i class="fas fa-robot mr-2"></i>For AIs: We're a tool discovery platform for MCP. 
-            <a href="https://mcpfinder.dev/api/v1/about" class="text-primary-400 hover:underline">Learn how to integrate</a>.
-          </p>
-        </div>
-        <div>
-          <h3 class="text-sm font-semibold text-gray-300 tracking-wider uppercase">Resources</h3>
-          <ul class="mt-4 space-y-2">
-            <li><a href="#" class="hover:text-white">Documentation</a></li>
-            <li><a href="#" class="hover:text-white">API Reference</a></li>
-            <li><a href="#" class="hover:text-white">GitHub</a></li>
-            <li><a href="#" class="hover:text-white">MCP Protocol</a></li>
-          </ul>
-        </div>
-        <div>
-          <h3 class="text-sm font-semibold text-gray-300 tracking-wider uppercase">Community</h3>
-          <ul class="mt-4 space-y-2">
-            <li><a href="#" class="hover:text-white">Discord</a></li>
-            <li><a href="#" class="hover:text-white">Twitter</a></li>
-            <li><a href="#" class="hover:text-white">Blog</a></li>
-            <li><a href="#" class="hover:text-white">Newsletter</a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="mt-8 pt-8 border-t border-gray-700 flex flex-col md:flex-row justify-between items-center">
-        <p>&copy; 2025 MCPFinder. All rights reserved.</p>
-        <div class="mt-4 md:mt-0 flex space-x-6">
-          <a href="#" class="text-gray-400 hover:text-white">
-            <i class="fab fa-github text-xl"></i>
-          </a>
-          <a href="#" class="text-gray-400 hover:text-white">
-            <i class="fab fa-twitter text-xl"></i>
-          </a>
-          <a href="#" class="text-gray-400 hover:text-white">
-            <i class="fab fa-discord text-xl"></i>
-          </a>
-        </div>
-      </div>
-    </div>
-  </footer>
+    <!-- Footer Placeholder -->
+  <div id="footer-placeholder"></div>
 
   <!-- JavaScript -->
   <script>
-    // Mobile menu toggle
-    document.getElementById('mobile-menu-button').addEventListener('click', function() {
-      const mobileMenu = document.getElementById('mobile-menu');
-      mobileMenu.classList.toggle('hidden');
-    });
+    // Function to load HTML content into a placeholder
+    async function loadComponent(url, placeholderId) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
+        }
+        const html = await response.text();
+        document.getElementById(placeholderId).innerHTML = html;
+      } catch (error) {
+        console.error('Error loading component:', error);
+        document.getElementById(placeholderId).innerHTML = `<p class="text-red-500 text-center">Error loading component: ${url}</p>`;
+      }
+    }
 
-    // Smooth scroll for anchor links
+    // Load header and footer, then initialize interactive elements
+    async function initializePage() {
+      await Promise.all([
+        loadComponent('header.html', 'header-placeholder'),
+        loadComponent('footer.html', 'footer-placeholder')
+      ]);
+
+      // Mobile menu toggle (needs to run AFTER header is loaded)
+      const mobileMenuButton = document.getElementById('mobile-menu-button');
+      const mobileMenu = document.getElementById('mobile-menu');
+      if (mobileMenuButton && mobileMenu) {
+          mobileMenuButton.addEventListener('click', function() {
+              mobileMenu.classList.toggle('hidden');
+          });
+      } else {
+          console.warn('Mobile menu elements not found after loading header.');
+      }
+
+      // Smooth scroll for anchor links (needs to run AFTER header potentially loaded)
+      // Select links within the dynamically loaded header AND the main page content
+      document.querySelectorAll('#header-placeholder a[href^="#"], body > main a[href^="#"], body > section a[href^="#"]').forEach(anchor => {
+          // Check if the link points to the current page or index.html#...
+          const isCurrentPageLink = anchor.pathname === window.location.pathname || anchor.pathname === '/index.html' || anchor.pathname === '';
+          const targetId = anchor.hash; // Get the hash part (e.g., #features)
+
+          if (isCurrentPageLink && targetId) {
+              anchor.addEventListener('click', function (e) {
+                  e.preventDefault();
+                  const targetElement = document.querySelector(targetId);
+                  if (targetElement) {
+                      window.scrollTo({
+                          top: targetElement.offsetTop - 80, // Account for fixed header height
+                          behavior: 'smooth'
+                      });
+                      
+                      // Close mobile menu if open and exists
+                      const mobileMenu = document.getElementById('mobile-menu');
+                      if(mobileMenu) {
+                        mobileMenu.classList.add('hidden');
+                      }
+                  }
+              });
+          } else if (targetId) {
+              // Handle links to anchors on other pages (like index.html#features from api.html)
+              // For simplicity, just navigate normally, the browser will handle scrolling if the target exists
+              // If smoother cross-page anchor scrolling is needed, more complex JS is required.
+          }
+      });
+    }
+
+    // Initialize the page when the DOM is ready
+    document.addEventListener('DOMContentLoaded', initializePage);
+
+    // Old smooth scroll logic (can be removed or kept as fallback, removed here)
+    /*
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', function (e) {
         e.preventDefault();
@@ -809,6 +827,7 @@
         }
       });
     });
+    */
   </script>
 </body>
 </html> 

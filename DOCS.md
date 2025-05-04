@@ -74,31 +74,20 @@ Validate against JSON schema (`/schemas/mcp.v0.1.schema.json`) using `ajv` in th
 
 ### 3. API Endpoints
 
-| Method | Path                    | Description                         |
-| ------ | ----------------------- | ----------------------------------- |
-| POST   | /api/v1/register        | Register a tool (HMAC auth)         |
-| GET    | /api/v1/tools/:id       | Get full manifest by ID             |
-| GET    | /api/v1/search?tag=&q=  | Search tools by tag or keyword      |
+Refer to the [API Documentation](landingpage/public/api.html) for detailed endpoint specifications, request/response formats, and authentication requirements. The documentation includes a link to the machine-readable [OpenAPI 3.1 specification](landingpage/public/openapi.yaml).
 
-**Details:**
+### 3.1 API Design Standards
 
-- **POST /register**
-  1. Authenticate using HMAC header with `REGISTRY_SECRET`.
-  2. Validate JSON body against schema.
-  3. Ping `url` (GET).
-  4. Store manifest in `TOOLS_KV` (generate UUID). Backup in R2.
-  5. Update `TAGS_KV` entries.
-  6. Respond `{ success: true, id }`.
+The API adheres to the following standards:
 
-- **GET /tools/:id**
-  - Fetch `tool:<id>` from KV or return 404.
-
-- **GET /search**
-  - If `tag`, fetch list from `TAGS_KV`.
-  - If `q`, scan KV entries for name/description match.
-  - Return list of summaries `{ id, name, description, url, status, tags }`.
-
-Enable CORS (`*`) for GET endpoints.
+*   **Specification**: OpenAPI 3.1 ([`landingpage/public/openapi.yaml`](landingpage/public/openapi.yaml)). This serves as the definitive contract.
+*   **Protocol**: RESTful principles using standard HTTP verbs (GET, POST) and resource-oriented nouns (e.g., `/tools/{id}`).
+*   **Status Codes**: Standard HTTP status codes are used (2xx for success, 4xx for client errors, 5xx for server errors).
+*   **Error Responses**: Errors follow the RFC-7807 `application/problem+json` format, providing `type`, `title`, `status`, and `detail` fields.
+*   **Data Schemas**: Request and response bodies are defined using JSON Schema (Draft 2020-12), located within the `components/schemas` section of the OpenAPI specification.
+*   **Authentication**: Security requirements (like HMAC for registration) are declared under `components/securitySchemes` in the OpenAPI specification.
+*   **Versioning**: API versioning is handled via the URI path (`/api/v1/...`). Major version changes will result in a new path segment (e.g., `/api/v2/...`).
+*   **Linting & Testing**: It is recommended to use tools like [Spectral](https://github.com/stoplightio/spectral) to lint the OpenAPI specification against standard rulesets and custom rules. Contract testing (e.g., using tools like [Dredd](https://github.com/apiaryio/dredd) or provider-driven pact tests) should be integrated into the build/deployment pipeline to ensure the implementation matches the specification.
 
 ### 4. Health Checks
 
