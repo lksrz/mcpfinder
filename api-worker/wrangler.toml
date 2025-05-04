@@ -1,0 +1,26 @@
+name = "mcp-api-worker"
+main = "src/index.ts"
+compatibility_date = "2025-05-04"
+
+# KV Namespaces
+[[kv_namespaces]]
+binding = "MCP_TOOLS_KV"
+id = "59bfeb2ef6ab471a9a3461f113704891" # This will be replaced with a real ID for production
+preview_id = "59bfeb2ef6ab471a9a3461f113704891"
+
+[[kv_namespaces]]
+binding = "MCP_SEARCH_INDEX_KV" # For optimized search (optional for MVP)
+id = "38748fb584cb46dbab1585f66e6f2fb0" # Replaced with actual ID
+preview_id = "38748fb584cb46dbab1585f66e6f2fb0"
+
+# R2 Buckets
+[[r2_buckets]]
+binding = "MCP_MANIFEST_BACKUPS"
+bucket_name = "mcp-finder-manifest-backups"
+preview_bucket_name = "mcp-finder-manifest-backups"
+
+# Secrets (Create using `npx wrangler secret put MCP_REGISTRY_SECRET`)
+[vars]
+# MCP_REGISTRY_SECRET = "" # Define secrets via wrangler cli, not directly here
+
+# Add other configurations like routes if needed 

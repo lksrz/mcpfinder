@@ -34,7 +34,7 @@ A serverless platform for registering and discovering MCP (Model Context Protoco
    ```
 
 2. Configure Workers:
-   - Set `REGISTRY_SECRET` in your environment.
+   - Set `MCP_REGISTRY_SECRET` in your environment.
    - Update `wrangler.toml` files in each worker folder with KV/R2 bindings.
 
 3. Publish API Worker:

@@ -203,7 +203,7 @@ MVP – Cloudflare Workers + KV + R2, Node / wrangler
 	1.	Bootstrap
 	•	npm/pnpm create cf → repo mcpfinder
 	•	wrangler dev + deploy CI (GitHub Actions)
-	•	Environment vars: REGISTRY_SECRET, API_KEYS_KV, TOOLS_KV
+	•	Environment vars: MCP_REGISTRY_SECRET, MCP_API_KEYS_KV, MCP_TOOLS_KV
 	2.	Manifest spec v0.1
 	•	/.well-known/mcp.json → name, url, version, capabilities[], auth, tags
 	•	JSON schema in /schemas + AJV runtime validator
@@ -218,7 +218,7 @@ MVP – Cloudflare Workers + KV + R2, Node / wrangler
 	•	GET  /api/search?tag=&q= → simple filter (by tag OR full-text on name/description lowercase)
 	•	JSON responses, CORS *
 	5.	Publisher CLI (Node)
-	•	npx @mcp/cli register <url> – reads local manifest, signs HMAC with REGISTRY_SECRET, calls /api/register
+	•	npx @mcp/cli register <url> – reads local manifest, signs HMAC with MCP_REGISTRY_SECRET, calls /api/register
 	•	Output success + toolId
 	6.	Health-check Cron Trigger
 	•	Every 15 min iterate tool:* keys → HEAD manifest url → update status=up/down

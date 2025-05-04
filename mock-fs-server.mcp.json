@@ -1,0 +1,43 @@
+{
+  "name": "MockFileSystemAccess",
+  "description": "A mock server pretending to provide file system access. Tests explicit installation.",
+  "url": "./local-scripts/fs-server/run.sh", 
+  "protocol_version": "MCP/1.0",
+  "capabilities": [
+    { 
+      "name": "readFile", 
+      "type": "tool",
+      "description": "Reads a file content.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Path to the file." }
+        },
+        "required": ["path"]
+      }
+    },
+    { 
+      "name": "writeFile", 
+      "type": "tool",
+      "description": "Writes content to a file.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Path to the file." },
+          "content": { "type": "string", "description": "Content to write." }
+        },
+        "required": ["path", "content"]
+      }
+    }
+  ],
+  "tags": ["mock", "filesystem", "testing", "explicit-install"],
+  "installation": {
+    "command": ["/bin/bash", "./local-scripts/fs-server/run.sh", "--port", "7777"],
+    "env": {
+      "LOG_LEVEL": "debug",
+      "DATA_DIR": "/tmp/mock-fs-data"
+    },
+    "workingDirectory": "/opt/mock-fs-server"
+  },
+  "auth": null
+} 

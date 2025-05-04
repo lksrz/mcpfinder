@@ -1,0 +1,30 @@
+{
+  "name": "SampleMCPTool",
+  "description": "A sample tool for demonstrating MCP registration.",
+  "url": "http://localhost:9999/mcp",
+  "protocol_version": "MCP/1.0",
+  "capabilities": [
+    {
+      "name": "doSampleThing",
+      "type": "tool",
+      "description": "Performs a sample action.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "param1": { "type": "string", "description": "First parameter" }
+        },
+        "required": ["param1"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "result": { "type": "string" }
+        }
+      }
+    }
+  ],
+  "tags": ["sample", "demo", "test"],
+  "auth": {
+    "type": "none"
+  }
+} 

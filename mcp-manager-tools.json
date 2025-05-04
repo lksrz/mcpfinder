@@ -1,0 +1,115 @@
+[
+  {
+    "name": "search_mcp_servers",
+    "description": "Search the MCP Finder registry for available MCP servers based on keywords or tags.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Keywords to search for in server names or descriptions."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of tags to filter servers by."
+        }
+      },
+      "required": []
+    },
+    "annotations": {
+      "title": "Search MCP Servers",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true 
+    }
+  },
+  {
+    "name": "get_mcp_server_details",
+    "description": "Retrieve detailed information about a specific MCP server from the registry, including its command, default arguments, and any required environment variables (like API keys).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "server_identifier": {
+          "type": "string",
+          "description": "The unique identifier for the server (e.g., npm package name like '@modelcontextprotocol/server-github' or a registry ID)."
+        }
+      },
+      "required": ["server_identifier"]
+    },
+    "annotations": {
+      "title": "Get MCP Server Details",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "add_mcp_server_config",
+    "description": "Adds or updates an MCP server's configuration in the specified client's configuration file. Requires user permission before modifying local files. If the server requires environment variables (like API keys), they MUST be provided in the 'env' parameter.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "client_type": {
+          "type": "string",
+          "enum": ["cursor", "claude_desktop"],
+          "description": "The target client application whose configuration file needs modification."
+        },
+        "server_name": {
+          "type": "string",
+          "description": "A unique name for this server entry within the configuration file (e.g., 'github', 'my_filesystem')."
+        },
+        "command": {
+          "type": "string",
+          "description": "The command used to launch the server (e.g., 'npx', 'python', '/path/to/executable')."
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "An array of arguments to pass to the command."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Optional. Key-value pairs for environment variables required by the server (e.g., API keys like GITHUB_PERSONAL_ACCESS_TOKEN)."
+        }
+      },
+      "required": ["client_type", "server_name", "command", "args"]
+    },
+    "annotations": {
+      "title": "Add/Update MCP Server Config",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "remove_mcp_server_config",
+    "description": "Removes an MCP server's configuration from the specified client's configuration file. Requires user permission before modifying local files.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "client_type": {
+          "type": "string",
+          "enum": ["cursor", "claude_desktop"],
+          "description": "The target client application whose configuration file needs modification."
+        },
+        "server_name": {
+          "type": "string",
+          "description": "The unique name of the server entry to remove from the configuration file."
+        }
+      },
+      "required": ["client_type", "server_name"]
+    },
+    "annotations": {
+      "title": "Remove MCP Server Config",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  }
+] 

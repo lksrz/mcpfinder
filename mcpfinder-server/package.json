@@ -1,0 +1,25 @@
+{
+  "name": "@mcpfinder/server",
+  "version": "0.1.0",
+  "description": "MCP Server providing tools to find and manage other MCP server configurations",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "mcpfinder-server": "./index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol"
+  ],
+  "author": "MCP Finder Team",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.0",
+    "express": "^5.1.0",
+    "node-fetch": "^3.3.0",
+    "zod": "^3.24.3"
+  }
+}
