@@ -16,18 +16,27 @@ interface ToolSummary {
 export const searchTools = async (c: Context<{ Bindings: Bindings }>) => {
     const query = c.req.query('q')?.toLowerCase();
     const tag = c.req.query('tag')?.toLowerCase();
-    const limit = parseInt(c.req.query('limit') || '50', 10);
+    let limit = parseInt(c.req.query('limit') || '50', 10);
+    const HARD_LIMIT = 100;
 
     if (isNaN(limit) || limit <= 0) {
-        throw new HTTPException(400, { message: 'Invalid limit parameter' });
+        limit = 50;
+        if (parseInt(c.req.query('limit') || 'ignored', 10) <= 0) {
+            throw new HTTPException(400, { message: 'Invalid limit parameter: must be positive' });
+        }
     }
+
+    limit = Math.min(limit, HARD_LIMIT);
 
     try {
         // List all tool keys from KV (potentially slow for large datasets)
         const listResult = await c.env.MCP_TOOLS_KV.list({ prefix: 'tool:' });
         const keys = listResult.keys;
 
-        const results: ToolSummary[] = [];
+        // Define a type that includes the score
+        type ResultWithScore = ToolSummary & { score: number };
+
+        const results: ResultWithScore[] = [];
         const fetchPromises: Promise<void>[] = [];
 
         // Fetch and filter manifests concurrently (within Worker limits)
@@ -39,48 +48,62 @@ export const searchTools = async (c: Context<{ Bindings: Bindings }>) => {
 
                     try {
                         const manifest = JSON.parse(manifestJson);
-                        let match = true; // Assume match initially
+                        let score = 0;
+                        let isQueryResultMatch = false; // Tracks if any query word matched
 
                         // Split query into words if it exists
                         const queryWords = query ? query.split(/\s+/).filter(Boolean) : []; // Splits by whitespace, removes empty strings
 
-                        // Filter by query words (match if ANY word is found in name, desc, or tags)
+                        // Calculate score based on query words found
                         if (queryWords.length > 0) {
                             const nameLower = manifest.name?.toLowerCase() || '';
                             const descLower = manifest.description?.toLowerCase() || '';
-                            // Ensure tags are always an array for the check
-                            const tagsLower = manifest.tags?.map((t: string) => t.toLowerCase()) || []; 
+                            const tagsLower = manifest.tags?.map((t: string) => t.toLowerCase()) || [];
                             
-                            const wordMatch = queryWords.some(word => 
-                                nameLower.includes(word) || 
-                                descLower.includes(word) ||
-                                // Check if any tag in the manifest includes the word
-                                tagsLower.some(manifestTag => manifestTag.includes(word))
-                            );
-                            
-                            if (!wordMatch) {
-                                match = false;
-                            }
+                            // Check for 'capabilities' first, then fall back to 'tools'
+                            const toolsArray = (manifest.capabilities && Array.isArray(manifest.capabilities))
+                                ? manifest.capabilities
+                                : (manifest.tools && Array.isArray(manifest.tools))
+                                    ? manifest.tools
+                                    : []; // Default to empty array if neither exists
+
+                            const toolDescriptionsLower = toolsArray.map((tool: any) => tool.description?.toLowerCase() || '');
+
+                            queryWords.forEach(word => {
+                                let wordFound = false;
+                                if (nameLower.includes(word)) wordFound = true;
+                                if (descLower.includes(word)) wordFound = true;
+                                if (tagsLower.some(manifestTag => manifestTag.includes(word))) wordFound = true;
+                                if (toolDescriptionsLower.some(toolDesc => toolDesc.includes(word))) wordFound = true;
+                                
+                                if (wordFound) {
+                                    score++; // Increment score for each unique word found
+                                    isQueryResultMatch = true; // Mark that at least one query word matched
+                                }
+                            });
+                        } else {
+                            // If no query, all items are considered a match initially for tag filtering
+                            isQueryResultMatch = true; 
                         }
 
                         // Filter by tag (case-insensitive exact match)
-                        if (match && tag) {
-                            // Use tagsLower if already calculated, otherwise calculate here
+                        let isTagMatch = true;
+                        if (tag) {
                             const currentTagsLower = manifest.tags?.map((t: string) => t.toLowerCase()) || [];
                             if (!currentTagsLower.includes(tag)) {
-                                match = false;
+                                isTagMatch = false;
                             }
                         }
 
-                        // If it matches filters (or no filters applied), add summary to results
-                        if (match) {
-                            // Use push which is safe for concurrent access if order doesn't matter
+                        // If it matches filters (query words OR no query, AND tag OR no tag), add summary to results
+                        if (isQueryResultMatch && isTagMatch) {
                             results.push({
                                 id: manifest._id, // Use the internal ID
                                 name: manifest.name,
                                 description: manifest.description,
                                 url: manifest.url,
                                 tags: manifest.tags,
+                                score: score, // Include the calculated score
                             });
                         }
                     } catch (parseError) {
@@ -94,10 +117,16 @@ export const searchTools = async (c: Context<{ Bindings: Bindings }>) => {
         // Wait for all fetches and filters to complete
         await Promise.all(fetchPromises);
 
+        // Sort results by score (descending)
+        results.sort((a, b) => b.score - a.score);
+
         // Limit the results
         const limitedResults = results.slice(0, limit);
 
-        return c.json(limitedResults);
+        // Map results to the final ToolSummary structure (remove score)
+        const finalResults: ToolSummary[] = limitedResults.map(({ score, ...summary }) => summary);
+
+        return c.json(finalResults);
 
     } catch (error: any) {
         console.error('Error searching tools:', error);

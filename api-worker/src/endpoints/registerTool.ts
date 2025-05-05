@@ -138,12 +138,43 @@ function validateManifest(data: any): { valid: boolean; errors: string[] } {
   }
   
   // Check for additional properties
-  const allowedProps = ['name', 'description', 'url', 'protocol_version', 'capabilities', 'tags', 'auth'];
+  const allowedProps = ['name', 'description', 'url', 'protocol_version', 'capabilities', 'tags', 'auth', 'installation'];
   Object.keys(data).forEach(key => {
     if (!allowedProps.includes(key)) {
       errors.push(`Additional property not allowed: ${key}`);
     }
   });
+  
+  // Validate installation (if provided)
+  if (data.installation !== undefined) {
+    if (typeof data.installation !== 'object' || Array.isArray(data.installation)) {
+      errors.push('installation must be an object');
+    } else {
+      const allowedInstallProps = ['command', 'args', 'env', 'workingDirectory'];
+      Object.keys(data.installation).forEach(key => {
+        if (!allowedInstallProps.includes(key)) {
+          errors.push(`Additional property not allowed in installation: ${key}`);
+        }
+      });
+
+      if (data.installation.command !== undefined && typeof data.installation.command !== 'string') {
+        errors.push('installation.command must be a string');
+      }
+      if (data.installation.args !== undefined) {
+        if (!Array.isArray(data.installation.args)) {
+          errors.push('installation.args must be an array');
+        } else if (!data.installation.args.every((arg: any) => typeof arg === 'string')) {
+          errors.push('installation.args must be an array of strings');
+        }
+      }
+      if (data.installation.env !== undefined && (typeof data.installation.env !== 'object' || Array.isArray(data.installation.env))) {
+        errors.push('installation.env must be an object');
+      }
+      if (data.installation.workingDirectory !== undefined && typeof data.installation.workingDirectory !== 'string') {
+        errors.push('installation.workingDirectory must be a string');
+      }
+    }
+  }
   
   return {
     valid: errors.length === 0,
@@ -163,6 +194,13 @@ async function verifyHmac(secret: string, body: string, signature: string): Prom
     }
 }
 
+interface InstallationDetails {
+    command?: string;
+    args?: string[];
+    env?: Record<string, string>;
+    workingDirectory?: string;
+}
+
 // Define an interface for the expected manifest structure
 interface McpManifest {
     name: string;
@@ -172,6 +210,7 @@ interface McpManifest {
     capabilities: Array<{ name: string; type: string; description?: string }>;
     tags?: string[];
     auth?: { type: string; instructions?: string; key_name?: string };
+    installation?: InstallationDetails;
     // Allow other properties potentially added during validation/processing
     [key: string]: any;
 }

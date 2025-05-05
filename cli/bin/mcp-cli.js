@@ -7,7 +7,6 @@ import fetch from 'node-fetch'; // Ensure node-fetch is installed or use native 
 
 // Define the base URL first
 const API_BASE_URL = process.env.MCPFINDER_API_URL || 'http://localhost:8787';
-const REGISTRY_SECRET = process.env.MCPFINDER_REGISTRY_SECRET;
 
 async function registerManifest(filePath) {
     // Construct the full API endpoint URL

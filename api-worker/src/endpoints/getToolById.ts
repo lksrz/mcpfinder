@@ -20,22 +20,47 @@ export const getToolById = async (c: Context<{ Bindings: Bindings }>) => {
         // Parse the JSON stored in KV
         const manifest = JSON.parse(manifestJson);
 
-        // --- ADDED: Construct Installation Details --- 
-        let installationDetails = {
-            command: manifest.installation?.command && Array.isArray(manifest.installation.command) && manifest.installation.command.length > 0 
-                     ? manifest.installation.command 
-                     : [],
-            env: manifest.installation?.env && typeof manifest.installation.env === 'object' 
+        // --- ADDED: Construct Installation Details ---
+        // Define the structure for installation details with separate command and args
+        interface InstallationDetails {
+            command?: string;
+            args?: string[];
+            env?: Record<string, string>;
+            workingDirectory?: string;
+        }
+
+        let installationDetails: InstallationDetails = {
+            // Initialize with potential values from manifest.installation
+            // Assuming manifest.installation might already follow the new structure
+            // or the old one. We need to handle both possibilities during transition
+            // or decide if we enforce the new structure immediately upon read.
+            // For now, let's prioritize the new structure if present.
+            command: manifest.installation?.command && typeof manifest.installation.command === 'string'
+                     ? manifest.installation.command
+                     : undefined,
+            args: manifest.installation?.args && Array.isArray(manifest.installation.args)
+                  ? manifest.installation.args
+                  : [], // Default to empty array if not present or invalid
+            env: manifest.installation?.env && typeof manifest.installation.env === 'object'
                  ? { ...manifest.installation.env } // Copy existing env
                  : {},
             workingDirectory: manifest.installation?.workingDirectory || undefined,
         };
 
-        // If no command was found in the manifest, try to infer from URL
-        if (installationDetails.command.length === 0 && manifest.url && !manifest.url.startsWith('http') && manifest.url.includes('/')) {
+        // Handle potential old format (command is an array)
+        if (!installationDetails.command && manifest.installation?.command && Array.isArray(manifest.installation.command) && manifest.installation.command.length > 0) {
+             console.warn(`[API Worker/getToolById] Manifest for ${toolId} uses old installation.command array format. Converting.`);
+             installationDetails.command = manifest.installation.command[0];
+             installationDetails.args = manifest.installation.command.slice(1);
+        }
+
+        // If no command was found in the manifest (neither new nor old format), try to infer from URL
+        if (!installationDetails.command && manifest.url && !manifest.url.startsWith('http') && manifest.url.includes('/')) {
             console.log(`[API Worker/getToolById] Inferring npx command for ${toolId} from URL: ${manifest.url}`);
-            installationDetails.command = ['npx', '-y', manifest.url];
-        } else if (installationDetails.command.length === 0) {
+            // Set command and args separately for npx
+            installationDetails.command = 'npx';
+            installationDetails.args = ['-y', manifest.url];
+        } else if (!installationDetails.command) {
              console.warn(`[API Worker/getToolById] Could not find or infer installation command for tool ID ${toolId}. URL: ${manifest.url}`);
         }
 

@@ -122,7 +122,7 @@ This MCP server (developed in [mcpfinder/server](https://github.com/mcpfinder/se
             *   `client_type`: A string identifying the client (e.g., 'cursor', 'claude', 'my-custom-app'). Known types ('cursor', 'claude', 'windsurf') resolve to default paths. For unknown types, `config_file_path` must be used.
             *   `config_file_path`: An absolute path to the target JSON configuration file. If the path contains spaces, provide the string argument with the spaces included literally (no shell escaping needed).
         *   **Note:** You must provide *either* `client_type` *or* `config_file_path`, but not both. The tool will return an error if this rule is violated.
-        *   If the full `mcp_definition` (including `command`) is provided, it's used directly.
+        *   If the full `mcp_definition` (including `command` and optional `args`) is provided, it's used directly.
         *   If `mcp_definition` is provided *without* `command` (e.g., only `env` or `workingDirectory`), the tool fetches the default command/args from the registry and merges them with the provided fields.
         *   If `mcp_definition` is omitted entirely, the tool fetches the complete default configuration (command, args) from the registry.
 4.  **Remove server configurations**: Modify the client's local configuration file to remove a server entry. This requires user permission.
