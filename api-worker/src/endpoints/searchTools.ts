@@ -102,7 +102,8 @@ export const searchTools = async (c: Context<{ Bindings: Bindings }>) => {
                                 name: manifest.name,
                                 description: manifest.description,
                                 url: manifest.url,
-                                tags: manifest.tags,
+                                // Ensure tags is always an array, default to empty if nullish or not an array
+                                tags: Array.isArray(manifest.tags) ? manifest.tags : [],
                                 score: score, // Include the calculated score
                             });
                         }

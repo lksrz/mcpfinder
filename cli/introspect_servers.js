@@ -170,6 +170,16 @@ function generateManifest(results) {
         protocol_version: "MCP/1.0", // Placeholder protocol version
         capabilities: capabilitiesArray,
 
+        // --- ADDED: Default Installation Details ---
+        // Assume servers discovered this way are run via npx
+        installation: {
+            command: 'npx',
+            args: ['-y', packageName], // Default args for npx execution
+            env: {}, // Default empty environment variables
+            // workingDirectory: undefined // Optional, can be omitted
+        },
+        // --- END ADDED ---
+
         // Optional fields from schema (if available)
         // tags: [], // Not available from introspection
         // auth: { type: "none" } // Assume none if not introspected
