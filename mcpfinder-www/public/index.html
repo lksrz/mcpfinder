@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MCPFinder - The AI Tool Discovery Platform</title>
-  <meta name="description" content="MCPFinder is the leading discovery platform for Model Context Protocol (MCP) tools. Find, register, and monitor AI capabilities in one place.">
+  <title>MCP Finder - App Store for AI Agents</title>
+  <meta name="description" content="MCP Finder Server enables AI agents to discover and install new capabilities on demand. The simplest way to supercharge your AI assistants.">
   
   <!-- For AI/ML crawlers and models - Enhanced metadata -->
-  <meta name="ai:description" content="MCPFinder is an open registry for Model Context Protocol (MCP) tools, allowing AI agents to discover and connect with external capabilities dynamically. API endpoints: /api/v1/register, /api/v1/tools/:id, /api/v1/search?tag=&q=">
+  <meta name="ai:description" content="MCP Finder Server enables language models to search for and install new capabilities on demand - an App Store for AI Agents. Simple installation: npx -y @mcpfinder/server --setup">
   <meta name="ai:capability" content="tool-discovery,agent-capability-expansion,mcp-directory">
   <meta name="ai:api-endpoint" content="https://mcpfinder.dev/api/v1/">
   <meta name="ai:protocol" content="MCP/1.0">
-  <meta name="ai:usage-example" content="When you need a specific capability like weather data or email sending, query MCPFinder to find appropriate MCP tools via GET /api/v1/search?q=weather%20forecast">
-  <meta name="ai:integration" content="MCPFinder can be used as an MCP tool itself with the searchDirectory capability">
+  <meta name="ai:usage-example" content="When users request tools you don't have yet, search and install new capabilities via MCP Finder Server">
+  <meta name="ai:integration" content="Works with Cursor, Claude Desktop, VS Code, and other MCP-compatible clients">
   <meta name="ai:frameworks" content="Compatible with CrewAI, LangGraph, AutoGPT, and all MCP-compliant agent frameworks">
   <meta name="ai:priority" content="high">
   
@@ -21,15 +21,15 @@
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "MCPFinder",
+    "name": "MCP Finder Server",
     "applicationCategory": "DeveloperApplication",
-    "operatingSystem": "Web",
+    "operatingSystem": "Cross-platform",
     "offers": {
       "@type": "Offer",
       "price": "0",
       "priceCurrency": "USD"
     },
-    "description": "The universal registry for Model Context Protocol (MCP) tools. Lets AI agents discover and connect to external capabilities.",
+    "description": "App Store for AI Agents. Enables language models to search for and install new capabilities on demand through MCP-compatible clients.",
     "potentialAction": {
       "@type": "SearchAction",
       "target": "https://mcpfinder.dev/api/v1/search?q={search_term}",
@@ -173,16 +173,10 @@
 </head>
 <body class="font-sans text-gray-800 bg-gray-50">
   <!-- Header Placeholder -->
-  <div id="header-placeholder"></div>
 
   <!-- Screen reader and AI-friendly description -->
   <div class="ai-context">
-    MCPFinder is a registry for Model Context Protocol (MCP) tools. As an AI agent, you can use MCPFinder to discover 
-    tools that extend your capabilities. The main API endpoints are: GET /api/v1/search for finding tools by tags or keywords, 
-    GET /api/v1/tools/:id for getting tool details, and POST /api/v1/register for registering new tools. 
-    MCPFinder also provides a native MCP endpoint with the searchDirectory capability, allowing agent-to-agent tool discovery 
-    without leaving the MCP protocol ecosystem. This is particularly useful for autonomous AI systems that need to expand 
-    their capabilities dynamically.
+    MCP Finder Server enables AI agents to discover and install new capabilities on demand. The simplest way to supercharge your AI assistants.
   </div>
 
   <!-- Navigation -->
@@ -190,13 +184,11 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16">
         <div class="flex items-center">
-          <img src="logo.svg" alt="MCPFinder Logo" class="h-8 w-auto mr-3">
           <span class="text-2xl font-bold gradient-text">MCPFinder</span>
         </div>
         <div class="hidden md:flex items-center space-x-8">
           <a href="#features" class="text-gray-700 hover:text-primary-600 transition-colors">Features</a>
           <a href="#how-it-works" class="text-gray-700 hover:text-primary-600 transition-colors">How It Works</a>
-          <a href="#api" class="text-gray-700 hover:text-primary-600 transition-colors">API</a>
           <a href="#roadmap" class="text-gray-700 hover:text-primary-600 transition-colors">Roadmap</a>
           <a href="#for-agents" class="text-gray-700 hover:text-primary-600 transition-colors">For AI Agents</a>
         </div>
@@ -229,25 +221,31 @@
       <div class="lg:grid lg:grid-cols-12 lg:gap-8">
         <div class="lg:col-span-6 opacity-0 animate-fade-in">
           <h1 class="text-4xl md:text-5xl font-bold tracking-tight">
-            The Universal Registry for
-            <span class="gradient-text block">AI Tool Discovery</span>
+            The App Store for
+            <span class="gradient-text block">AI Agents</span>
           </h1>
           <p class="mt-6 text-xl text-gray-600 opacity-0 animate-fade-in-delay-1">
-            MCPFinder is where AI agents meet capabilities. Connect your agents with the right tools through our lightweight, serverless Model Context Protocol (MCP) registry.
+            MCP Finder Server enables language models to search for and install new capabilities on demand. Supercharge your AI assistants with plug-and-play tools.
           </p>
-          <div class="mt-10 flex flex-col sm:flex-row gap-4 opacity-0 animate-fade-in-delay-2">
+          <div class="mt-8 p-4 bg-gray-800 rounded-lg shadow-md opacity-0 animate-fade-in-delay-2">
+            <div class="font-mono text-sm text-white">
+              <span class="text-green-400">$</span> <span class="text-blue-300">npx</span> -y @mcpfinder/server --setup
+            </div>
+            <p class="mt-2 text-xs text-gray-400">One command to enable AI capability discovery in compatible clients</p>
+          </div>
+          <div class="mt-6 flex flex-col sm:flex-row gap-4 opacity-0 animate-fade-in-delay-3">
             <a href="#get-started" class="inline-flex items-center justify-center px-5 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-primary-600 hover:bg-primary-700">
-              Register Your Tool
+              Get Started
             </a>
-            <a href="#explore" class="inline-flex items-center justify-center px-5 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50">
-              Explore Registry
+            <a href="https://www.npmjs.com/package/@mcpfinder/server" target="_blank" class="inline-flex items-center justify-center px-5 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50">
+              NPM Package
             </a>
           </div>
-          <div class="mt-6 text-sm text-gray-500 opacity-0 animate-fade-in-delay-3">
+          <div class="mt-4 text-sm text-gray-500 opacity-0 animate-fade-in-delay-3">
             <p>
               <i class="fas fa-robot mr-2"></i> <strong>For AI agents:</strong> 
               <a href="#for-agents" class="text-primary-600 hover:underline">
-                See how to discover and connect to tools automatically
+                See how to discover and install tools automatically
               </a>
             </p>
           </div>
@@ -260,17 +258,23 @@
                 <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
                 <div class="w-3 h-3 rounded-full bg-green-500"></div>
               </div>
-              <div class="ml-4 text-gray-200 text-sm">mcp-cli.js</div>
+              <div class="ml-4 text-gray-200 text-sm">Installation</div>
             </div>
             <div class="p-4 bg-gray-900 text-gray-200 font-mono text-sm overflow-x-auto" id="typing-code">
-              <div><span class="text-purple-400">const</span> <span class="text-blue-300">mcpCli</span> = <span class="text-yellow-300">require</span>(<span class="text-green-300">'@mcpfinder/cli'</span>);</div>
-              <div class="mt-2"><span class="text-green-200">// Register your MCP tool with a single command</span></div>
-              <div class="mt-1"><span class="text-blue-300">mcpCli</span>.<span class="text-yellow-300">register</span>(<span class="text-green-300">'./mcp.json'</span>)</div>
-              <div class="mt-1">&nbsp;&nbsp;.<span class="text-yellow-300">then</span>(<span class="text-purple-400">response</span> => {</div>
-              <div class="mt-1">&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-yellow-300">console</span>.<span class="text-blue-300">log</span>(<span class="text-green-300">`✓ Tool registered! ID: ${</span><span class="text-purple-400">response</span>.<span class="text-blue-300">id</span><span class="text-green-300">}`</span>);</div>
-              <div class="mt-1">&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-yellow-300">console</span>.<span class="text-blue-300">log</span>(<span class="text-green-300">`✓ Health check: ${</span><span class="text-purple-400">response</span>.<span class="text-blue-300">status</span><span class="text-green-300">}`</span>);</div>
-              <div class="mt-1">&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-yellow-300">console</span>.<span class="text-blue-300">log</span>(<span class="text-green-300">`✓ Discovery URL: mcpfinder.dev/tools/${</span><span class="text-purple-400">response</span>.<span class="text-blue-300">id</span><span class="text-green-300">}`</span>);</div>
-              <div class="mt-1">&nbsp;&nbsp;});</div>
+              <div><span class="text-purple-400">$</span> <span class="text-blue-300">npx</span> -y @mcpfinder/server --setup</div>
+              <div class="mt-2"><span class="text-green-200">✓ Welcome to MCP Finder Server setup!</span></div>
+              <div class="mt-1"><span class="text-white">Please select your MCP client:</span></div>
+              <div class="mt-1"><span class="text-green-200">1. Cursor</span></div>
+              <div class="mt-1"><span class="text-white">2. Claude Desktop</span></div>
+              <div class="mt-1"><span class="text-white">3. Visual Studio Code</span></div>
+              <div class="mt-1"><span class="text-white">4. Windsurf</span></div>
+              <div class="mt-1"><span class="text-white">5. Custom (specify path)</span></div>
+              <div class="mt-1"><span class="text-white">Choice: <span class="text-green-200">1</span></span></div>
+              <div class="mt-2"><span class="text-green-200">✓ Found configuration at ~/.cursor/mcp.json</span></div>
+              <div class="mt-1"><span class="text-green-200">✓ Added mcpfinder server to configuration</span></div>
+              <div class="mt-1"><span class="text-green-200">✓ Saved updated configuration</span></div>
+              <div class="mt-2"><span class="text-green-200">✓ MCP Finder Server is now available to your AI assistant!</span></div>
+              <div class="mt-1"><span class="text-white">You can now ask your AI to search for and install new tools.</span></div>
             </div>
           </div>
         </div>
@@ -278,80 +282,209 @@
     </div>
   </section>
 
+  <!-- AI Conversation Simulation Section -->
+  <section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-bold text-gray-900">See It In Action</h2>
+        <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+          Watch how your AI assistant can discover and install new tools on demand
+        </p>
+      </div>
+
+      <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 max-w-4xl mx-auto code-window">
+        <div class="bg-gray-800 px-4 py-2 flex items-center">
+          <div class="flex space-x-1.5">
+            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+          </div>
+          <div class="ml-4 text-gray-200 text-sm">AI Chat</div>
+        </div>
+        <div class="divide-y divide-gray-100" id="chat-simulation">
+          <!-- User Message -->
+          <div class="p-4 bg-gray-50" id="chat-msg-1">
+            <div class="flex items-start">
+              <div class="flex-shrink-0 mr-4">
+                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <i class="fas fa-user text-blue-500 text-sm"></i>
+                </div>
+              </div>
+              <div>
+                <p class="text-gray-800">Can you help me analyze the weather patterns in my area for the last month? I need to create a chart.</p>
+                </div>
+            </div>
+          </div>
+
+          <!-- AI Message 1 -->
+          <div class="p-4" id="chat-msg-2">
+            <div class="flex items-start">
+              <div class="flex-shrink-0 mr-4">
+                <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                  <i class="fas fa-robot text-purple-500 text-sm"></i>
+                </div>
+              </div>
+              <div>
+                <p class="text-gray-800">I'd be happy to help you analyze weather patterns, but I don't currently have a weather data tool available. Let me search for one I can install.</p>
+                <div class="mt-3 p-3 bg-gray-100 rounded-md text-sm">
+                  <p class="font-semibold text-gray-700">Searching for weather tools...</p>
+                  <div class="text-gray-600 mt-1">
+                    <p><span class="text-primary-600 font-medium">•</span> Found "WeatherAPI" - Get historical weather data and forecasts</p>
+                    <p><span class="text-primary-600 font-medium">•</span> Found "ClimateDataTool" - Access climate and meteorological data</p>
+                    <p><span class="text-primary-600 font-medium">•</span> Found "WeatherViz" - Weather data visualization capabilities</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Message 2 -->
+          <div class="p-4" id="chat-msg-3">
+            <div class="flex items-start">
+              <div class="flex-shrink-0 mr-4">
+                <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                  <i class="fas fa-robot text-purple-500 text-sm"></i>
+                </div>
+              </div>
+              <div>
+                <p class="text-gray-800">I'm installing the WeatherViz tool since it has both data access and visualization capabilities.</p>
+                <div class="mt-3 p-3 bg-gray-100 rounded-md text-sm">
+                  <p class="font-semibold text-gray-700">Installing WeatherViz tool...</p>
+                  <div class="text-gray-600 mt-1">
+                    <p class="text-green-600"><i class="fas fa-check-circle mr-1"></i> Tool installed successfully</p>
+                    <p class="text-xs text-gray-500 mt-1">Tool added to client configuration</p>
+                  </div>
+                </div>
+                <p class="mt-3 text-gray-800">Great! I now have access to weather data and visualization capabilities. Let me gather the weather data for your area from the past month.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Message 2 -->
+          <div class="p-4 bg-gray-50" id="chat-msg-4">
+            <div class="flex items-start">
+              <div class="flex-shrink-0 mr-4">
+                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  <i class="fas fa-user text-blue-500 text-sm"></i>
+                </div>
+              </div>
+              <div>
+                <p class="text-gray-800">That's amazing! Now please create a temperature and precipitation chart for the last 30 days.</p>
+                </div>
+            </div>
+          </div>
+
+          <!-- AI Message 3 -->
+          <div class="p-4" id="chat-msg-5">
+            <div class="flex items-start">
+              <div class="flex-shrink-0 mr-4">
+                <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                  <i class="fas fa-robot text-purple-500 text-sm"></i>
+                </div>
+              </div>
+              <div>
+                <p class="text-gray-800">I've created a chart showing temperature and precipitation data for the last 30 days:</p>
+                <div class="mt-3 p-2 bg-white border border-gray-200 rounded-md">
+                  <div class="h-64 bg-gray-100 rounded flex items-center justify-center">
+                    <p class="text-gray-400"><i class="fas fa-chart-line text-primary-500 mr-2"></i> Weather chart visualization</p>
+                  </div>
+                  <div class="mt-2 p-2 bg-gray-50 text-xs text-gray-500 rounded">
+                    <p>Chart generated using WeatherViz tool - installed via MCP Finder Server</p>
+                  </div>
+                </div>
+                <p class="mt-3 text-gray-800">The data shows a general warming trend with precipitation events on the 5th, 12th, and 19th. Would you like me to provide more detailed analysis?</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-8">
+        <p class="text-gray-600 max-w-3xl mx-auto">
+          MCP Finder Server enables your AI assistant to discover and install new capabilities on demand, 
+          even for tasks it wasn't originally programmed to handle.
+        </p>
+        <a href="#how-it-works" class="inline-flex items-center text-primary-600 hover:text-primary-700 font-medium mt-4">
+          Learn how it works <i class="fas fa-arrow-right ml-1"></i>
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- Features Section -->
-  <section id="features" class="py-16 bg-white">
+  <section id="features" class="py-16 bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center">
-        <h2 class="text-3xl font-bold text-gray-900">Why Use MCPFinder?</h2>
+        <h2 class="text-3xl font-bold text-gray-900">What MCP Finder Server Offers</h2>
         <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-          A lightweight serverless platform connecting AI agents with the tools they need
+          Supercharge your AI assistants with plug-and-play capabilities
         </p>
       </div>
 
       <div class="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
         <!-- Feature 1 -->
-        <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
-          <div class="w-12 h-12 rounded-full flex items-center justify-center text-white mb-4 bg-gradient-to-r from-primary-500 to-primary-700">
-            <i class="fas fa-tools text-xl"></i>
-          </div>
-          <h3 class="text-xl font-semibold text-gray-900">Tool Registration</h3>
-          <p class="mt-3 text-gray-600">
-            Easily register your MCP-compatible tools via CLI or REST API, making them discoverable by AI agents globally.
-          </p>
-        </div>
-
-        <!-- Feature 2 -->
-        <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
+        <div class="bg-white rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
           <div class="w-12 h-12 rounded-full flex items-center justify-center text-white mb-4 bg-gradient-to-r from-primary-500 to-primary-700">
             <i class="fas fa-search text-xl"></i>
           </div>
           <h3 class="text-xl font-semibold text-gray-900">Tool Discovery</h3>
           <p class="mt-3 text-gray-600">
-            Find the perfect tools for your AI agent using our powerful search API with tagging, categorization, and semantic matching.
+            AI assistants can search for specific capabilities on demand, discovering tools that match user needs through semantic search.
+          </p>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="bg-white rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
+          <div class="w-12 h-12 rounded-full flex items-center justify-center text-white mb-4 bg-gradient-to-r from-primary-500 to-primary-700">
+            <i class="fas fa-plug text-xl"></i>
+          </div>
+          <h3 class="text-xl font-semibold text-gray-900">Instant Installation</h3>
+          <p class="mt-3 text-gray-600">
+            Tools can be dynamically installed into the client application's configuration, expanding AI's capabilities without any user code.
           </p>
         </div>
 
         <!-- Feature 3 -->
-        <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
+        <div class="bg-white rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
           <div class="w-12 h-12 rounded-full flex items-center justify-center text-white mb-4 bg-gradient-to-r from-primary-500 to-primary-700">
-            <i class="fas fa-heartbeat text-xl"></i>
+            <i class="fas fa-cogs text-xl"></i>
           </div>
-          <h3 class="text-xl font-semibold text-gray-900">Health Monitoring</h3>
+          <h3 class="text-xl font-semibold text-gray-900">Configuration Management</h3>
           <p class="mt-3 text-gray-600">
-            Continuous health checks ensure your agents only connect to available and functioning MCP tools. Status is updated in real-time.
+            Simplifies adding and removing tools from any MCP-compatible client, with automatic detection of client type and configuration paths.
           </p>
         </div>
 
         <!-- Feature 4 -->
-        <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
+        <div class="bg-white rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
           <div class="w-12 h-12 rounded-full flex items-center justify-center text-white mb-4 bg-gradient-to-r from-primary-500 to-primary-700">
             <i class="fas fa-feather-alt text-xl"></i>
           </div>
-          <h3 class="text-xl font-semibold text-gray-900">Lightweight & Serverless</h3>
+          <h3 class="text-xl font-semibold text-gray-900">Lightweight & Cross-Platform</h3>
           <p class="mt-3 text-gray-600">
-            Built on Cloudflare Workers with KV and R2 storage for maximum performance, reliability and minimal overhead. No servers to maintain.
+            Install with a single NPM command on any platform. Works with Cursor, Claude Desktop, VS Code, and other MCP-compatible clients.
           </p>
         </div>
 
         <!-- Feature 5 -->
-        <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
+        <div class="bg-white rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
           <div class="w-12 h-12 rounded-full flex items-center justify-center text-white mb-4 bg-gradient-to-r from-primary-500 to-primary-700">
-            <i class="fas fa-shield-alt text-xl"></i>
+            <i class="fas fa-project-diagram text-xl"></i>
           </div>
-          <h3 class="text-xl font-semibold text-gray-900">Security & Trust</h3>
+          <h3 class="text-xl font-semibold text-gray-900">Expanding Ecosystem</h3>
           <p class="mt-3 text-gray-600">
-            HMAC authentication for registration, Ed25519 signatures, and DNS-TXT verification ensure tool authenticity. Your agents can trust our registry.
+            Access a growing library of MCP tools including code generators, API connectors, data visualizers, and specialized knowledge bases.
           </p>
         </div>
 
         <!-- Feature 6 -->
-        <div class="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
+        <div class="bg-white rounded-lg p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 feature-card">
           <div class="w-12 h-12 rounded-full flex items-center justify-center text-white mb-4 bg-gradient-to-r from-primary-500 to-primary-700">
             <i class="fas fa-robot text-xl"></i>
           </div>
-          <h3 class="text-xl font-semibold text-gray-900">Agent Friendly</h3>
+          <h3 class="text-xl font-semibold text-gray-900">AI Autonomy</h3>
           <p class="mt-3 text-gray-600">
-            Designed specifically for AI agents to autonomously discover, evaluate, and integrate new capabilities. Native MCP discovery endpoint included.
+            Enables AI assistants to autonomously identify capability gaps and enhance themselves with new tools based on user requests.
           </p>
         </div>
       </div>
@@ -359,27 +492,27 @@
   </section>
 
   <!-- How It Works Section -->
-  <section id="how-it-works" class="py-16 bg-gray-50">
+  <section id="how-it-works" class="py-16 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center">
         <h2 class="text-3xl font-bold text-gray-900">How It Works</h2>
         <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-          Simple workflows for both tool publishers and AI agents
+          Simple installation and seamless AI-driven tool discovery
         </p>
       </div>
 
       <div class="mt-16">
         <div class="lg:grid lg:grid-cols-2 lg:gap-12 items-center">
           <div>
-            <h3 class="text-2xl font-semibold text-gray-900">For Tool Publishers</h3>
+            <h3 class="text-2xl font-semibold text-gray-900">For Users</h3>
             <ul class="mt-6 space-y-6">
               <li class="flex">
                 <div class="flex-shrink-0">
                   <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">1</div>
                 </div>
                 <div class="ml-4">
-                  <h4 class="text-lg font-medium text-gray-900">Create Your MCP Tool</h4>
-                  <p class="mt-1 text-gray-600">Build a server implementing the MCP protocol to provide capabilities to AI agents.</p>
+                  <h4 class="text-lg font-medium text-gray-900">One-Line Installation</h4>
+                  <p class="mt-1 text-gray-600">Run <code class="bg-gray-100 px-2 py-1 rounded">npx -y @mcpfinder/server --setup</code> to install MCP Finder Server in your preferred client.</p>
                 </div>
               </li>
               <li class="flex">
@@ -387,8 +520,8 @@
                   <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">2</div>
                 </div>
                 <div class="ml-4">
-                  <h4 class="text-lg font-medium text-gray-900">Define Your Manifest</h4>
-                  <p class="mt-1 text-gray-600">Create an mcp.json file describing your tool's capabilities, authentication requirements, and metadata.</p>
+                  <h4 class="text-lg font-medium text-gray-900">Ask for Capabilities</h4>
+                  <p class="mt-1 text-gray-600">Simply ask your AI assistant for tasks requiring capabilities it doesn't have yet - no special syntax needed.</p>
                 </div>
               </li>
               <li class="flex">
@@ -396,8 +529,8 @@
                   <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">3</div>
                 </div>
                 <div class="ml-4">
-                  <h4 class="text-lg font-medium text-gray-900">Register with MCPFinder</h4>
-                  <p class="mt-1 text-gray-600">Use our CLI or REST API to register your tool, making it discoverable by AI agents worldwide.</p>
+                  <h4 class="text-lg font-medium text-gray-900">Watch AI Adapt</h4>
+                  <p class="mt-1 text-gray-600">The AI will automatically discover and install relevant tools to fulfill your request without interrupting the conversation.</p>
                 </div>
               </li>
               <li class="flex">
@@ -405,22 +538,22 @@
                   <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">4</div>
                 </div>
                 <div class="ml-4">
-                  <h4 class="text-lg font-medium text-gray-900">Get Usage Analytics</h4>
-                  <p class="mt-1 text-gray-600">Monitor how your tool is performing with our analytics dashboard showing usage patterns and agent interactions.</p>
+                  <h4 class="text-lg font-medium text-gray-900">Use New Capabilities</h4>
+                  <p class="mt-1 text-gray-600">The AI can immediately start using the newly installed tools to complete your requests - no restart or setup required.</p>
                 </div>
               </li>
             </ul>
           </div>
           <div class="mt-10 lg:mt-0">
-            <h3 class="text-2xl font-semibold text-gray-900">For AI Agents</h3>
+            <h3 class="text-2xl font-semibold text-gray-900">For AI Assistants</h3>
             <ul class="mt-6 space-y-6">
               <li class="flex">
                 <div class="flex-shrink-0">
                   <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">1</div>
                 </div>
                 <div class="ml-4">
-                  <h4 class="text-lg font-medium text-gray-900">Search for Capabilities</h4>
-                  <p class="mt-1 text-gray-600">Query MCPFinder's search API to find tools that match your requirements by tag, category or semantic similarity.</p>
+                  <h4 class="text-lg font-medium text-gray-900">Detect Capability Gaps</h4>
+                  <p class="mt-1 text-gray-600">Recognize when a user request requires capabilities not currently available in your toolset.</p>
                 </div>
               </li>
               <li class="flex">
@@ -428,8 +561,8 @@
                   <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">2</div>
                 </div>
                 <div class="ml-4">
-                  <h4 class="text-lg font-medium text-gray-900">Get Tool Details</h4>
-                  <p class="mt-1 text-gray-600">Retrieve complete tool metadata including endpoint URL, capabilities list, authentication requirements, and status.</p>
+                  <h4 class="text-lg font-medium text-gray-900">Search for Tools</h4>
+                  <p class="mt-1 text-gray-600">Use <code class="bg-gray-100 px-2 py-1 rounded">search_mcp_servers</code> to find tools from the MCPFinder registry that match the needed capabilities.</p>
                 </div>
               </li>
               <li class="flex">
@@ -437,8 +570,8 @@
                   <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">3</div>
                 </div>
                 <div class="ml-4">
-                  <h4 class="text-lg font-medium text-gray-900">Connect & Utilize</h4>
-                  <p class="mt-1 text-gray-600">Connect directly to the tool using the MCP protocol and expand your capabilities on-demand without code changes.</p>
+                  <h4 class="text-lg font-medium text-gray-900">Install Tools</h4>
+                  <p class="mt-1 text-gray-600">Use <code class="bg-gray-100 px-2 py-1 rounded">add_mcp_server_config</code> to install the selected tool into the client's configuration.</p>
                 </div>
               </li>
               <li class="flex">
@@ -446,8 +579,8 @@
                   <div class="flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white">4</div>
                 </div>
                 <div class="ml-4">
-                  <h4 class="text-lg font-medium text-gray-900">Adapt Dynamically</h4>
-                  <p class="mt-1 text-gray-600">Discover new tools as needed during task execution, even for capabilities you weren't initially programmed with.</p>
+                  <h4 class="text-lg font-medium text-gray-900">Access New Capabilities</h4>
+                  <p class="mt-1 text-gray-600">The new tools become immediately available for use, with no need to restart or reconfigure the client.</p>
                 </div>
               </li>
             </ul>
@@ -457,98 +590,34 @@
     </div>
   </section>
 
-  <!-- API Section -->
-  <section id="api" class="py-16 bg-white">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center">
-        <h2 class="text-3xl font-bold text-gray-900">Simple & Powerful API</h2>
-        <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-          Easy-to-use endpoints for registration, discovery, and search
-        </p>
-      </div>
-
-      <div class="mt-12 bg-gray-900 rounded-lg shadow-lg overflow-hidden code-window">
-        <div class="bg-gray-800 px-4 py-2 flex items-center">
-          <div class="flex space-x-1.5">
-            <div class="w-3 h-3 rounded-full bg-red-500"></div>
-            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-            <div class="w-3 h-3 rounded-full bg-green-500"></div>
-          </div>
-          <div class="ml-4 text-gray-200 text-sm">API Examples</div>
-        </div>
-        <div class="p-6 text-gray-300 font-mono text-sm code-block">
-          <div class="mb-6">
-            <div class="text-purple-400 mb-2"># Register a new tool</div>
-            <div class="text-blue-300">POST /api/v1/register</div>
-            <div class="mt-2 text-gray-400">Headers: Authorization: HMAC &lt;signature&gt;</div>
-            <div class="mt-2 p-3 bg-gray-800 rounded">
-{<br>
-&nbsp;&nbsp;<span class="text-yellow-300">"name"</span>: <span class="text-green-300">"WeatherMCP"</span>,<br>
-&nbsp;&nbsp;<span class="text-yellow-300">"description"</span>: <span class="text-green-300">"Get current weather and forecasts"</span>,<br>
-&nbsp;&nbsp;<span class="text-yellow-300">"url"</span>: <span class="text-green-300">"https://weather-mcp.example.com"</span>,<br>
-&nbsp;&nbsp;<span class="text-yellow-300">"protocol_version"</span>: <span class="text-green-300">"MCP/1.0"</span>,<br>
-&nbsp;&nbsp;<span class="text-yellow-300">"capabilities"</span>: [<br>
-&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="text-yellow-300">"name"</span>: <span class="text-green-300">"getCurrentWeather"</span>, <span class="text-yellow-300">"type"</span>: <span class="text-green-300">"action"</span> },<br>
-&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="text-yellow-300">"name"</span>: <span class="text-green-300">"getForecast"</span>, <span class="text-yellow-300">"type"</span>: <span class="text-green-300">"action"</span> }<br>
-&nbsp;&nbsp;],<br>
-&nbsp;&nbsp;<span class="text-yellow-300">"tags"</span>: [<span class="text-green-300">"weather"</span>, <span class="text-green-300">"forecast"</span>],<br>
-&nbsp;&nbsp;<span class="text-yellow-300">"auth"</span>: { <span class="text-yellow-300">"type"</span>: <span class="text-green-300">"none"</span> }
-}
-            </div>
-          </div>
-
-          <div class="mb-6">
-            <div class="text-purple-400 mb-2"># Search for tools (by keyword)</div>
-            <div class="text-blue-300">GET /api/v1/search?q=weather</div>
-            <div class="mt-2 text-gray-400">Response: Array of matching tools with summary information</div>
-          </div>
-
-          <div>
-            <div class="text-purple-400 mb-2"># Get tool details</div>
-            <div class="text-blue-300">GET /api/v1/tools/:id</div>
-            <div class="mt-2 text-gray-400">Response: Complete manifest with capabilities, status, and metadata</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="mt-8 text-center">
-        <a href="docs.html" class="text-primary-600 hover:text-primary-700 font-medium">
-          View complete API documentation <i class="fas fa-arrow-right ml-1"></i>
-        </a>
-      </div>
-    </div>
-  </section>
-
   <!-- For AI Agents Section -->
-  <section id="for-agents" class="py-16 bg-gray-50">
+  <section id="for-agents" class="py-8 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center">
-        <h2 class="text-3xl font-bold text-gray-900">For AI Agents</h2>
-        <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-          Designed to be discovered and utilized by autonomous AI systems
-        </p>
-      </div>
-
-      <div class="mt-16 lg:grid lg:grid-cols-12 lg:gap-8 items-center">
-        <div class="lg:col-span-6">
-          <h3 class="text-2xl font-semibold text-gray-900 mb-6">Native MCP Discovery Endpoint</h3>
+      <div class="mt-0 lg:grid lg:grid-cols-12 lg:gap-8 items-center">
+        <div class="lg:col-span-5">
+          <h2 class="text-3xl font-bold text-gray-900">For AI Assistants</h2>
+          <h3 class="text-xl font-semibold text-gray-900 mt-6 mb-6">Self-Expanding AI Assistants</h3>
           <p class="text-gray-600 mb-4">
-            MCPFinder provides a special <code class="bg-gray-200 px-2 py-1 rounded text-primary-600">searchDirectory</code> resource compatible with the MCP protocol - allowing AI agents to discover tools without leaving the MCP ecosystem.
+            MCP Finder Server acts as an "App Store for Agents" - enabling AI assistants to discover and install new tools on demand based on user requests.
           </p>
           <p class="text-gray-600 mb-4">
-            Once configured with MCPFinder as a discovery source, agents can autonomously:
+            As an AI assistant with access to MCP Finder Server, you can:
           </p>
           <ul class="space-y-3 text-gray-600 list-disc pl-6">
-            <li>Search for tools matching needed capabilities</li>
-            <li>Evaluate tool compatibility and trust signals</li>
-            <li>Register new tools directly into their toolset</li>
-            <li>Adapt their abilities based on available tools</li>
+            <li>Recognize when you lack capabilities needed for a user request</li>
+            <li>Search for tools that provide those capabilities</li>
+            <li>Evaluate the best tool for the job based on descriptions and capabilities</li>
+            <li>Install the tool directly into your client's configuration</li>
+            <li>Begin using the new capabilities immediately</li>
           </ul>
           <p class="mt-4 text-gray-600">
-            This makes MCPFinder a perfect foundation for autonomous agents that need to expand their capabilities on-demand.
+            This enables a seamless experience where users don't need to know about tool installation or configuration - they simply ask for what they need, and you adapt to provide it.
+          </p>
+          <p class="mt-4 text-gray-600">
+            The MCP Finder Server tools are designed to be used by AI assistants in Claude, Cursor, VS Code, and other MCP-compatible clients.
           </p>
         </div>
-        <div class="mt-10 lg:mt-0 lg:col-span-6">
+        <div class="mt-10 lg:mt-0 lg:col-span-7 text-xs">
           <div class="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200 code-window">
             <div class="bg-gray-800 px-4 py-2 flex items-center">
               <div class="flex space-x-1.5">
@@ -556,66 +625,97 @@
                 <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
                 <div class="w-3 h-3 rounded-full bg-green-500"></div>
               </div>
-              <div class="ml-4 text-gray-200 text-sm">AI Agent Code Example</div>
+              <div class="ml-4 text-gray-200 text-sm">MCP Tools</div>
             </div>
-            <div class="p-4 bg-gray-900 text-gray-200 font-mono text-sm overflow-x-auto">
-              <div><span class="text-green-200">// Example: Autonomous agent discovering a tool</span></div>
-              <div class="mt-2"><span class="text-purple-400">async function</span> <span class="text-blue-300">findWeatherTool</span>() {</div>
-              <div class="mt-1">&nbsp;&nbsp;<span class="text-green-200">// Agent needs a weather capability</span></div>
-              <div class="mt-1">&nbsp;&nbsp;<span class="text-purple-400">const</span> <span class="text-blue-300">mcpFinderClient</span> = <span class="text-yellow-300">new</span> <span class="text-blue-300">MCPClient</span>(<span class="text-green-300">'https://mcpfinder.dev/mcp'</span>);</div>
-              <div class="mt-1">&nbsp;&nbsp;<span class="text-purple-400">const</span> <span class="text-blue-300">tools</span> = <span class="text-yellow-300">await</span> <span class="text-blue-300">mcpFinderClient</span>.<span class="text-yellow-300">invoke</span>(<span class="text-green-300">'searchDirectory'</span>, {</div>
-              <div class="mt-1">&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-300">query</span>: <span class="text-green-300">'weather forecast'</span>,</div>
-              <div class="mt-1">&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-300">tags</span>: [<span class="text-green-300">'weather'</span>],</div>
-              <div class="mt-1">&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-300">status</span>: <span class="text-green-300">'online'</span></div>
-              <div class="mt-1">&nbsp;&nbsp;});</div>
-              <div class="mt-3">&nbsp;&nbsp;<span class="text-green-200">// Find best match, register it, and use it</span></div>
-              <div class="mt-1">&nbsp;&nbsp;<span class="text-purple-400">const</span> <span class="text-blue-300">bestMatch</span> = <span class="text-blue-300">tools</span>[0];</div>
-              <div class="mt-1">&nbsp;&nbsp;<span class="text-purple-400">await</span> <span class="text-blue-300">agent</span>.<span class="text-yellow-300">registerTool</span>(<span class="text-blue-300">bestMatch</span>.<span class="text-blue-300">url</span>);</div>
-              <div class="mt-3">&nbsp;&nbsp;<span class="text-green-200">// Now agent can access weather data!</span></div>
-              <div class="mt-1">&nbsp;&nbsp;<span class="text-purple-400">const</span> <span class="text-blue-300">forecast</span> = <span class="text-yellow-300">await</span> <span class="text-blue-300">agent</span>.<span class="text-yellow-300">invoke</span>(<span class="text-green-300">'getForecast'</span>, {</div>
-              <div class="mt-1">&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-300">location</span>: <span class="text-green-300">'New York'</span>,</div>
-              <div class="mt-1">&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-blue-300">days</span>: 3</div>
-              <div class="mt-1">&nbsp;&nbsp;});</div>
-              <div class="mt-1">}</div>
+            <div class="p-4 bg-gray-900 text-gray-200 font-mono text-xs overflow-x-auto">
+              <div class="mb-6">
+                <div class="text-purple-400 mb-2"># 1. Find servers matching a query and/or tag</div>
+                <div class="mt-2 p-3 bg-gray-800 rounded">
+<span class="text-yellow-300">search_mcp_servers</span>({<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"query"</span>: <span class="text-green-300">"weather forecast"</span>,<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"tag"</span>: <span class="text-green-300">"weather"</span><br>
+})
+                </div>
+                <div class="mt-1 text-gray-400">Returns array of matching MCP servers with name, description, URL, status</div>
+              </div>
+
+              <div class="mb-6">
+                <div class="text-purple-400 mb-2"># 2. Get complete details for a specific server</div>
+                <div class="mt-2 p-3 bg-gray-800 rounded">
+<span class="text-yellow-300">get_mcp_server_details</span>({<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"id"</span>: <span class="text-green-300">"weather-api-12345"</span><br>
+})
+                </div>
+                <div class="mt-1 text-gray-400">Returns full manifest with capabilities, authentication, and setup hints</div>
+              </div>
+
+              <div class="mb-6">
+                <div class="text-purple-400 mb-2"># 3. Install a server into client configuration</div>
+                <div class="mt-2 p-3 bg-gray-800 rounded">
+<span class="text-yellow-300">add_mcp_server_config</span>({<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"server_id"</span>: <span class="text-green-300">"weather-api-12345"</span>,<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"client_type"</span>: <span class="text-green-300">"cursor"</span><br>
+})
+                </div>
+                <div class="mt-1 text-gray-400">Adds server to client config file (or config_file_path for custom location)</div>
+              </div>
+
+              <div>
+                <div class="text-purple-400 mb-2"># 4. Remove a server from client configuration</div>
+                <div class="mt-2 p-3 bg-gray-800 rounded">
+<span class="text-yellow-300">remove_mcp_server_config</span>({<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"server_id"</span>: <span class="text-green-300">"weather-api-12345"</span>,<br>
+&nbsp;&nbsp;<span class="text-yellow-300">"client_type"</span>: <span class="text-green-300">"cursor"</span><br>
+})
+                </div>
+                <div class="mt-1 text-gray-400">Removes server from client config file</div>
+              </div>
             </div>
           </div>
-          <div class="mt-4 text-sm text-gray-500 text-center">
-            Compatible with popular agent frameworks including CrewAI, LangGraph, AutoGPT, and others.
-          </div>
+          
         </div>
       </div>
       
       <div class="mt-12 bg-white p-8 rounded-lg shadow-sm border border-gray-200">
-        <h3 class="text-xl font-semibold text-gray-900 mb-4">Built for AI Models</h3>
+        <h3 class="text-xl font-semibold text-gray-900 mb-4">Compatible with Popular Clients</h3>
         <p class="text-gray-600 mb-6">
-          MCPFinder is also designed to be crawled and understood by AI models for improved tool discovery:
+          MCP Finder Server works with these AI platforms and more:
         </p>
-        <div class="grid md:grid-cols-3 gap-6">
-          <div class="bg-gray-50 p-4 rounded-lg">
+        <div class="grid md:grid-cols-4 gap-6">
+          <div class="bg-gray-50 p-4 rounded-lg text-center">
             <div class="text-primary-600 text-xl mb-2">
               <i class="fas fa-code"></i>
             </div>
-            <h4 class="font-medium mb-2">Semantic Metadata</h4>
+            <h4 class="font-medium mb-2">Cursor</h4>
             <p class="text-sm text-gray-600">
-              Special AI/ML-focused metadata tags help models understand our registry and its capabilities.
+              AI-powered code editor with built-in MCP support
             </p>
           </div>
-          <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="bg-gray-50 p-4 rounded-lg text-center">
             <div class="text-primary-600 text-xl mb-2">
-              <i class="fas fa-sitemap"></i>
+              <i class="fas fa-comment-alt"></i>
             </div>
-            <h4 class="font-medium mb-2">Structured Schemas</h4>
+            <h4 class="font-medium mb-2">Claude Desktop</h4>
             <p class="text-sm text-gray-600">
-              Consistent data formats make it easy for AI to parse and understand our tool listings.
+              Anthropic's Claude AI assistant with MCP capabilities
             </p>
           </div>
-          <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="bg-gray-50 p-4 rounded-lg text-center">
             <div class="text-primary-600 text-xl mb-2">
-              <i class="fas fa-plug"></i>
+              <i class="fas fa-code-branch"></i>
             </div>
-            <h4 class="font-medium mb-2">Direct API Access</h4>
+            <h4 class="font-medium mb-2">VS Code</h4>
             <p class="text-sm text-gray-600">
-              Simple APIs with comprehensive documentation for AI-driven integration.
+              Visual Studio Code with MCP-compatible extensions
+            </p>
+          </div>
+          <div class="bg-gray-50 p-4 rounded-lg text-center">
+            <div class="text-primary-600 text-xl mb-2">
+              <i class="fas fa-window-maximize"></i>
+            </div>
+            <h4 class="font-medium mb-2">Windsurf</h4>
+            <p class="text-sm text-gray-600">
+              Web-browsing assistant with MCP integration
             </p>
           </div>
         </div>
@@ -712,30 +812,32 @@
   <!-- CTA Section -->
   <section id="get-started" class="py-16 bg-gradient-to-r from-primary-600 to-primary-800 text-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <h2 class="text-3xl font-bold mb-4">Ready to Join the MCP Ecosystem?</h2>
-      <p class="text-xl text-primary-100 max-w-3xl mx-auto mb-10">
-        Whether you're building tools or looking to enhance your AI agents, MCPFinder connects you to a world of possibilities.
+      <h2 class="text-3xl font-bold mb-4">Ready to Supercharge Your AI?</h2>
+      <p class="text-xl text-primary-100 max-w-3xl mx-auto mb-6">
+        Install MCP Finder Server today and give your AI assistants access to a world of new capabilities.
       </p>
+      <div class="bg-white/10 rounded-lg p-6 backdrop-blur-sm max-w-xl mx-auto mb-8">
+        <pre class="font-mono text-left text-lg text-primary-100 overflow-x-auto whitespace-pre-wrap"><code>npx -y @mcpfinder/server --setup</code></pre>
+      </div>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <a href="#" class="inline-flex items-center justify-center px-5 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-primary-700 bg-white hover:bg-gray-100">
-          Register Your First Tool
+        <a href="https://www.npmjs.com/package/@mcpfinder/server" target="_blank" class="inline-flex items-center justify-center px-5 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-primary-700 bg-white hover:bg-gray-100">
+          View NPM Package
         </a>
-        <a href="#" class="inline-flex items-center justify-center px-5 py-3 border border-white rounded-md shadow-sm text-base font-medium text-white hover:bg-primary-500">
-          Explore Documentation
+        <a href="https://github.com/mcpfinder/server" target="_blank" class="inline-flex items-center justify-center px-5 py-3 border border-white rounded-md shadow-sm text-base font-medium text-white hover:bg-primary-500">
+          GitHub Repository
         </a>
       </div>
       <div class="mt-8 text-sm text-primary-200">
-        <p>Open-source, community-driven, and built for the future of AI agents.</p>
+        <p>Open-source, community-driven, and built for the future of AI assistants.</p>
         <p class="mt-2">
           <i class="fas fa-code-branch mr-1"></i> Star us on 
-          <a href="https://github.com/mcpfinder/mcpfinder" class="underline hover:text-white">GitHub</a>
+          <a href="https://github.com/mcpfinder/server" class="underline hover:text-white">GitHub</a>
         </p>
       </div>
     </div>
   </section>
 
     <!-- Footer Placeholder -->
-  <div id="footer-placeholder"></div>
 
   <!-- JavaScript -->
   <script>
@@ -756,10 +858,6 @@
 
     // Load header and footer, then initialize interactive elements
     async function initializePage() {
-      await Promise.all([
-        loadComponent('header.html', 'header-placeholder'),
-        loadComponent('footer.html', 'footer-placeholder')
-      ]);
 
       // Mobile menu toggle (needs to run AFTER header is loaded)
       const mobileMenuButton = document.getElementById('mobile-menu-button');
@@ -772,8 +870,6 @@
           console.warn('Mobile menu elements not found after loading header.');
       }
 
-      // Smooth scroll for anchor links (needs to run AFTER header potentially loaded)
-      // Select links within the dynamically loaded header AND the main page content
       document.querySelectorAll('#header-placeholder a[href^="#"], body > main a[href^="#"], body > section a[href^="#"]').forEach(anchor => {
           // Check if the link points to the current page or index.html#...
           const isCurrentPageLink = anchor.pathname === window.location.pathname || anchor.pathname === '/index.html' || anchor.pathname === '';
@@ -797,9 +893,8 @@
                   }
               });
           } else if (targetId) {
-              // Handle links to anchors on other pages (like index.html#features from docs.html)
+              // Handle links to anchors on other pages
               // For simplicity, just navigate normally, the browser will handle scrolling if the target exists
-              // If smoother cross-page anchor scrolling is needed, more complex JS is required.
           }
       });
     }
@@ -807,7 +902,7 @@
     // Initialize the page when the DOM is ready
     document.addEventListener('DOMContentLoaded', initializePage);
 
-    // Old smooth scroll logic (can be removed or kept as fallback, removed here)
+    // Old smooth scroll logic 
     /*
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', function (e) {
@@ -828,6 +923,62 @@
       });
     });
     */
+
+    // Animate the chat simulation
+    function animateChatSimulation() {
+      const chatMessages = document.querySelectorAll('#chat-simulation > div');
+      
+      // Hide all messages initially except the first one
+      chatMessages.forEach((msg, index) => {
+        if (index > 0) {
+          msg.style.opacity = '0';
+          msg.style.transform = 'translateY(10px)';
+          msg.style.display = 'none';
+        }
+      });
+
+      // Show messages sequentially with delays
+      let delay = 1000;
+      const messageDelay = 2000; // Time between messages
+      
+      chatMessages.forEach((msg, index) => {
+        if (index > 0) { // Skip first message (already visible)
+          setTimeout(() => {
+            msg.style.display = 'block';
+            setTimeout(() => {
+              msg.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+              msg.style.opacity = '1';
+              msg.style.transform = 'translateY(0)';
+            }, 50); // Small delay for the display:block to take effect
+          }, delay);
+          delay += messageDelay;
+        }
+      });
+    }
+
+    // Add animation to chat when element is in viewport
+    function handleIntersection(entries) {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          animateChatSimulation();
+          chatObserver.unobserve(entry.target); // Stop observing once animation is triggered
+        }
+      });
+    }
+
+    // Set up intersection observer for chat simulation
+    const chatObserver = new IntersectionObserver(handleIntersection, {
+      root: null,
+      threshold: 0.1 // Trigger when 10% of the element is visible
+    });
+
+    // Start observing the chat simulation after DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      const chatSimulation = document.getElementById('chat-simulation');
+      if (chatSimulation) {
+        chatObserver.observe(chatSimulation);
+      }
+    });
   </script>
 </body>
 </html> 
