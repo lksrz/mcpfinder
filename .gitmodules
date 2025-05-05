@@ -1,0 +1,3 @@
+[submodule "mcpfinder-server"]
+	path = mcpfinder-server
+	url = git@github.com:mcpfinder/server.git
