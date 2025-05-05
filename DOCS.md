@@ -2,13 +2,13 @@
 
 ## Overview
 
-MCP Finder (mcpfinder.dev) is a platform designed to facilitate the discovery and management of MCP (Model Context Protocol) servers. It consists of three core components:
+MCP Finder (mcpfinder.dev) is a platform designed to facilitate the discovery and management of MCP (Model Context Protocol) servers. It consists of several core components:
 
 1.  **Registry API (`api-worker`)**: A serverless REST API backend where developers can register their MCP servers using a CLI tool. This API serves as the central database for discoverable MCP servers.
 2.  **Landing Page (`mcpfinder-www`)**: A static website providing project information, documentation for the Registry API, CLI usage instructions, and potentially a searchable directory of registered servers.
-3.  **MCP Server (`mcpfinder-server`)**: An MCP server designed to run locally alongside MCP clients (like Cursor, Claude Desktop). It exposes tools to the LLM within the client, enabling it to:
-    *   Search the Registry API for available MCP servers.
-    *   Manage the client's local MCP server configuration file (add/remove servers) with user permission.
+3.  **MCP Server (`mcpfinder-server`)**: An MCP server designed to run locally alongside MCP clients (like Cursor, Claude Desktop). It exposes tools to the LLM within the client, enabling it to search the Registry API and manage the client's local MCP server configuration. **This component is maintained in a separate public repository ([mcpfinder/server](https://github.com/mcpfinder/server)) and included here as a Git submodule.**
+4.  **CLI (`cli/`)**: A command-line tool for developers to register their MCP servers with the Registry API.
+5.  **Health Checks (`health-worker`)**: A cron-triggered worker for monitoring the status of registered servers (planned).
 
 MCP Finder aims to streamline the process for users and LLM agents to find, configure, and utilize MCP servers within their preferred applications.
 
@@ -29,6 +29,8 @@ The platform provides:
 
 ## Project Structure
 
+This repository uses Git submodules. See the root `README.md` for cloning instructions.
+
 Organize code into clear, purpose-driven folders:
 
 ```
@@ -41,20 +43,22 @@ Organize code into clear, purpose-driven folders:
 │   ├── worker.js      # Worker to serve landing page
 │   └── public/        # Static assets (HTML, CSS, images)
 │       └── index.html
-├── mcpfinder-server/ # MCP Server to manage other MCP server configurations
-│   └── index.js
+├── mcpfinder-server/  # MCP Server (submodule -> mcpfinder/server)
+│   └── index.js       # (Code resides in the submodule repository)
 ├── cli/               # Publisher CLI implementation
 │   └── bin/
 │       └── mcp-cli.js
 ├── schemas/           # JSON schemas for manifest validation
 │   └── mcp.v0.1.schema.json
-└── README.md          # High-level overview and folder structure
-└── package.json       # Root package config (for CLI)
+├── .gitmodules        # Submodule configuration
+├── README.md          # High-level overview and folder structure
+├── DOCS.md            # This documentation file
+└── package.json       # Root package config (for CLI, shared deps)
 ```
 
 - Each Worker lives in its own folder with a simple `index.js` (or `worker.js`).
 - Static assets for the landing page go under `mcpfinder-www/public/`.
-- The `mcpfinder-server` provides tools for LLMs to discover and manage MCP server configurations within client applications like Cursor or Claude Desktop.
+- The `mcpfinder-server` is included as a Git submodule, pointing to the [mcpfinder/server](https://github.com/mcpfinder/server) repository. Its code is developed and versioned independently there.
 - Reuse shared helpers (e.g., HMAC, validation) by placing them in a common `lib/` folder if needed.
 
 ---
@@ -106,7 +110,7 @@ The API adheres to the following standards:
 
 ### 3.2 MCP Server (`mcpfinder-server`)
 
-This MCP server provides tools specifically designed for LLMs interacting with MCP clients (like Cursor or Claude Desktop) to manage the configuration of *other* MCP servers. It utilizes the `@modelcontextprotocol/sdk`, leveraging the `StreamableHTTPServerTransport` for communication and `express` for the underlying HTTP server. It allows the LLM to:
+This MCP server (developed in [mcpfinder/server](https://github.com/mcpfinder/server) and included as a submodule) provides tools specifically designed for LLMs interacting with MCP clients (like Cursor or Claude Desktop) to manage the configuration of *other* MCP servers. It utilizes the `@modelcontextprotocol/sdk`, leveraging the `StreamableHTTPServerTransport` for communication and `express` for the underlying HTTP server. It allows the LLM to:
 
 1.  **Discover available MCP servers**: Search the central MCP Finder registry by keyword or tag. **This is the primary tool for discovering and accessing new tools, methods, features, or capabilities. If a user requests a tool, method, feature, or capability not currently available, the LLM must use this tool first.**
     *   Tool: `search_mcp_servers` (Calls `GET /api/v1/search`) — **required first step for missing capabilities.**
@@ -137,17 +141,20 @@ This server acts as an abstraction layer, enabling LLMs to manage MCP setups acr
 ### 5. CLI Tool (`mcp-cli`)
 
 - **Purpose**: Allows developers to register their MCP server manifests with the MCP Finder Registry API.
-- **Location**: `/cli/bin/mcp-cli.js`
+- **Location**: Defined in the root `package.json` (`bin` field), sourced from `/cli/bin/mcp-cli.js`.
 - **Installation/Usage**:
-  - After cloning the repository and running `npm install` in the root directory, you can link the CLI for development using `npm link`.
-  - Alternatively, execute directly: `node ./cli/bin/mcp-cli.js <command>`
+  - Clone the main `mcpfinder` repository **recursively** (`git clone --recursive ...`) to include submodules.
+  - Run `npm install` in the root directory.
+  - Link the CLI for development using `npm link` in the root directory.
+  - Alternatively, execute directly from the root: `node ./cli/bin/mcp-cli.js <command>`
   - Or use via `npx` if published: `npx @mcpfinder/cli register ...` (assuming future package name)
 - **Command**: `register <path/to/mcp.json>`
   ```bash
-  # Example usage:
+  # Example usage (from root of cloned mcpfinder repo):
   export MCPFINDER_REGISTRY_SECRET='your-super-secret-key'
-  export MCPFINDER_API_URL='https://api.mcpfinder.dev' # Optional, defaults to http://localhost:8787
-  node ./cli/bin/mcp-cli.js register ./path/to/your/server/mcp.json
+  export MCPFINDER_API_URL='https://api.mcpfinder.dev' # Optional, defaults to deployed prod or http://localhost:8787 if run locally
+  # Ensure mcp.json exists
+  mcp-cli register ./path/to/your/server/mcp.json
   ```
 - **Functionality**:
   - Reads the specified `mcp.json` file.
