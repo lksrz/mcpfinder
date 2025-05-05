@@ -16,23 +16,26 @@ Currently, the primary way to run this server is directly from the source code w
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/mcpfinder.git # Replace with actual repo URL
+    git clone https://github.com/lksrz/mcpfinder.git # Replace with actual repo URL if different
     cd mcpfinder
     ```
 2.  **Install dependencies:**
     ```bash
-    npm install # In the root directory
+    # Ensure you are in the root mcpfinder directory
+    npm install
     ```
 3.  **Run the server:**
 
     *   **Stdio Mode (Recommended for clients like Cursor/Claude/Windsurf):**
         ```bash
+        # From the root mcpfinder directory
         node ./mcpfinder-server/index.js
         ```
         The server will communicate over standard input/output.
 
     *   **HTTP Mode (For direct testing or specific integrations):**
         ```bash
+        # From the root mcpfinder directory
         node ./mcpfinder-server/index.js --http [--port 6181] [--api-url https://mcpfinder.dev]
         ```
         -   `--port <number>`: Specifies the port to listen on (default: 6181, or `MCP_PORT` env var).
@@ -42,7 +45,7 @@ Currently, the primary way to run this server is directly from the source code w
 
 The server uses the following environment variables:
 
-*   `MCPFINDER_API_URL`: The base URL for the MCP Finder Registry API. Defaults to `https://mcpfinder.dev`. Set this if you are running a local instance of the registry API.
+*   `MCPFINDER_API_URL`: The base URL for the MCP Finder Registry API. Defaults to `https://mcpfinder.dev`. Set this if you are running a local instance of the registry API (e.g., `http://localhost:8787`).
 *   `MCP_PORT` (HTTP Mode Only): The port number for the server to listen on. Defaults to `6181`.
 
 ## Provided Tools
@@ -102,8 +105,8 @@ The tools `add_mcp_server_config` and `remove_mcp_server_config` modify files on
 
 ## Contributing
 
-Please refer to the main project [CONTRIBUTING.md](../../CONTRIBUTING.md) (if available) for details on how to contribute.
+Please refer to the main project `CONTRIBUTING.md` (if available) for details on how to contribute.
 
 ## License
 
-[Specify License Here - e.g., MIT, Apache 2.0] - Currently ISC as per package.json. 
+ISC (as per `package.json`). 

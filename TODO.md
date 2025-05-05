@@ -184,7 +184,7 @@
     - Add tests for config logic (`add_mcp_server_config`, `remove_mcp_server_config`) mocking `fs`.
     - *Optional*: Add tests for API calling functions, mocking `fetch`.
 
-- **Write Package Documentation (`README.md`)**: [TODO]
+- **Write Package Documentation (`README.md`)**: [COMPLETED]
     - Create `mcpfinder-server/README.md`.
     - Detail purpose, installation, configuration, tools, security model.
 
