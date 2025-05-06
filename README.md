@@ -81,7 +81,7 @@ git submodule update --init --recursive
     cd ..
     ```
 
-7.  (Optional) Run MCP Finder Server Locally:
+7.  (Optional) Run MCPfinder server Locally:
     *   Stdio mode (for clients like Cursor):
         ```bash
         node ./mcpfinder-server/index.js
