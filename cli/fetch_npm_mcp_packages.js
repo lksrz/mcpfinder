@@ -7,9 +7,9 @@ import process from 'process';
 // --- Configuration ---
 const BASE_URL = 'https://registry.npmjs.org';
 const SEARCH_PATH = '/-/v1/search';
-const QUERY = 'keywords:mcp'; // Search term
+const QUERY = 'modelcontextprotocol'; // Search term eg. keywords:mcp
 const SIZE = 250; // Results per page (max allowed by npm registry API)
-const DEFAULT_OUTPUT_FILE = 'npm_mcp_search_results.json';
+const DEFAULT_OUTPUT_FILE = 'npm_mcp_search_results2.json';
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds timeout for each request
 const DELAY_BETWEEN_PAGES_MS = 500; // 0.5 second delay between page fetches
 

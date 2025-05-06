@@ -2,9 +2,6 @@ import { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { Bindings } from '../types';
 
-// Simple debounce/cache might be useful here in a real scenario
-
-// Define the structure of the summary object returned by search
 interface ToolSummary {
     id: string;
     name: string;
@@ -29,7 +26,6 @@ export const searchTools = async (c: Context<{ Bindings: Bindings }>) => {
     limit = Math.min(limit, HARD_LIMIT);
 
     try {
-        // List all tool keys from KV (potentially slow for large datasets)
         const listResult = await c.env.MCP_TOOLS_KV.list({ prefix: 'tool:' });
         const keys = listResult.keys;
 

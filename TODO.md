@@ -225,3 +225,99 @@
 
 - Announce MVP release (Discord, Twitter, developer forums).
 - Use GitHub Issues or Discord channel for bug reports and feedback.
+
+# Monetization & Stripe Integration (MVP) [TODO]
+
+## 13. Stripe Account & Setup [TODO]
+
+-   [ ] Create MCPfinder Stripe account.
+-   [ ] Configure Stripe Connect settings (platform profile, branding, redirect URLs).
+-   [ ] Obtain Stripe API keys (publishable and secret) and store them securely in Cloudflare secrets/environment variables for `api-worker`.
+
+## 14. Publisher Onboarding & Verification [TODO]
+
+-   [ ] **NPM Data Fetching:**
+    -   [ ] Implement logic (likely in `api-worker` or a shared lib) to query the NPM registry API for package details using a package name.
+    -   [ ] Extract `package.publisher.email` reliably.
+    -   [ ] Handle cases where email is missing or package not found.
+-   [ ] **Stripe Connect Onboarding Flow:**
+    -   [ ] Create an API endpoint (e.g., `GET /api/v1/stripe/connect/onboard`) or logic in the future web UI to generate the Stripe Connect OAuth authorization URL.
+    -   [ ] Create an API endpoint (e.g., `GET /api/v1/stripe/connect/callback`) to handle the redirect back from Stripe.
+    -   [ ] Implement logic in the callback handler to exchange the received `code` for the publisher's `stripe_account_id` using the Stripe API.
+-   [ ] **Email Verification:**
+    -   [ ] Choose and integrate an email sending service/library accessible from `api-worker` (e.g., Mailgun, SendGrid, or potentially Cloudflare Email Routing if simple enough).
+    -   [ ] Implement secure verification code generation (random string, short expiry).
+    -   [ ] Store the code temporarily (e.g., in KV with TTL) associated with the pending verification.
+    -   [ ] Implement logic to send the verification email to the publisher's NPM email after Stripe Account ID is obtained.
+    -   [ ] Create an API endpoint (e.g., `POST /api/v1/stripe/connect/verify`) for the publisher to submit the code.
+    -   [ ] Implement logic to validate the submitted code against the stored one.
+-   [ ] **Data Storage:**
+    -   [ ] Define schema and implement storage (e.g., new KV namespace `MCP_PUBLISHER_STRIPE`) to securely store the mapping: `npm_package_name` -> `{ verifiedStripeAccountId: 'acct_...', publisherEmail: '...' }`.
+    -   [ ] Store this mapping only after successful email verification.
+
+## 15. API Worker Changes (`api-worker`) [TODO]
+
+-   [ ] Add `stripe` Node.js library dependency (`npm install stripe`).
+-   [ ] Add new KV namespace bindings to `wrangler.toml` for `MCP_PURCHASES` and `MCP_PUBLISHER_STRIPE`.
+-   [ ] Implement `POST /api/v1/create-payment-link` endpoint:
+    -   [ ] Input: `mcp_id`, potentially `user_id`.
+    -   [ ] Logic: Fetch MCP manifest, get `price`, retrieve verified `publisherStripeAccountId` from `MCP_PUBLISHER_STRIPE` KV using `mcp_id` (or package name derived from it).
+    -   [ ] Call Stripe API (`checkout.sessions.create` or `paymentLinks.create`) configuring `amount`, `currency`, `transfer_data[destination]`, and `application_fee_amount`.
+    -   [ ] Return Stripe Checkout/Payment Link URL.
+-   [ ] Implement `POST /api/v1/stripe-webhook` endpoint:
+    -   [ ] Verify Stripe webhook signature using the webhook signing secret (configured in Stripe dashboard & Cloudflare secrets).
+    -   [ ] Handle `checkout.session.completed` event (or other relevant success events).
+    -   [ ] Extract necessary data (MCP ID, user/customer info if available, payment status).
+    -   [ ] Write purchase record to `MCP_PURCHASES` KV.
+    -   [ ] Consider idempotency (ignore duplicate events).
+    -   [ ] Return appropriate `200 OK` response to Stripe.
+-   [ ] (Optional/Alternative) Implement `GET /api/v1/payment-status/{checkout_session_id}` for polling confirmation.
+-   [ ] Update `/api/v1/register` and `/api/v1/tools/:id` to handle reading/writing the new optional `price` field in manifests stored in `MCP_TOOLS_KV`.
+
+## 16. Schema Changes [TODO]
+
+-   [ ] Modify `/schemas/mcp.v0.1.schema.json` to add the optional `price: { type: object, properties: { amount: { type: integer }, currency: { type: string, pattern: '^[a-z]{3}$' } }, required: ['amount', 'currency'] }` field.
+-   [ ] Ensure validation logic in `api-worker` uses the updated schema.
+
+## 17. MCP Server Changes (`mcpfinder-server`) [TODO]
+
+-   [ ] Modify `add_mcp_server_config` tool logic:
+    -   [ ] Check the fetched MCP manifest details for the `price` field.
+    -   [ ] If `price` exists:
+        -   Inform the user of the price.
+        -   Call the `/api/v1/create-payment-link` endpoint.
+        -   Present the payment URL to the user.
+        -   Implement a waiting/confirmation mechanism (e.g., polling `payment-status` API, or checking a flag updated by the webhook).
+        -   Proceed with installation *only* after payment confirmation.
+    -   [ ] If no `price`, proceed directly with installation.
+
+## 18. CLI Changes (`cli/mcp-cli.js`) [TODO]
+
+-   [ ] Update `mcp-cli register` command to correctly parse and include the optional `price` object when sending the manifest to the `/api/v1/register` endpoint.
+
+## 19. Documentation & Frontend [TODO]
+
+-   [ ] Create and populate `DOCS_STRIPE.md` with the detailed flow.
+-   [ ] Update `DOCS.md` to reference the new monetization process.
+-   [ ] Update `mcpfinder-www` landing page:
+    -   Explain the payment flow for users purchasing MCPs.
+    -   Add a section/page for publishers explaining how to monetize their MCPs (NPM email requirement, Stripe Connect process, verification).
+-   [ ] (Future) Build a simple web UI for publishers to manage their Stripe connection and potentially view basic stats.
+
+## 20. Testing [TODO]
+
+-   [ ] Configure Stripe test mode API keys.
+-   [ ] Set up Stripe CLI for local webhook testing.
+-   [ ] Add unit/integration tests for:
+    -   NPM data fetching.
+    -   Stripe Connect onboarding flow (mocking Stripe API calls).
+    -   Email verification logic.
+    -   Payment link creation API endpoint.
+    -   Webhook handler logic (using mock Stripe events).
+    -   `add_mcp_server_config` modifications for paid MCPs.
+-   [ ] Perform end-to-end tests of the publisher onboarding and user purchase flows in the Stripe test environment.
+
+# Release and Feedback [TODO]
+
+- Announce MVP release (Discord, Twitter, developer forums).
+- Use GitHub Issues or Discord channel for bug reports and feedback.

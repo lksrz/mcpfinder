@@ -258,33 +258,71 @@ export const registerTool = async (c: Context<{ Bindings: Bindings }>) => {
         });
     }
 
-    // Generate ID
-    const toolId = uuidv4();
+    let toolId: string;
+    let isNewTool = false;
+    let oldStoredData: any = null; // To store existing metadata if updating
+
+    const urlIndexKey = `urlidx:${manifestData.url}`;
+    const existingToolId = await c.env.MCP_TOOLS_KV.get(urlIndexKey);
+
+    if (existingToolId) {
+        toolId = existingToolId;
+        console.log(`Tool with URL '${manifestData.url}' found. Updating existing ID: ${toolId}`);
+        const oldToolDataKey = `tool:${toolId}`;
+        const oldJson = await c.env.MCP_TOOLS_KV.get(oldToolDataKey);
+        if (oldJson) {
+            oldStoredData = JSON.parse(oldJson);
+        } else {
+            // This case is unlikely if urlidx exists, but handle defensively
+            console.warn(`URL index pointed to tool ID ${toolId}, but no data found at ${oldToolDataKey}. Treating as new registration for this ID.`);
+            // Fallback to creating as new, but with the existing ID - new registeredAt, new updatedAt
+            // Alternatively, could throw an error for inconsistent state.
+            // For now, let's overwrite with new metadata but keep the ID.
+        }
+    } else {
+        toolId = uuidv4();
+        isNewTool = true;
+        console.log(`New tool. Generating ID: ${toolId} for URL '${manifestData.url}'`);
+    }
+
+    // Generate ID - This section is now replaced by the logic above
+    // const toolId = uuidv4();
     const kvKey = `tool:${toolId}`;
     const r2Key = `manifests/${toolId}.json`;
 
     // Add metadata before storing
+    const registeredAt = isNewTool
+        ? new Date().toISOString()
+        : (oldStoredData?._registeredAt || new Date().toISOString()); // Preserve old, or set new if old is missing
+
+    const updatedAt = new Date().toISOString();
+
+    const status = oldStoredData?._status || 'unknown';
+    const lastChecked = oldStoredData?._lastChecked || null;
+
     const storedManifest = {
         ...manifestData,
         _id: toolId,
-        _registeredAt: new Date().toISOString(),
-        _status: 'unknown',
-        _lastChecked: null
+        _registeredAt: registeredAt,
+        _updatedAt: updatedAt,
+        _status: status,
+        _lastChecked: lastChecked
     };
 
     try {
-        // Use c.env directly
         await c.env.MCP_TOOLS_KV.put(kvKey, JSON.stringify(storedManifest));
-        await c.env.MCP_MANIFEST_BACKUPS.put(r2Key, rawBody);
+        await c.env.MCP_MANIFEST_BACKUPS.put(r2Key, rawBody); // Backup the raw request body
 
-        // TODO: Implement simplified search indexing if needed for MVP
+        if (isNewTool) {
+            // Create the URL to ID index mapping only for new tools
+            await c.env.MCP_TOOLS_KV.put(urlIndexKey, toolId);
+        }
 
-        return c.json({ success: true, id: toolId }, 201);
+        return c.json({ success: true, id: toolId, operation: isNewTool ? 'created' : 'updated' }, 201);
     } catch (error: any) {
         console.error('Error storing manifest:', error);
-        // Attempt cleanup if possible (optional)
-        // await c.env.MCP_TOOLS_KV.delete(kvKey);
-        // await c.env.MCP_MANIFEST_BACKUPS.delete(r2Key);
+        // Attempt cleanup for a new tool if storage failed mid-way (optional, might be complex)
+        // if (isNewTool) { ... }
         throw new HTTPException(500, { message: 'Failed to store tool manifest', cause: error.message });
     }
 }; 
