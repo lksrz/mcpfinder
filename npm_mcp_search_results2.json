@@ -1,5 +1,5 @@
 {
-  "collectionTimestamp": "2025-05-06T10:41:06.092Z",
+  "collectionTimestamp": "2025-05-06T11:20:51.307Z",
   "packages": [
     {
       "downloads": {
@@ -9496,8 +9496,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for bitcoin-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -9542,8 +9541,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @thirdstrandstudio/mcp-tool-chainer | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -9593,8 +9592,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @magicuidesign/mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -9704,7 +9702,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -9801,8 +9799,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for sql-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -9857,7 +9855,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -9912,8 +9910,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @nearai/near-mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -10008,7 +10006,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -10051,8 +10049,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-clickup-tools | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -10105,7 +10102,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -10148,7 +10145,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -10194,8 +10191,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for fireproof-mcp-database-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -10242,7 +10239,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -10293,8 +10290,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for server-namiaibrowser | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -10349,7 +10345,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -10400,7 +10396,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -10452,8 +10448,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @samanhappy/mcphub | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -10496,8 +10492,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for tool-registry | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -10546,7 +10542,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -10597,7 +10593,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for mcps-logger | Stderr: "
     },
     {
@@ -10646,8 +10642,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcpgod | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -10689,8 +10685,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @isacrazy/unicesumar-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -10742,7 +10737,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -10803,7 +10798,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for short-video-maker | Stderr: "
     },
     {
@@ -10856,7 +10851,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -10911,7 +10906,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -10961,7 +10956,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -11005,8 +11000,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for askel-tool-registry | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -11124,7 +11119,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -11172,7 +11167,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -11224,8 +11219,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @302ai/sandbox-mcp | Stderr: "
+      "processed": 1,
+      "introspectionError": "Failed initial listTools: MCP error -32602: MCP error -32602: API key is required to call the tool | Stderr: "
     },
     {
       "downloads": {
@@ -11276,7 +11271,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -11320,8 +11315,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-server-sqlite-npx | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -11384,8 +11379,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @apideck/mcp-server-crm | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -11433,8 +11428,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for rishasharma-test-agent-toolkit1 | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -11521,7 +11516,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -11565,8 +11560,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/thegraph-token-api | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -11704,8 +11698,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @osaas/client-mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -11751,8 +11745,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for simple-loki-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -11795,8 +11788,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/vercel | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -11898,8 +11890,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @302ai/basic-mcp | Stderr: "
+      "processed": 1,
+      "introspectionError": "Failed initial listTools: MCP error -32602: MCP error -32602: API key is required to call the tool | Stderr: "
     },
     {
       "downloads": {
@@ -11997,8 +11989,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @knocklabs/agent-toolkit | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -12053,7 +12045,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -12102,7 +12094,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -12161,7 +12153,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -12257,8 +12249,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for factbook-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -12305,8 +12296,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for arato-mcp-server | Stderr: "
+      "processed": 1,
+      "introspectionError": "Failed initial listTools: MCP error -32601: Method not found | Stderr: "
     },
     {
       "downloads": {
@@ -12361,7 +12352,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -12414,7 +12405,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -12471,7 +12462,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -12515,8 +12506,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-testing-library | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -12562,8 +12553,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/server-branch-thinking | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -12619,7 +12609,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -12663,8 +12653,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for get-mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -12710,7 +12700,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -12762,8 +12752,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @302ai/browser-use-mcp | Stderr: "
+      "processed": 1,
+      "introspectionError": "Failed initial listTools: MCP error -32602: MCP error -32602: API key is required to call the tool | Stderr: "
     },
     {
       "downloads": {
@@ -12851,8 +12841,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/totoy-ai | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -12942,8 +12931,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @z503722728/mcp-knowledge-graph | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -12985,8 +12973,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for problem-tree-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -13031,8 +13019,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @ouedyan/modelcontextprotocol-server-github | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -13075,8 +13063,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/autobahn | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -13129,7 +13116,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 1,
       "introspectionError": "Failed initial listTools: MCP error -32601: Method not found | Stderr: "
     },
     {
@@ -13173,8 +13160,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/spotify | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -13224,7 +13210,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -13286,7 +13272,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for @autonomys/auto-mcp-servers | Stderr: "
     },
     {
@@ -13384,8 +13370,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @ably/cli | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -13438,7 +13424,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -13482,8 +13468,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/sanity | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -13534,8 +13520,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/bitcoin-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -13578,8 +13563,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @yincongcyincong/victoriametrics-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -13622,8 +13606,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/mintlify | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -13677,7 +13660,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -13721,8 +13704,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/venice-ai | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -13772,7 +13754,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -13822,8 +13804,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @tokenizin-com/mcp-server-nativewind | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -13868,8 +13850,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @simonwong/mcp-gitlab-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -13921,8 +13903,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @isaacphi/mcp-gdrive | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -14021,7 +14002,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -14072,7 +14053,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -14116,8 +14097,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/google-maps | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -14165,7 +14145,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -14209,8 +14189,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/korea-weather | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -14294,8 +14273,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @osaas/mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -14348,7 +14327,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -14392,8 +14371,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @zeroer/mcp-server-pyautogui | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -14442,7 +14421,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -14492,7 +14471,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -14536,7 +14515,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -14589,7 +14568,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -14641,8 +14620,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @302ai/file-parser-mcp | Stderr: "
+      "processed": 1,
+      "introspectionError": "Failed initial listTools: MCP error -32602: MCP error -32602: API key is required to call the tool | Stderr: "
     },
     {
       "downloads": {
@@ -14684,8 +14663,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mzc-pops-mcp-server-dev-kksoo | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -14729,7 +14708,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -14773,7 +14752,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -14816,8 +14795,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-dev-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -14977,8 +14955,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-server-langfuse | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -15028,8 +15006,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @aigne/example-mcp-sqlite | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -15078,7 +15056,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -15130,7 +15108,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -15183,7 +15161,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -15235,8 +15213,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/starknet-mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -15295,7 +15273,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -15350,7 +15328,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -15403,7 +15381,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -15447,8 +15425,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/epa-lew | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -15497,7 +15474,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -15541,8 +15518,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/keycloak | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -15595,8 +15572,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @agentico/mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -15646,8 +15623,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @usegrant/mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -15743,8 +15720,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for xpander-mcp-remote | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -15787,8 +15764,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp4gql | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -15943,7 +15920,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -15986,7 +15963,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16041,7 +16018,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16088,8 +16065,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @waigenie/mobile-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -16189,7 +16165,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16242,7 +16218,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for mcp-clever-demo | Stderr: "
     },
     {
@@ -16353,7 +16329,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16408,7 +16384,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16452,8 +16428,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @jine9323/server-twelvelabs-video | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -16498,8 +16474,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for iknow_search | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -16553,7 +16528,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16596,7 +16571,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16642,8 +16617,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @llmindset/mcp-miro | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -16705,8 +16680,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @recallnet/mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -16750,7 +16725,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16804,7 +16779,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16854,7 +16829,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16901,7 +16876,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -16948,8 +16923,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mcp-get-community/server-llm-txt | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -16992,7 +16966,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17045,7 +17019,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17099,7 +17073,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17210,7 +17184,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17257,7 +17231,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17301,7 +17275,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17352,7 +17326,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for @aigne/example-mcp-puppeteer | Stderr: "
     },
     {
@@ -17404,7 +17378,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17455,8 +17429,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @aigne/example-mcp-github | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -17551,7 +17525,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for @suiware/mcp | Stderr: "
     },
     {
@@ -17597,7 +17571,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17691,7 +17665,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for devvit-mcp-msw | Stderr: "
     },
     {
@@ -17734,8 +17708,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @gomomento/mcp-momento | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -17778,7 +17752,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17842,7 +17816,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17895,7 +17869,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -17938,8 +17912,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for rationalai-server-gdrive | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -17989,7 +17963,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18041,8 +18015,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @302ai/web-search-mcp | Stderr: "
+      "processed": 1,
+      "introspectionError": "Failed initial listTools: MCP error -32602: MCP error -32602: API key is required to call the tool | Stderr: "
     },
     {
       "downloads": {
@@ -18085,7 +18059,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18193,7 +18167,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18237,8 +18211,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for nm-mcp-amap-coordinate-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -18288,8 +18262,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @aigne/example-sqlite-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -18331,7 +18305,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18447,7 +18421,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18490,8 +18464,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for xinghuo-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -18541,7 +18514,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18588,7 +18561,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18637,7 +18610,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18691,7 +18664,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18743,8 +18716,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @302ai/image-mcp | Stderr: "
+      "processed": 1,
+      "introspectionError": "Failed initial listTools: MCP error -32602: MCP error -32602: API key is required to call the tool | Stderr: "
     },
     {
       "downloads": {
@@ -18798,7 +18771,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 1,
       "introspectionError": "Failed initial listTools: MCP error -32601: Method not found | Stderr: "
     },
     {
@@ -18846,7 +18819,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18893,7 +18866,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -18947,8 +18920,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for zubeid-youtube-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -19004,7 +18977,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19048,8 +19021,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/together-ai | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -19098,7 +19070,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19151,7 +19123,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19195,8 +19167,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @v1xingyue/mcp-template | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -19242,8 +19213,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mcp-registry/meme-mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -19293,7 +19264,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19343,8 +19314,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-server-codegraph | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -19399,7 +19370,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19497,7 +19468,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19544,7 +19515,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19600,7 +19571,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19646,8 +19617,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/openrpc-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -19690,8 +19660,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for lighthouse-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -19734,8 +19704,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @flinkhouse/server-kafkamanager | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -19779,7 +19749,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19829,7 +19799,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19884,7 +19854,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -19937,7 +19907,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -20041,7 +20011,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 1,
       "introspectionError": "Failed initial listTools: MCP error -32603: request failed: Not Found | Stderr: "
     },
     {
@@ -20092,7 +20062,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -20144,7 +20114,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 1,
       "introspectionError": "Failed initial listTools: MCP error -32601: Method not found | Stderr: "
     },
     {
@@ -20188,8 +20158,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/open-weather | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -20241,7 +20210,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -20295,7 +20264,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -20355,8 +20324,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @fiberplane/mcp-server-fiberplane | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -20401,8 +20369,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/js-sandbox-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -20456,7 +20423,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -20545,8 +20512,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/us-national-weather-service | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -20589,8 +20555,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @41px/mcp-xmind | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -20644,7 +20610,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for @mcp-dockmaster/mcp-cryptowallet-solana | Stderr: "
     },
     {
@@ -20687,8 +20653,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @jimpick/mcp-database-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -20731,7 +20697,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -20798,8 +20764,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @getalby/nwc-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -20846,7 +20812,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -20948,7 +20914,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -20991,8 +20957,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for hyper-mcp-telegram-send | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -21040,7 +21005,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -21092,7 +21057,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -21135,8 +21100,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-diagnose-test | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -21329,8 +21293,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @osmosis-agent-toolkit/mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -21469,7 +21433,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -21516,8 +21480,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-server-sqlite-npx | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -21571,7 +21535,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -21620,8 +21584,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-autotest | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -21673,7 +21637,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -21722,7 +21686,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for @lgiavedoni/mcp | Stderr: "
     },
     {
@@ -21769,8 +21733,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-server-flomo | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -21818,8 +21781,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @subtotal-inc/mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -21860,8 +21823,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-code | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -21905,7 +21868,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for serve-cove | Stderr: "
     },
     {
@@ -21958,7 +21921,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -22005,8 +21968,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for test-pp-atlas-v1 | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -22049,8 +22012,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/agenta-ai | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -22098,7 +22060,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -22142,8 +22104,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @open-mcp/backstage-catalog | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -22194,7 +22155,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -22244,7 +22205,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -22288,7 +22249,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -22335,8 +22296,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for meme-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -22384,8 +22344,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for odinfun-mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -22435,8 +22395,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @inkdropapp/mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -22530,7 +22489,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -22584,7 +22543,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -22633,8 +22592,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for prd-creator-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -22683,8 +22641,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/sourcify-context-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -22744,7 +22701,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -22797,8 +22754,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-gdrive | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -22844,8 +22801,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-xmind | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -22887,8 +22844,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for sqlite-graph-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -22944,7 +22900,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -23101,8 +23057,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @a21/server-postgres | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -23144,8 +23100,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for quan-mcp-weather-v1 | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -23187,8 +23142,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-server-feishu | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -23230,8 +23184,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @stevessr/project-graph-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -23276,8 +23229,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for hui-docs-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -23322,8 +23274,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/minecraft-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -23373,7 +23324,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -23424,8 +23375,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mina-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -23481,7 +23431,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -23532,7 +23482,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -23592,7 +23542,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for @mseep/alibabacloud-dataworks-mcp-server | Stderr: "
     },
     {
@@ -23642,8 +23592,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/simple-loki-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -23685,8 +23634,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for quan-mcp-weather-v0 | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -23729,8 +23678,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for attio-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -23774,7 +23723,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -23825,7 +23774,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -23871,8 +23820,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @rik.hoffbauer/create-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -23924,7 +23873,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -23986,8 +23935,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-rtfm | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -24039,7 +23987,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -24083,7 +24031,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -24126,8 +24074,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @zorgio/jira-search | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -24176,8 +24123,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mobile-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -24223,8 +24169,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/dynamics365 | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -24266,8 +24212,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-linear | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -24313,8 +24259,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mtane0412/twitch-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -24428,7 +24374,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -24475,8 +24421,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/attio-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -24530,8 +24476,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-compass | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -24592,7 +24537,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -24643,8 +24588,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @aigne/example-mcp-server-puppeteer | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -24686,8 +24631,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for oracle-db-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -24740,8 +24684,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for jobnimbus-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -24795,8 +24739,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/linear-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -24839,8 +24783,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @openmcprouter/mcp-server-ghibli-video | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -24893,8 +24836,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @fabianwilliams/clickncontact | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -24951,8 +24893,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/quick-chart-mcp | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -25001,8 +24942,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/nrepl-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -25056,8 +24996,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-gdrive | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -25103,8 +25042,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-pg-schema | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -25153,8 +25092,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for codecov-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -25208,8 +25147,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-slop-adapter | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -25255,7 +25194,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -25299,8 +25238,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for server-secretwords | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -25350,7 +25288,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -25402,7 +25340,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -25452,8 +25390,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-json-db-collection-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -25505,8 +25443,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-safe-run | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -25558,8 +25496,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/dart-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -25602,8 +25540,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @flinkhouse/server-flinkmanager | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -25648,7 +25586,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -25705,8 +25643,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/lightning-tools-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -25748,8 +25685,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for ipfs-mcp-uploader | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -25791,7 +25727,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -25859,8 +25795,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/mcp-sequentialthinking-tools | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -25912,7 +25847,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -25962,7 +25897,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -26008,7 +25943,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -26057,8 +25992,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-taskai-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -26106,8 +26040,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for shouting-mcp-slack | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -26149,7 +26083,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -26242,8 +26176,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for ming-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -26296,7 +26229,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for joybuzz | Stderr: "
     },
     {
@@ -26348,7 +26281,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -26394,8 +26327,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-git-commit-aider | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -26449,8 +26381,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-gdrive-fixed | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -26493,8 +26424,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-server-readall-xosc | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -26544,8 +26475,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @aigne/example-mcp-server-sqlite | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -26599,7 +26530,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for mcp-amazon-listing-tool | Stderr: "
     },
     {
@@ -26652,8 +26583,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @alexissinglaire/supergateway | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -26703,7 +26634,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for @aigne/example-puppeteer-mcp-server | Stderr: "
     },
     {
@@ -26750,7 +26681,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -26796,8 +26727,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for minecraftbuildmcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -26846,8 +26777,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-client-nodejs | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -26950,7 +26881,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -26996,8 +26927,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/gateway | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -27101,7 +27032,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -27156,8 +27087,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/supergateway | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -27312,8 +27243,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @kirill-markin/mcp-screenshots-cursor-ide | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -27356,7 +27287,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -27407,7 +27338,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -27458,7 +27389,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -27501,7 +27432,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -27552,7 +27483,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -27599,8 +27530,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/opsnow-mcp-cost-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -27654,8 +27585,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-amazon-listing | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -27709,8 +27640,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for amazon-listing-optimizer | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -27770,7 +27701,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -27822,7 +27753,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for mcp-tools-cli | Stderr: "
     },
     {
@@ -27875,7 +27806,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -27969,8 +27900,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @flinkhouse/bailian-agent | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -28242,7 +28173,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -28289,8 +28220,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/sharepoint | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -28383,7 +28314,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -28434,7 +28365,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -28478,8 +28409,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @flinkhouse/server-everart | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -28525,8 +28456,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @agentico/mcp-create-tool | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -28577,8 +28508,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mscrivo/outline-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -28624,8 +28555,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mseep/opsnow-mcp-asset-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -28715,8 +28646,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-copy-web-ui | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -28768,7 +28698,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -28824,7 +28754,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -28867,8 +28797,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for pm2-mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -28963,8 +28893,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @jarhed/server-mysql | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -29017,7 +28947,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -29064,7 +28994,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -29112,7 +29042,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -29206,7 +29136,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -29309,8 +29239,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for gorela-developer-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -29408,8 +29337,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @cartographai/mcp-server-codegraph | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -29452,8 +29381,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @flinkhouse/server-postgres | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -29511,7 +29440,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -29564,8 +29493,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for twitter-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -29609,8 +29538,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @pash1986/server-mongodb | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -29713,7 +29642,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -29808,7 +29737,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -29864,7 +29793,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -29910,8 +29839,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @berwickgeek/mcp-memory-mongo | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -29953,7 +29882,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -30039,8 +29968,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for azure-mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -30082,8 +30011,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-team-tracker | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -30125,8 +30054,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for nm-mcp-server-chatsum | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -30171,7 +30099,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -30214,8 +30142,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-gateway | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -30257,8 +30185,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @darklight0405/openai-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -30309,7 +30236,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -30430,7 +30357,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -30493,7 +30420,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -30548,7 +30475,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -30591,8 +30518,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for mcp-pm2 | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -30635,8 +30562,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @flinkhouse/server-redis | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -30685,8 +30612,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for langfuse-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -30736,8 +30663,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @aigne/example-mcp-server-github-integrator | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -30832,8 +30759,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @flinkhouse/server-sequential-thinking | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -30953,7 +30879,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -30995,8 +30921,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @milangress/hoarder-mcp | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -31080,8 +31006,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for js-sandbox-mcp-server | Stderr: "
+      "processed": 3
     },
     {
       "downloads": {
@@ -31185,7 +31110,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -31232,8 +31157,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @mtane0412/perspective-mcp-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -31337,7 +31262,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -31387,7 +31312,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -31430,8 +31355,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @srkgvo/mcp-server-sites | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -31526,7 +31451,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "Connection timeout (15000ms) for omni-llama-base-mcp | Stderr: "
     },
     {
@@ -31577,7 +31502,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -31620,8 +31545,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @srkgvo/mcp-server-projects | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -31688,7 +31613,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -31743,7 +31668,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -31794,7 +31719,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -31849,7 +31774,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -31898,7 +31823,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32055,7 +31980,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32102,8 +32027,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @jimpick/mcp-json-db-collection-server | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -32156,8 +32081,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
-      "introspectionError": "Connection timeout (15000ms) for @vessl-ai/mcpctl | Stderr: "
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -32211,7 +32136,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32258,7 +32183,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32361,7 +32286,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32412,7 +32337,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32458,7 +32383,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -32509,7 +32435,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for create-mcp-server-app | Stderr: "
     },
     {
       "downloads": {
@@ -32578,7 +32505,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32627,7 +32554,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32671,7 +32598,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32721,7 +32648,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -32772,7 +32700,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32827,7 +32755,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -32881,7 +32809,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -32932,7 +32861,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -32984,7 +32913,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -33049,7 +32978,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -33101,7 +33030,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -33143,7 +33072,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -33190,7 +33119,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -33244,7 +33173,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -33305,7 +33235,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -33359,7 +33290,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -33408,7 +33339,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -33460,7 +33392,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -33512,7 +33445,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for @commercetools-demo/mcp | Stderr: "
     },
     {
       "downloads": {
@@ -33567,7 +33501,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -33616,7 +33550,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -33668,7 +33603,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -33806,7 +33742,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -33864,7 +33801,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -33915,7 +33853,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -33970,7 +33908,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for @ldavis9000aws/aws-mcp-jv3 | Stderr: "
     },
     {
       "downloads": {
@@ -34019,7 +33958,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -34066,7 +34005,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0,
+      "processed": 2,
       "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
@@ -34119,7 +34058,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for @vib3ai/monad-mcp-server | Stderr: "
     },
     {
       "downloads": {
@@ -34170,7 +34110,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -34224,7 +34165,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -34275,7 +34217,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for create-mcp-client-app | Stderr: "
     },
     {
       "downloads": {
@@ -34330,7 +34273,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -34385,7 +34329,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -34431,7 +34375,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -34483,7 +34427,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -34587,7 +34532,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -34637,7 +34582,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -34682,7 +34628,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -34738,7 +34685,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -34793,7 +34740,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -34835,7 +34783,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -34887,7 +34835,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -34962,7 +34910,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35021,7 +34970,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35072,7 +35022,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -35135,7 +35085,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35195,7 +35146,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -35246,7 +35197,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -35294,7 +35245,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -35349,7 +35300,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35399,7 +35351,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35449,7 +35402,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35496,7 +35450,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35544,7 +35499,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35600,7 +35556,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35655,7 +35612,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35712,7 +35670,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -35762,7 +35720,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -35810,7 +35768,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35862,7 +35821,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35922,7 +35882,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -35974,7 +35935,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -36029,7 +35990,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -36080,7 +36041,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -36132,7 +36094,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -36183,7 +36146,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -36233,7 +36196,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -36283,7 +36247,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -36336,7 +36301,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -36385,7 +36351,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -36439,7 +36405,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -36489,7 +36455,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -36664,7 +36631,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -36714,7 +36682,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -36764,7 +36733,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -36812,7 +36782,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -36866,7 +36836,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -36916,7 +36886,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -36972,7 +36943,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -37023,7 +36994,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -37077,7 +37048,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37140,7 +37112,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37194,7 +37167,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37298,7 +37272,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -37352,7 +37326,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -37407,7 +37381,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37453,7 +37428,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37504,7 +37480,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37557,7 +37534,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37613,7 +37591,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -37664,7 +37642,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 1,
+      "introspectionError": "Failed initial listTools: [\n  {\n    \"code\": \"invalid_type\",\n    \"expected\": \"array\",\n    \"received\": \"object\",\n    \"path\": [\n      \"tools\"\n    ],\n    \"message\": \"Expected array, received object\"\n  }\n] | Stderr: "
     },
     {
       "downloads": {
@@ -37718,7 +37697,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37769,7 +37749,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37831,7 +37812,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37880,7 +37862,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -37930,7 +37912,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -37982,7 +37965,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38037,7 +38021,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -38088,7 +38072,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38136,7 +38121,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38192,7 +38178,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38246,7 +38233,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38299,7 +38287,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38348,7 +38337,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38400,7 +38390,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38452,7 +38443,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38504,7 +38496,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38552,7 +38545,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38602,7 +38596,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38658,7 +38653,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38714,7 +38710,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -38772,7 +38768,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -38818,7 +38814,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -38869,7 +38865,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38923,7 +38920,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -38975,7 +38973,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39030,7 +39029,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39078,7 +39078,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39131,7 +39132,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -39185,7 +39186,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -39240,7 +39241,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -39294,7 +39295,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39345,7 +39347,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -39406,7 +39408,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39456,7 +39459,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39504,7 +39508,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -39555,7 +39559,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39609,7 +39614,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39656,7 +39662,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -39703,7 +39709,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -39755,7 +39761,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39807,7 +39814,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39859,7 +39867,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -39909,7 +39917,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -39959,7 +39968,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40009,7 +40019,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -40061,7 +40071,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40111,7 +40122,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40161,7 +40173,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40211,7 +40224,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40257,7 +40271,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40311,7 +40326,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40364,7 +40380,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -40413,7 +40429,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -40463,7 +40479,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40514,7 +40531,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -40565,7 +40582,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -40615,7 +40632,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40665,7 +40683,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40716,7 +40735,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40763,7 +40783,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -40813,7 +40833,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40861,7 +40882,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -40907,7 +40928,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -40957,7 +40979,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41003,7 +41026,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41053,7 +41077,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41099,7 +41124,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41148,7 +41174,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41194,7 +41221,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41244,7 +41272,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41301,7 +41330,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41347,7 +41377,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41399,7 +41430,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for hello-mcp | Stderr: "
     },
     {
       "downloads": {
@@ -41445,7 +41477,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41491,7 +41524,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41537,7 +41571,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41590,7 +41625,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for @york.chan.pru/mcp-ssh | Stderr: "
     },
     {
       "downloads": {
@@ -41640,7 +41676,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41690,7 +41727,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for mcp-dbs | Stderr: "
     },
     {
       "downloads": {
@@ -41736,7 +41774,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41790,7 +41829,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41839,7 +41879,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41894,7 +41935,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -41950,7 +41992,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42002,7 +42045,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -42059,7 +42102,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -42114,7 +42157,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42160,7 +42204,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42210,7 +42255,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42261,7 +42307,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42314,7 +42361,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -42360,7 +42407,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42412,7 +42460,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42463,7 +42512,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -42511,7 +42560,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -42561,7 +42610,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -42613,7 +42662,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -42663,7 +42712,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42717,7 +42767,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42767,7 +42818,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42816,7 +42868,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42870,7 +42923,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -42918,7 +42972,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "registrationError": "Error executing CLI registration command: Command failed: node /Users/lukasz/Git/mcpfinder/cli/bin/mcp-cli.js register /var/folders/n7/76wsrrz94qb82klncv72c27m0000gn/T/mcp-introspect-mcpbind_toolkit-9DBgwl/temp_mcp_manifest.json --api-url \"https://mcpfinder.dev\"\nError: Registration failed with status 400.\nServer response: Manifest validation failed\nAn error occurred during registration: HTTP error 400\n | Stdout: Registering manifest from /var/folders/n7/76wsrrz94qb82klncv72c27m0000gn/T/mcp-introspect-mcpbind_toolkit-9DBgwl/temp_mcp_manifest.json to https://mcpfinder.dev/api/v1/register...\n | Stderr: Error: Registration failed with status 400.\nServer response: Manifest validation failed\nAn error occurred during registration: HTTP error 400"
     },
     {
       "downloads": {
@@ -42974,7 +43029,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -43027,7 +43083,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -43073,7 +43129,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -43125,7 +43182,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -43173,7 +43231,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -43223,7 +43281,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -43272,7 +43331,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -43323,7 +43383,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -43382,7 +43442,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -43440,7 +43500,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -43494,7 +43554,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -43549,7 +43609,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -43608,7 +43668,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -43657,7 +43717,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -43707,7 +43767,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -43753,7 +43814,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -43807,7 +43868,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -43849,7 +43911,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -43905,7 +43968,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -43954,7 +44018,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44008,7 +44073,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44056,7 +44122,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44120,7 +44187,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44169,7 +44237,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -44219,7 +44287,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44267,7 +44336,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44315,7 +44385,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44369,7 +44440,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44415,7 +44487,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -44469,7 +44541,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -44522,7 +44594,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -44577,7 +44649,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -44633,7 +44705,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44686,7 +44759,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -44736,7 +44809,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44787,7 +44861,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44838,7 +44913,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -44884,7 +44959,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -44937,7 +45013,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -44992,7 +45068,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45038,7 +45115,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45084,7 +45162,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45130,7 +45209,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45189,7 +45269,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -45241,7 +45321,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -45301,7 +45381,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45351,7 +45432,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45398,7 +45480,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45451,7 +45534,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45504,7 +45588,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45559,7 +45644,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45611,7 +45697,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45663,7 +45750,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -45720,7 +45807,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -45773,7 +45860,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -45823,7 +45910,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45873,7 +45961,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45926,7 +46015,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -45979,7 +46069,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46030,7 +46121,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for text2sql-mcp-tool | Stderr: "
     },
     {
       "downloads": {
@@ -46087,7 +46179,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -46140,7 +46232,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -46186,7 +46278,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46236,7 +46329,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -46286,7 +46379,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46338,7 +46432,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46388,7 +46483,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 1,
+      "introspectionError": "Failed initial listTools: MCP error -32601: Method not found | Stderr: "
     },
     {
       "downloads": {
@@ -46441,7 +46537,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46487,7 +46584,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46533,7 +46631,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46585,7 +46684,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46633,7 +46733,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46684,7 +46785,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46735,7 +46837,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46787,7 +46890,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46841,7 +46945,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46896,7 +47001,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46951,7 +47057,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -46999,7 +47106,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -47053,7 +47160,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -47106,7 +47214,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for create-mcp-cli | Stderr: "
     },
     {
       "downloads": {
@@ -47161,7 +47270,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -47216,7 +47325,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -47269,7 +47379,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -47317,7 +47427,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -47372,7 +47482,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -47429,7 +47540,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for mcp-cli-generator | Stderr: "
     },
     {
       "downloads": {
@@ -47479,7 +47591,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -47527,7 +47640,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -47587,7 +47701,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -47641,7 +47756,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -47693,7 +47808,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -47745,7 +47860,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -47798,7 +47914,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -47851,7 +47968,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -47900,7 +48018,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -47953,7 +48072,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for drawio-mcp-server | Stderr: "
     },
     {
       "downloads": {
@@ -48005,7 +48125,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -48061,7 +48181,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -48107,7 +48227,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for @rudrasankha/puppeteer-mcp-server | Stderr: "
     },
     {
       "downloads": {
@@ -48157,7 +48278,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -48207,7 +48328,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -48255,7 +48377,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -48314,7 +48436,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -48360,7 +48482,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -48402,7 +48524,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -48454,7 +48576,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -48499,7 +48621,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -48552,7 +48675,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -48602,7 +48726,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -48655,7 +48780,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -48705,7 +48831,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -48755,7 +48882,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -48806,7 +48934,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -48868,7 +48996,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -48922,7 +49051,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -48976,7 +49106,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49029,7 +49160,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -49072,7 +49203,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49118,7 +49250,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49176,7 +49309,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49226,7 +49360,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -49279,7 +49413,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "Connection timeout (15000ms) for @jser/mcp | Stderr: "
     },
     {
       "downloads": {
@@ -49329,7 +49464,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49383,7 +49519,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49428,7 +49565,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49480,7 +49618,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -49529,7 +49667,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49584,7 +49723,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -49634,7 +49773,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49690,7 +49830,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49740,7 +49881,7 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 3
     },
     {
       "downloads": {
@@ -49810,7 +49951,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     },
     {
       "downloads": {
@@ -49856,7 +49998,8 @@
       "flags": {
         "insecure": 0
       },
-      "processed": 0
+      "processed": 2,
+      "introspectionError": "MCP error -32000: Connection closed | Stderr: "
     }
   ]
 }
