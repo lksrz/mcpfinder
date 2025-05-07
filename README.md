@@ -1,4 +1,4 @@
-# MCP Finder (mcpfinder.dev)
+# MCPfinder 🔧🤖 (`@mcpfinder/server`)
 
 A serverless platform for registering and discovering MCP (Model Context Protocol) tools.
 
@@ -81,17 +81,46 @@ git submodule update --init --recursive
     cd ..
     ```
 
-7.  (Optional) Run MCPfinder server Locally:
-    *   Stdio mode (for clients like Cursor):
+7.  Using the `mcpfinder-server` (`./mcpfinder-server/index.js`):
+    This script can run as an MCP server or execute specific commands.
+
+    *   **Run as an MCP Server:**
+        *   Default (Stdio mode, e.g., for Cursor):
+            ```bash
+            node ./mcpfinder-server/index.js
+            ```
+        *   HTTP mode:
+            ```bash
+            node ./mcpfinder-server/index.js --http
+            ```
+        *   Server Options:
+            *   `--port <number>`: Specify port for HTTP mode (Default: 6181 or `MCP_PORT` env var).
+                ```bash
+                node ./mcpfinder-server/index.js --http --port 12345
+                ```
+            *   `--api-url <url>`: Specify the MCP Finder Registry API URL (Default: `https://mcpfinder.dev` or `MCPFINDER_API_URL` env var).
+                ```bash
+                node ./mcpfinder-server/index.js --api-url http://localhost:8787
+                ```
+
+    *   **Execute Commands:**
+        *   Interactive Setup (for users/AI clients to configure a client):
+            ```bash
+            node ./mcpfinder-server/index.js install
+            ```
+            (Aliases: `setup`, `init`)
+        *   Register Server Package (for server publishers):
+            ```bash
+            node ./mcpfinder-server/index.js register
+            ```
+            (This requires appropriate environment variables like `MCPFINDER_API_URL` and `MCPFINDER_REGISTRY_SECRET` to be set for the registry interaction).
+
+    *   **Display Help:**
         ```bash
-        node ./mcpfinder-server/index.js
-        ```
-    *   HTTP mode:
-        ```bash
-        node ./mcpfinder-server/index.js --http [--port 6181] [--api-url <registry_api_url>]
+        node ./mcpfinder-server/index.js --help
         ```
 
-8.  Install CLI globally:
+8.  Install `mcp-cli` globally (for `./cli/bin/mcp-cli.js`):
     ```bash
     # No longer a separate 'cli' package.json, use root:
     npm link # Links the bin specified in the root package.json

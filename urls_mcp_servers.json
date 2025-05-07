@@ -1,0 +1,16 @@
+{
+    "@mcpfinder/server": [
+        "npx",
+        "-y",
+        "@mcpfinder/server",
+        "mcp",
+        "install"
+    ],
+    "mcpfinder": {
+        "command": " npx ",
+        "args": [
+            " -y ",
+            " @mcpfinder/server "
+        ]
+    }
+}
