@@ -24,3 +24,6 @@ preview_bucket_name = "mcp-finder-manifest-backups"
 # MCP_REGISTRY_SECRET = "" # Define secrets via wrangler cli, not directly here
 
 # Add other configurations like routes if needed 
+
+[observability]
+enabled = true
