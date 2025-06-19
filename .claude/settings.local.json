@@ -33,7 +33,21 @@
       "Bash(true)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npm run:*)",
+      "Bash(npx wrangler types:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx wrangler:*)",
+      "Bash(npm version:*)",
+      "Bash(git -C mcpfinder-server add .)",
+      "Bash(git -C mcpfinder-server commit -m \"Update CLI help with HTTP/SSE transport information\")",
+      "Bash(npm publish:*)",
+      "Bash(cp:*)",
+      "mcp__mcpfinder__search_mcp_servers",
+      "mcp__mcpfinder__test_echo",
+      "mcp__mcpfinder__list_trending_servers",
+      "Bash(curl \"https://mcpfinder.dev/api/v1/search?limit=2\")",
+      "mcp__mcpfinder__get_mcp_server_details"
     ],
     "deny": []
   }

@@ -80,5 +80,14 @@
             "path": "~/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/cline_mcp_settings.json"
         }
         ]
+    },
+    {
+        "tool": "Claude Code",
+        "locations": [
+        {
+            "operating_systems": ["windows", "macos", "linux"],
+            "path": "~/.claude/mcp.json"
+        }
+        ]
     }
 ]
