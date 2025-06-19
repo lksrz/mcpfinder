@@ -51,7 +51,11 @@
       "Bash(MCP_REGISTRY_SECRET=test node src/register.js)",
       "Bash(git pull:*)",
       "Bash(sed:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(/tmp/test-auth-registration.sh:*)",
+      "Bash(/tmp/test-auth-improved.sh:*)",
+      "Bash(/tmp/test-production-registration.sh:*)",
+      "Bash(/tmp/test-simple-registration.sh:*)"
     ],
     "deny": []
   }
