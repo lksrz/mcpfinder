@@ -7,6 +7,8 @@ export interface Bindings {
 	MCP_TOOLS_KV: KVNamespace;
 	MCP_MANIFEST_BACKUPS: R2Bucket;
 	MCP_REGISTRY_SECRET: string;
+	MCPFINDER_API_URL?: string;
+	MCP_SEARCH_INDEX_KV?: KVNamespace;
 	// Add other bindings if needed
 }
 

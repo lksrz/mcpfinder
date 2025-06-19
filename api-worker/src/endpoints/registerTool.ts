@@ -5,6 +5,7 @@ import { hmac } from '@noble/hashes/hmac';
 import { bytesToHex } from '@noble/hashes/utils';
 import { v4 as uuidv4 } from 'uuid'; // Assuming uuid is installed or available globally
 import { Bindings } from '../types'; // Import the correct Bindings type
+import { createEvent } from './streamEvents'; // Import event creation helper
 
 // Remove Ajv imports and schema definition
 // Define a custom validation function instead
@@ -317,6 +318,27 @@ export const registerTool = async (c: Context<{ Bindings: Bindings }>) => {
             // Create the URL to ID index mapping only for new tools
             await c.env.MCP_TOOLS_KV.put(urlIndexKey, toolId);
         }
+
+        // Create event for SSE stream
+        const eventType = isNewTool ? 'tool.registered' : 'tool.updated';
+        const changes: string[] = [];
+        
+        if (!isNewTool && oldStoredData) {
+            // Track what changed
+            if (oldStoredData.name !== manifestData.name) changes.push('name');
+            if (oldStoredData.description !== manifestData.description) changes.push('description');
+            if (JSON.stringify(oldStoredData.capabilities) !== JSON.stringify(manifestData.capabilities)) changes.push('capabilities');
+            if (JSON.stringify(oldStoredData.tags) !== JSON.stringify(manifestData.tags)) changes.push('tags');
+        }
+        
+        await createEvent(c.env, eventType, {
+            toolId,
+            name: manifestData.name,
+            description: manifestData.description,
+            url: manifestData.url,
+            tags: manifestData.tags,
+            changes: isNewTool ? undefined : changes
+        });
 
         return c.json({ success: true, id: toolId, operation: isNewTool ? 'created' : 'updated' }, 201);
     } catch (error: any) {

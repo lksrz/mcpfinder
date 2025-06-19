@@ -1,17 +1,17 @@
 name = "mcp-api-worker"
 main = "src/index.ts"
-compatibility_date = "2025-05-04"
+compatibility_date = "2024-11-05"
 
 # KV Namespaces
 [[kv_namespaces]]
 binding = "MCP_TOOLS_KV"
 id = "59bfeb2ef6ab471a9a3461f113704891" # This will be replaced with a real ID for production
-preview_id = "59bfeb2ef6ab471a9a3461f113704891"
+preview_id = "eba817abf81343708dcb07b4452bb0c4"
 
 [[kv_namespaces]]
 binding = "MCP_SEARCH_INDEX_KV" # For optimized search (optional for MVP)
 id = "38748fb584cb46dbab1585f66e6f2fb0" # Replaced with actual ID
-preview_id = "38748fb584cb46dbab1585f66e6f2fb0"
+preview_id = "628bb8266d294c56a5861e722b30432a"
 
 # R2 Buckets
 [[r2_buckets]]

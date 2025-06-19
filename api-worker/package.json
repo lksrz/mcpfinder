@@ -23,6 +23,6 @@
 		"@cloudflare/workers-types": "^4.20250504.0",
 		"@types/node": "22.13.0",
 		"@types/service-worker-mock": "^2.0.4",
-		"wrangler": "^4.14.1"
+		"wrangler": "^4.20.3"
 	}
 }

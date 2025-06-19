@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(npm run deploy:*)",
+      "Bash(curl:*)",
+      "Bash(wrangler tail:*)",
+      "Bash(npm run dev:*)",
+      "Bash(pkill:*)",
+      "Bash(open:*)",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "Bash(chmod:*)",
+      "Bash(ls:*)",
+      "Bash(npx wrangler dev:*)",
+      "Bash(npx wrangler kv namespace create:*)",
+      "Bash(mkdir:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(claude mcp:*)",
+      "Bash(claude:*)",
+      "mcp__mcpfinder-local__search_mcp_servers",
+      "mcp__mcpfinder-local__list_trending_servers",
+      "mcp__mcpfinder-local__get_mcp_server_details",
+      "Bash(git clone:*)",
+      "Bash(git submodule add:*)",
+      "Bash(npm start)",
+      "Bash(git submodule:*)",
+      "Bash(git rm:*)",
+      "Bash(cat:*)",
+      "Bash(git reset:*)",
+      "Bash(true)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ],
+    "deny": []
+  }
+}
