@@ -50,7 +50,8 @@
       "mcp__mcpfinder__get_mcp_server_details",
       "Bash(MCP_REGISTRY_SECRET=test node src/register.js)",
       "Bash(git pull:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

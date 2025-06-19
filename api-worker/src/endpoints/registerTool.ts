@@ -325,8 +325,12 @@ export const registerTool = async (c: Context<{ Bindings: Bindings }>) => {
 
     // If updating and not verified, only update capabilities from introspection
     let storedManifest;
-    if (!isNewTool && !isVerified && oldStoredData) {
-        // Unverified update - preserve existing metadata, only update capabilities
+    
+    // Check if server was previously marked as unanalyzed
+    const wasUnanalyzed = oldStoredData?.tags?.includes('unanalyzed');
+    
+    if (!isNewTool && !isVerified && oldStoredData && !wasUnanalyzed) {
+        // Unverified update for already-analyzed server - preserve existing metadata, only update capabilities
         storedManifest = {
             ...oldStoredData,
             capabilities: manifestData.capabilities, // Update only discovered capabilities
@@ -335,11 +339,15 @@ export const registerTool = async (c: Context<{ Bindings: Bindings }>) => {
         };
         console.log('Unverified update - only updating capabilities and protocol version');
     } else {
-        // New tool or verified update - use all provided data
+        // New tool, verified update, or update for unanalyzed server - use all provided data
         storedManifest = {
             ...manifestData,
             ...metadata
         };
+        
+        if (!isNewTool && !isVerified && wasUnanalyzed) {
+            console.log('Unverified update allowed for unanalyzed server - full update applied');
+        }
     }
 
     try {
