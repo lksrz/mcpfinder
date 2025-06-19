@@ -132,3 +132,6 @@ If you see "KV namespace not available" errors:
 - KV storage for data persistence
 - R2 for manifest backups
 - MCP protocol support via HTTP/SSE transport
+
+## Other requirements
+- Do not add automatically any "Co-Authored-By" informations

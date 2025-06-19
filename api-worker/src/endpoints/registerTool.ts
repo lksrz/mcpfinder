@@ -323,10 +323,24 @@ export const registerTool = async (c: Context<{ Bindings: Bindings }>) => {
         metadata._unverified = oldStoredData._unverified;
     }
 
-    const storedManifest = {
-        ...manifestData,
-        ...metadata
-    };
+    // If updating and not verified, only update capabilities from introspection
+    let storedManifest;
+    if (!isNewTool && !isVerified && oldStoredData) {
+        // Unverified update - preserve existing metadata, only update capabilities
+        storedManifest = {
+            ...oldStoredData,
+            capabilities: manifestData.capabilities, // Update only discovered capabilities
+            protocol_version: manifestData.protocol_version, // Update protocol version
+            ...metadata // Update system metadata
+        };
+        console.log('Unverified update - only updating capabilities and protocol version');
+    } else {
+        // New tool or verified update - use all provided data
+        storedManifest = {
+            ...manifestData,
+            ...metadata
+        };
+    }
 
     try {
         await c.env.MCP_TOOLS_KV.put(kvKey, JSON.stringify(storedManifest));
@@ -342,19 +356,20 @@ export const registerTool = async (c: Context<{ Bindings: Bindings }>) => {
         const changes: string[] = [];
         
         if (!isNewTool && oldStoredData) {
-            // Track what changed
-            if (oldStoredData.name !== manifestData.name) changes.push('name');
-            if (oldStoredData.description !== manifestData.description) changes.push('description');
-            if (JSON.stringify(oldStoredData.capabilities) !== JSON.stringify(manifestData.capabilities)) changes.push('capabilities');
-            if (JSON.stringify(oldStoredData.tags) !== JSON.stringify(manifestData.tags)) changes.push('tags');
+            // Track what actually changed in the stored manifest
+            if (oldStoredData.name !== storedManifest.name) changes.push('name');
+            if (oldStoredData.description !== storedManifest.description) changes.push('description');
+            if (JSON.stringify(oldStoredData.capabilities) !== JSON.stringify(storedManifest.capabilities)) changes.push('capabilities');
+            if (JSON.stringify(oldStoredData.tags) !== JSON.stringify(storedManifest.tags)) changes.push('tags');
+            if (oldStoredData._unverified !== storedManifest._unverified) changes.push('verification_status');
         }
         
         await createEvent(c.env, eventType, {
             toolId,
-            name: manifestData.name,
-            description: manifestData.description,
-            url: manifestData.url,
-            tags: manifestData.tags,
+            name: storedManifest.name,
+            description: storedManifest.description,
+            url: storedManifest.url,
+            tags: storedManifest.tags,
             changes: isNewTool ? undefined : changes
         });
 
