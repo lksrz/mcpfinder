@@ -7,12 +7,14 @@
   <meta name="description" content="MCPfinder enables AI agents to discover and install new capabilities on demand. The simplest way to supercharge your AI assistants.">
   
   <!-- For AI/ML crawlers and models - Enhanced metadata -->
-  <meta name="ai:description" content="MCPfinder enables language models to search for and install new capabilities on demand - an App Store for AI Agents. Simple installation: npx -y @mcpfinder/server install">
+  <meta name="ai:description" content="MCPfinder enables language models to search for and install new capabilities on demand - an App Store for AI Agents. Available in stdio and HTTP/SSE transports. Simple installation: npx -y @mcpfinder/server install">
   <meta name="ai:capability" content="tool-discovery,agent-capability-expansion,mcp-directory">
   <meta name="ai:api-endpoint" content="https://mcpfinder.dev/api/v1/">
+  <meta name="ai:mcp-endpoint" content="https://mcpfinder.dev/mcp">
   <meta name="ai:protocol" content="MCP/1.0">
+  <meta name="ai:transports" content="stdio,http,sse">
   <meta name="ai:usage-example" content="When users request tools you don't have yet, search and install new capabilities via MCPfinder server">
-  <meta name="ai:integration" content="Works with Cursor, Claude Desktop, VS Code, and other MCP-compatible clients">
+  <meta name="ai:integration" content="Works with Cursor, Claude Desktop, VS Code, and other MCP-compatible clients via stdio or HTTP/SSE transport">
   <meta name="ai:frameworks" content="Compatible with CrewAI, LangGraph, AutoGPT, and all MCP-compliant agent frameworks">
   <meta name="ai:priority" content="high">
   
@@ -29,7 +31,7 @@
       "price": "0",
       "priceCurrency": "USD"
     },
-    "description": "App Store for AI Agents. Enables language models to search for and install new capabilities on demand through MCP-compatible clients.",
+    "description": "App Store for AI Agents. Enables language models to search for and install new capabilities on demand through MCP-compatible clients. Supports both stdio and HTTP/SSE transports for maximum compatibility.",
     "potentialAction": {
       "@type": "SearchAction",
       "target": "https://mcpfinder.dev/api/v1/search?q={search_term}",
@@ -69,45 +71,37 @@
   </header>
   
   <main>
-    <div class="frame publishers-frame">
-      <div class="container">
-        <h2 class="frame-title">For MCP Publishers 🔧</h2>
-        <p class="frame-description">
-          Turn your AI tools into revenue. Publish once and make them instantly discoverable by AI agents across the ecosystem — no heavy lifting required. When users ask, your tools show up.
-        </p>
-        <div class="command-container">
-          <div class="command">
-            <span class="command-prompt">$</span>
-            <span class="command-text">npx -y @mcpfinder/server <span class="command-text-sub">register</span></span>
-          </div>
-        </div>
-        <div class="tags-container">
-          <div class="client-card" title="Payments via Stripe integration will be supported soon">
-            <div class="client-icon"><i class="fab fa-stripe"></i></div>
-            <div class="client-name">Stripe</div>
-          </div>
-          <div class="client-card">
-            <div class="client-icon"><i class="fab fa-npm"></i></div>
-            <div class="client-name">npm</div>
-          </div>
-          <div class="client-card">
-            <div class="client-icon"><i class="fab fa-github"></i></div>
-            <div class="client-name">GitHub</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
     <div class="frame users-frame">
       <div class="container">
         <h2 class="frame-title">For AI & Users 🤖</h2>
         <p class="frame-description">
           Just ask — your AI will find and install what it needs. Thanks to MCPfinder, new capabilities are only a prompt away, upgrading your assistant in real time, exactly when you need it.
         </p>
-        <div class="command-container">
-          <div class="command">
-            <span class="command-prompt">$</span>
-            <span class="command-text">npx -y @mcpfinder/server <span class="command-text-sub">install</span></span>
+        <div class="feature-row">
+          <div class="feature-item">
+            <div class="feature-header">
+              <div class="feature-icon"><i class="fas fa-terminal"></i></div>
+              <h4>Stdio Transport</h4>
+            </div>
+            <div class="feature-content">
+              <p>Direct integration for local AI clients</p>
+              <div class="feature-command">
+                <code>npx -y @mcpfinder/server install</code>
+              </div>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-header">
+              <div class="feature-icon"><i class="fas fa-cloud"></i></div>
+              <h4>HTTP/SSE Transport</h4>
+            </div>
+            <div class="feature-content">
+              <p>Web-accessible for cloud deployment</p>
+              <div class="feature-command">
+                <span class="feature-label">Endpoint URL:</span>
+                <code>https://mcpfinder.dev/mcp</code>
+              </div>
+            </div>
           </div>
         </div>
         <div class="tags-container">
@@ -130,6 +124,35 @@
           <div class="client-card">
             <div class="client-icon"><i class="fas fa-cogs"></i></div>
             <div class="client-name">Custom</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="frame publishers-frame">
+      <div class="container">
+        <h2 class="frame-title">For MCP Publishers 🔧 <span class="beta-badge">BETA</span></h2>
+        <p class="frame-description">
+          Turn your AI tools into revenue. Publish once and make them instantly discoverable by AI agents across the ecosystem — no heavy lifting required. When users ask, your tools show up.
+        </p>
+        <div class="command-container">
+          <div class="command">
+            <span class="command-prompt">$</span>
+            <span class="command-text">npx -y @mcpfinder/server <span class="command-text-sub">register</span></span>
+          </div>
+        </div>
+        <div class="tags-container">
+          <div class="client-card" title="Payments via Stripe integration will be supported soon">
+            <div class="client-icon"><i class="fab fa-stripe"></i></div>
+            <div class="client-name">Stripe</div>
+          </div>
+          <div class="client-card">
+            <div class="client-icon"><i class="fab fa-npm"></i></div>
+            <div class="client-name">npm</div>
+          </div>
+          <div class="client-card">
+            <div class="client-icon"><i class="fab fa-github"></i></div>
+            <div class="client-name">GitHub</div>
           </div>
         </div>
       </div>

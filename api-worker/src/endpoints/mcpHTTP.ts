@@ -405,8 +405,143 @@ export async function mcpHTTP(c: Context<{ Bindings: Bindings }>): Promise<Respo
     });
   }
 
-  // Handle GET requests for SSE
+  // Handle GET requests
   if (c.req.method === 'GET') {
+    // Check if this is a browser request (has Accept header with text/html)
+    const acceptHeader = c.req.header('Accept') || '';
+    const userAgent = c.req.header('User-Agent') || '';
+    
+    // Detect browser requests
+    const isBrowserRequest = acceptHeader.includes('text/html') || 
+                            userAgent.includes('Mozilla') || 
+                            userAgent.includes('Chrome') || 
+                            userAgent.includes('Safari') || 
+                            userAgent.includes('Firefox') || 
+                            userAgent.includes('Edge');
+    
+    if (isBrowserRequest) {
+      const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCPfinder MCP HTTP/SSE Endpoint</title>
+  <style>
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+      background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%);
+      color: white;
+      margin: 0;
+      padding: 40px 20px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+      max-width: 600px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    h1 { font-size: 2.2rem; margin-bottom: 1rem; }
+    p { font-size: 1.1rem; line-height: 1.6; margin-bottom: 1.5rem; }
+    .endpoint-info {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      text-align: left;
+    }
+    .endpoint-info h3 {
+      margin-top: 0;
+      color: #22d3ee;
+      font-size: 1.1rem;
+    }
+    .endpoint-info code {
+      display: block;
+      margin: 0.5rem 0;
+      color: #fbbf24;
+      font-family: 'Monaco', monospace;
+      font-size: 0.9rem;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
+    .tools-list {
+      text-align: left;
+      margin: 1rem 0;
+    }
+    .tools-list li {
+      margin: 0.3rem 0;
+      color: #e5e7eb;
+    }
+    .redirect-info {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🤖 MCPfinder MCP Endpoint</h1>
+    <p>This is an HTTP/SSE transport endpoint for MCP (Model Context Protocol) clients.</p>
+    
+    <div class="endpoint-info">
+      <h3>Usage for MCP Clients:</h3>
+      <code>POST https://mcpfinder.dev/mcp</code>
+      <p style="margin: 0.5rem 0; font-size: 0.9rem;">Send JSON-RPC 2.0 requests for MCP protocol communication</p>
+      
+      <code>GET https://mcpfinder.dev/mcp</code>
+      <p style="margin: 0.5rem 0; font-size: 0.9rem;">Server-Sent Events (SSE) stream for real-time MCP communication</p>
+      
+      <h3 style="margin-top: 1.5rem;">Available Tools:</h3>
+      <ul class="tools-list">
+        <li><code>search_mcp_servers</code> - Search the MCP registry</li>
+        <li><code>get_mcp_server_details</code> - Get detailed server info</li>
+        <li><code>list_trending_servers</code> - List popular servers</li>
+        <li><code>test_echo</code> - Test connectivity</li>
+      </ul>
+    </div>
+    
+    <p>For integration examples and documentation, visit our main website.</p>
+    
+    <div class="redirect-info">
+      Redirecting to mcpfinder.dev in <span id="countdown">3</span> seconds...
+    </div>
+  </div>
+  
+  <script>
+    let countdown = 3;
+    const countdownEl = document.getElementById('countdown');
+    
+    const timer = setInterval(() => {
+      countdown--;
+      countdownEl.textContent = countdown;
+      
+      if (countdown <= 0) {
+        clearInterval(timer);
+        window.location.href = 'https://mcpfinder.dev';
+      }
+    }, 1000);
+  </script>
+</body>
+</html>`;
+      
+      return new Response(html, {
+        headers: {
+          'Content-Type': 'text/html',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+    
+    // Handle SSE requests from MCP clients
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {

@@ -4,12 +4,13 @@ A serverless platform for registering and discovering MCP (Model Context Protoco
 
 ## Overview
 
-- **api-worker/**: Core REST API Worker for registration and discovery.
+- **api-worker/**: Core REST API Worker for registration and discovery. Also provides MCP Server via HTTP/SSE transport at `/mcp` endpoint.
 - **health-worker/**: Cron-triggered Worker to perform periodic health checks.
 - **mcpfinder-www/**: Worker + static site for landing page and documentation (replacing `landingpage`).
-- **mcpfinder-server/**: MCP Server providing tools for clients to find and manage other MCP servers (external submodule: [mcpfinder/server](https://github.com/mcpfinder/server)).
+- **mcpfinder-server/**: MCP Server providing tools for clients to find and manage other MCP servers via stdio transport (external submodule: [mcpfinder/server](https://github.com/mcpfinder/server)).
 - **cli/**: Node.js-based CLI for publishers to register tools.
 - **schemas/**: JSON Schema definitions for validating tool manifests.
+- **mcp-inspector/**: Testing tool for both stdio and HTTP/SSE MCP variants (git submodule).
 
 ## Cloning
 
@@ -30,12 +31,13 @@ git submodule update --init --recursive
 
 ```
 / (root)
-├── api-worker/        # Core registry Worker code for REST API
+├── api-worker/        # Core registry Worker code for REST API + MCP HTTP/SSE endpoint
 ├── health-worker/     # Cron-triggered Worker for health checks
 ├── mcpfinder-www/     # Worker + static site for landing page
 │   ├── worker.js      # Worker to serve landing page
 │   └── public/        # Static assets (HTML, CSS, images)
-├── mcpfinder-server/  # MCP Server (submodule -> mcpfinder/server)
+├── mcpfinder-server/  # MCP Server stdio variant (submodule -> mcpfinder/server)
+├── mcp-inspector/     # MCP testing tool (submodule -> modelcontextprotocol/inspector)
 ├── cli/               # Publisher CLI implementation
 │   └── bin/
 │       └── mcp-cli.js # CLI entry
@@ -81,27 +83,31 @@ git submodule update --init --recursive
     cd ..
     ```
 
-7.  Using the `mcpfinder-server` (`./mcpfinder-server/index.js`):
-    This script can run as an MCP server or execute specific commands.
+7.  Using the `mcpfinder-server`:
+    The MCP Server is available in two transport variants:
 
-    *   **Run as an MCP Server:**
-        *   Default (Stdio mode, e.g., for Cursor):
+    *   **Stdio Transport** (`./mcpfinder-server/index.js`):
+        Default mode for local MCP clients (e.g., Cursor, Claude CLI):
+        ```bash
+        node ./mcpfinder-server/index.js
+        ```
+        
+    *   **HTTP/SSE Transport** (API Worker `/mcp` endpoint):
+        Web-accessible variant with Server-Sent Events support:
+        ```bash
+        # Start the api-worker locally
+        cd api-worker && npm run dev
+        # MCP endpoint available at: http://localhost:8787/mcp
+        ```
+        Configuration options available for both transports:
+        *   `--api-url <url>`: Specify the MCP Finder Registry API URL (Default: `https://mcpfinder.dev` or `MCPFINDER_API_URL` env var).
             ```bash
-            node ./mcpfinder-server/index.js
+            # For stdio transport
+            node ./mcpfinder-server/index.js --api-url http://localhost:8787
+            
+            # For HTTP/SSE transport, configure in api-worker/wrangler.toml
+            MCPFINDER_API_URL = "http://localhost:8787"
             ```
-        *   HTTP mode:
-            ```bash
-            node ./mcpfinder-server/index.js --http
-            ```
-        *   Server Options:
-            *   `--port <number>`: Specify port for HTTP mode (Default: 6181 or `MCP_PORT` env var).
-                ```bash
-                node ./mcpfinder-server/index.js --http --port 12345
-                ```
-            *   `--api-url <url>`: Specify the MCP Finder Registry API URL (Default: `https://mcpfinder.dev` or `MCPFINDER_API_URL` env var).
-                ```bash
-                node ./mcpfinder-server/index.js --api-url http://localhost:8787
-                ```
 
     *   **Execute Commands:**
         *   Interactive Setup (for users/AI clients to configure a client):
