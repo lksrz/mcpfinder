@@ -47,7 +47,10 @@
       "mcp__mcpfinder__test_echo",
       "mcp__mcpfinder__list_trending_servers",
       "Bash(curl \"https://mcpfinder.dev/api/v1/search?limit=2\")",
-      "mcp__mcpfinder__get_mcp_server_details"
+      "mcp__mcpfinder__get_mcp_server_details",
+      "Bash(MCP_REGISTRY_SECRET=test node src/register.js)",
+      "Bash(git pull:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

@@ -224,24 +224,26 @@ export const registerTool = async (c: Context<{ Bindings: Bindings }>) => {
 
     const rawBody = await c.req.text();
     const signatureHeader = c.req.header('Authorization');
-
-    if (!signatureHeader || !signatureHeader.startsWith('HMAC ')) {
-        throw new HTTPException(401, { message: 'Authorization header missing or invalid' });
-    }
-
-    const signature = signatureHeader.substring(5); // Remove 'HMAC '
-    // Use c.env directly
     const secret = c.env.MCP_REGISTRY_SECRET;
-
-    if (!secret) {
-        console.error('MCP_REGISTRY_SECRET is not configured in environment');
-        throw new HTTPException(500, { message: 'Server configuration error' });
+    
+    // Check if authentication is provided
+    let isVerified = false;
+    
+    if (signatureHeader && signatureHeader.startsWith('HMAC ')) {
+        // Authentication provided - verify it
+        if (!secret) {
+            console.error('MCP_REGISTRY_SECRET is not configured in environment');
+            throw new HTTPException(500, { message: 'Server configuration error' });
+        }
+        
+        const signature = signatureHeader.substring(5); // Remove 'HMAC '
+        const isValidHmac = await verifyHmac(secret, rawBody, signature);
+        if (!isValidHmac) {
+            throw new HTTPException(401, { message: 'Invalid HMAC signature' });
+        }
+        isVerified = true;
     }
-
-    const isValidHmac = await verifyHmac(secret, rawBody, signature);
-    if (!isValidHmac) {
-        throw new HTTPException(401, { message: 'Invalid HMAC signature' });
-    }
+    // If no auth header, allow registration but mark as unverified
 
     let manifestData: McpManifest;
     try {
@@ -300,14 +302,30 @@ export const registerTool = async (c: Context<{ Bindings: Bindings }>) => {
 
     const status = oldStoredData?._status || 'unknown';
     const lastChecked = oldStoredData?._lastChecked || null;
-
-    const storedManifest = {
-        ...manifestData,
+    
+    // Build metadata object
+    const metadata: any = {
         _id: toolId,
         _registeredAt: registeredAt,
         _updatedAt: updatedAt,
         _status: status,
         _lastChecked: lastChecked
+    };
+    
+    // Add _unverified flag if submitted without authentication
+    if (!isVerified) {
+        metadata._unverified = true;
+    } else if (oldStoredData?._unverified && isVerified) {
+        // If it was unverified before but now is verified, explicitly set to false
+        metadata._unverified = false;
+    } else if (oldStoredData?._unverified !== undefined) {
+        // Preserve existing verification status if not changing
+        metadata._unverified = oldStoredData._unverified;
+    }
+
+    const storedManifest = {
+        ...manifestData,
+        ...metadata
     };
 
     try {
