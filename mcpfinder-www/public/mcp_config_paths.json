@@ -89,5 +89,14 @@
             "path": "~/.claude/mcp.json"
         }
         ]
+    },
+    {
+        "tool": "Codex",
+        "locations": [
+        {
+            "operating_systems": ["windows", "macos", "linux"],
+            "path": "~/.codex/config.toml"
+        }
+        ]
     }
 ]

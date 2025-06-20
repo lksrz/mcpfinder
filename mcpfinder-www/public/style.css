@@ -238,6 +238,17 @@ main {
     radial-gradient(circle at bottom left, rgba(50, 250, 100, 0.9), transparent 70%);
 }
 
+.instant-frame {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: var(--white);
+}
+
+.instant-frame::before {
+  background: 
+    radial-gradient(circle at top left, rgba(255, 215, 0, 0.3), transparent 60%),
+    radial-gradient(circle at bottom right, rgba(255, 140, 0, 0.3), transparent 60%);
+}
+
 .frame-title {
   font-size: 3rem;
   font-weight: 700;
@@ -322,6 +333,57 @@ main {
   letter-spacing: 0.5px;
 }
 
+/* Instant features styling */
+.instant-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.instant-feature {
+  text-align: center;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.instant-feature:hover {
+  transform: translateY(-4px);
+}
+
+.instant-icon {
+  font-size: 2.5rem;
+  color: #ffd700;
+  margin-bottom: 1rem;
+}
+
+.instant-feature h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--white);
+}
+
+.instant-feature p {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.instant-feature code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #ffd700;
+}
+
 /* Tags container */
 .tags-container {
   display: flex;
@@ -399,6 +461,19 @@ main {
   .command {
     font-size: 0.9rem;
   }
+  
+  .instant-features {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .instant-feature {
+    padding: 1.25rem;
+  }
+  
+  .instant-icon {
+    font-size: 2rem;
+  }
 }
 
 @media (max-width: 640px) {
@@ -433,7 +508,62 @@ main {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 1rem;
+    gap: 0.75rem;
     margin-top: 2rem;
+  }
+  
+  .client-card {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8rem;
+  }
+  
+  .client-icon {
+    margin-right: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .client-name {
+    font-size: 0.8rem;
+  }
+}
+
+/* Extra small mobile screens */
+@media (max-width: 480px) {
+  .tags-container {
+    gap: 0.5rem;
+  }
+  
+  .client-card {
+    padding: 0.4rem 0.75rem;
+    border-radius: 1.5rem;
+  }
+  
+  .client-icon {
+    margin-right: 0.4rem;
+    font-size: 0.8rem;
+  }
+  
+  .client-name {
+    font-size: 0.75rem;
+  }
+  
+  .instant-features {
+    gap: 1rem;
+  }
+  
+  .instant-feature {
+    padding: 1rem;
+  }
+  
+  .instant-icon {
+    font-size: 1.75rem;
+  }
+  
+  .instant-feature h4 {
+    font-size: 1.1rem;
+  }
+  
+  .instant-feature p {
+    font-size: 0.9rem;
   }
 } 
