@@ -170,3 +170,18 @@ dist
 
 .dev.vars
 .wrangler/
+
+# Scraping tools data
+scraping-tools/data/mcp-so-*.json
+scraping-tools/data/mcpso-jsons/
+scraping-tools/data/*.log
+scraping-tools/data/*-cache.json
+
+# Temporary files
+*.tmp
+*.bak
+server.log
+test_*.js
+
+# macOS
+.DS_Store
