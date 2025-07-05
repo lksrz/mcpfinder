@@ -83,6 +83,10 @@ export const getToolById = async (c: Context<{ Bindings: Bindings }>) => {
         // delete finalResponse._status;
         // delete finalResponse._lastChecked;
 
+        // Add cache headers for individual tool details (cache for 1 hour)
+        c.header('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+        c.header('CDN-Cache-Control', 'max-age=3600');
+
         return c.json(finalResponse); // Return the enhanced object
 
     } catch (error: any) {

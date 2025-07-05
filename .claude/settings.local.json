@@ -79,7 +79,10 @@
       "Bash(echo \"Exit code: $?\")",
       "Bash(true node src/scrapers/glama-ai-scraper.js)",
       "Bash(jq:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(npx . register --headless @playwright/mcp)",
+      "Bash(npx . search_mcp_servers \\\"@playwright/mcp\\\")",
+      "Bash(npx . register --headless @playwright/mcp@latest --description \"Playwright browser automation MCP server with latest version\")"
     ],
     "deny": []
   }
