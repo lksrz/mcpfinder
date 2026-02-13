@@ -22,8 +22,12 @@ function normalizeEntry(entry: RegistryServerEntry) {
   const pkg = s.packages?.[0];
   const remote = s.remotes?.[0];
 
-  // Generate a slug from the name (last segment after /)
-  const slug = s.name.includes('/') ? s.name.split('/').pop()! : s.name;
+  // Generate a stable unique slug from full server name (namespace-aware)
+  // Example: "io.modelcontextprotocol/filesystem" -> "io-modelcontextprotocol-filesystem"
+  const slug = s.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
   // Extract keywords from name and description for search
   const keywords = extractKeywords(s.name, s.description || '');

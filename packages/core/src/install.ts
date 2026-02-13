@@ -24,8 +24,15 @@ export function getInstallCommand(
   client: ClientType = 'claude-desktop',
 ): InstallConfig | null {
   const row = db
-    .prepare('SELECT * FROM servers WHERE id = ? OR slug = ? LIMIT 1')
-    .get(nameOrSlug, nameOrSlug) as McpServer | undefined;
+    .prepare(
+      `SELECT * FROM servers
+       WHERE id = ?
+          OR slug = ?
+          OR name = ?
+          OR name LIKE ?
+       LIMIT 1`,
+    )
+    .get(nameOrSlug, nameOrSlug, nameOrSlug, `%/${nameOrSlug}`) as McpServer | undefined;
 
   if (!row) return null;
 

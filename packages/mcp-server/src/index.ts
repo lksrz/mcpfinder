@@ -16,6 +16,7 @@ import {
   getServerDetails,
   getInstallCommand,
   listCategories,
+  getServersByCategory,
 } from '@mcpfinder/core';
 
 // Initialize database
@@ -231,7 +232,47 @@ server.tool(
       content: [
         {
           type: 'text' as const,
-          text: `MCP Server Categories:\n\n${formatted}\n\nUse search_mcp_servers to find servers in a specific category.`,
+          text: `MCP Server Categories:\n\n${formatted}\n\nUse browse_category to inspect one category, or search_mcp_servers for free-form queries.`,
+        },
+      ],
+    };
+  },
+);
+
+// ─── Tool: browse_category ─────────────────────────────────────────────────
+
+server.tool(
+  'browse_category',
+  'Browse MCP servers inside a specific category like database, filesystem, api, ai, security, etc.',
+  {
+    category: z.string().describe('Category name from list_categories output'),
+    limit: z.number().min(1).max(50).default(20).describe('Maximum results to return (default: 20, max: 50)'),
+  },
+  async ({ category, limit }) => {
+    await ensureSync();
+
+    const servers = getServersByCategory(db, category.toLowerCase(), limit);
+
+    if (servers.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `No servers found in category "${category}". Use list_categories to see available categories.`,
+          },
+        ],
+      };
+    }
+
+    const formatted = servers
+      .map((s, idx) => `${idx + 1}. **${s.name}** (v${s.version})\n   ${s.description}`)
+      .join('\n\n');
+
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Servers in category "${category}" (${servers.length}):\n\n${formatted}`,
         },
       ],
     };
