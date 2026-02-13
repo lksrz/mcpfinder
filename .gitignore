@@ -185,3 +185,6 @@ test_*.js
 
 # macOS
 .DS_Store
+-e 
+# Build output
+dist/
