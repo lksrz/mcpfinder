@@ -15,6 +15,7 @@ import {
   searchServers,
   getServerDetails,
   getInstallCommand,
+  listCategories,
 } from '@mcpfinder/core';
 
 // Initialize database
@@ -182,13 +183,69 @@ server.tool(
       };
     }
 
+    let text = result.instructions;
+    if (result.envVarsNeeded.length > 0) {
+      text +=
+        '\n\n**Required environment variables:**\n' +
+        result.envVarsNeeded
+          .map(
+            (v: { name: string; description?: string; isSecret?: boolean }) =>
+              `- \`${v.name}\`: ${v.description || 'No description'}${v.isSecret ? ' ⚠️ secret' : ''}`,
+          )
+          .join('\n');
+    }
+
     return {
-      content: [{ type: 'text' as const, text: result.instructions }],
+      content: [{ type: 'text' as const, text }],
+    };
+  },
+);
+
+// ─── Tool: list_categories ──────────────────────────────────────────────────
+
+server.tool(
+  'list_categories',
+  'List all MCP server categories with server counts. Categories are derived from server names and descriptions.',
+  {},
+  async () => {
+    await ensureSync();
+
+    const categories = listCategories(db);
+
+    if (categories.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'No categories found. The database may be empty.',
+          },
+        ],
+      };
+    }
+
+    const formatted = categories
+      .map((c: { name: string; count: number }) => `- **${c.name}** (${c.count} servers)`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `MCP Server Categories:\n\n${formatted}\n\nUse search_mcp_servers to find servers in a specific category.`,
+        },
+      ],
     };
   },
 );
 
 // ─── Start the server ───────────────────────────────────────────────────────
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+main().catch((err) => {
+  console.error('Fatal error:', err);
+  process.exit(1);
+});

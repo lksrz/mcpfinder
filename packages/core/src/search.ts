@@ -17,16 +17,14 @@ export function searchServers(
     registryType?: string;
   },
 ): SearchResult[] {
-  // Sanitize the query for FTS5 — escape special chars
   const sanitized = sanitizeFtsQuery(query);
 
   if (!sanitized) {
-    // Empty query — return most recent servers
     return getRecentServers(db, limit);
   }
 
   let sql = `
-    SELECT s.*, 
+    SELECT s.*,
            rank * -1 as relevance
     FROM servers_fts fts
     JOIN servers s ON s.rowid = fts.rowid
@@ -68,9 +66,9 @@ export function searchServers(
 function getRecentServers(db: Database.Database, limit: number): SearchResult[] {
   const rows = db
     .prepare(
-      `SELECT * FROM servers 
-       WHERE status = 'active' 
-       ORDER BY updated_at DESC NULLS LAST 
+      `SELECT * FROM servers
+       WHERE status = 'active'
+       ORDER BY updated_at DESC NULLS LAST
        LIMIT ?`,
     )
     .all(limit) as McpServer[];
@@ -135,78 +133,9 @@ export function getServerDetails(
 }
 
 /**
- * Generate install command/config for a server targeting a specific client.
- */
-export function getInstallCommand(
-  db: Database.Database,
-  nameOrSlug: string,
-  client: string = 'claude-desktop',
-): { serverName: string; client: string; instructions: string } | null {
-  const details = getServerDetails(db, nameOrSlug);
-  if (!details) return null;
-
-  const registryType = details.registryType;
-  const packageId = details.packageIdentifier;
-  const serverSlug = details.name.includes('/') ? details.name.split('/').pop()! : details.name;
-
-  let instructions: string;
-
-  if (registryType === 'npm' && packageId) {
-    const config = {
-      mcpServers: {
-        [serverSlug]: {
-          command: 'npx',
-          args: ['-y', packageId],
-        },
-      },
-    };
-    const configFile =
-      client === 'claude-desktop' ? 'claude_desktop_config.json' :
-      client === 'cursor' ? '.cursor/mcp.json' :
-      client === 'vscode' ? 'settings.json' : 'mcp config';
-    instructions = `Add this to your ${configFile}:\n\n${JSON.stringify(config, null, 2)}`;
-  } else if (registryType === 'pypi' && packageId) {
-    const config = {
-      mcpServers: {
-        [serverSlug]: {
-          command: 'uvx',
-          args: [packageId],
-        },
-      },
-    };
-    const configFile =
-      client === 'claude-desktop' ? 'claude_desktop_config.json' :
-      client === 'cursor' ? '.cursor/mcp.json' : 'mcp config';
-    instructions = `Add this to your ${configFile}:\n\n${JSON.stringify(config, null, 2)}`;
-  } else if (registryType === 'oci' && packageId) {
-    const config = {
-      mcpServers: {
-        [serverSlug]: {
-          command: 'docker',
-          args: ['run', '-i', packageId],
-        },
-      },
-    };
-    instructions = `Add this to your MCP client config:\n\n${JSON.stringify(config, null, 2)}`;
-  } else if (details.hasRemote && details.remoteUrl) {
-    instructions = `This server is available remotely at: ${details.remoteUrl}\n\nConnect using streamable-http transport.`;
-  } else {
-    instructions = `No install command available. Check the repository for instructions: ${details.repositoryUrl || 'N/A'}`;
-  }
-
-  return {
-    serverName: details.name,
-    client,
-    instructions,
-  };
-}
-
-/**
  * Sanitize a query string for FTS5.
- * Wraps individual words to avoid FTS5 syntax errors from special chars.
  */
 function sanitizeFtsQuery(query: string): string {
-  // Split into words, remove special FTS5 characters, wrap each word in quotes
   const words = query
     .replace(/[^\w\s-]/g, ' ')
     .split(/\s+/)
@@ -214,7 +143,5 @@ function sanitizeFtsQuery(query: string): string {
     .map((w) => `"${w}"`);
 
   if (words.length === 0) return '';
-
-  // Join with implicit AND
   return words.join(' ');
 }

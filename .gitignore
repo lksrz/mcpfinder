@@ -188,3 +188,11 @@ test_*.js
 -e 
 # Build output
 dist/
+
+# MCPfinder monorepo
+packages/*/dist/
+packages/*/node_modules/
+*.db
+*.db-wal
+*.db-shm
+.mcpfinder/
