@@ -193,4 +193,4 @@ node packages/mcp-server/dist/index.js
 
 ---
 
-Built by [Coder AI](https://coderai.dev) · MIT License
+Built by [Coder AI](https://coderai.dev) · [AGPL-3.0 License](LICENSE)
