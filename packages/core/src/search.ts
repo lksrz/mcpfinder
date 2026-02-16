@@ -203,18 +203,28 @@ export function searchServers(
     return getPopularServers(db, limit, filters);
   }
 
+  // Extract primary search terms for name-match boosting
+  // For aliases: use expanded terms; for regular queries: use original words
+  const nameMatchTerms = expandedQuery
+    .replace(/[^\w\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 1);
+  const nameMatchClauses = nameMatchTerms.map((_, i) => 
+    `CASE WHEN LOWER(s.name) LIKE @nm${i} THEN 5.0 ELSE 0 END`
+  ).join(' + ');
+
   // Multi-factor ranking:
-  // - FTS5 rank (negated because FTS5 returns negative scores where more negative = better)
-  // - log(use_count + 1) for popularity
-  // - source count for cross-registry presence
-  // - Official registry boost (Fix #4)
+  // - Name match boost (huge): does the query term appear in server NAME?
+  // - FTS5 rank for text relevance
+  // - log(use_count + 1) for popularity  
+  // - Official registry boost
   let sql = `
     SELECT s.*,
            (rank * -1) as fts_relevance,
            (
-             (rank * -1) * 0.4 +
-             (CASE WHEN s.use_count > 0 THEN log(s.use_count + 1) ELSE 0 END) * 0.3 +
-             (length(s.sources) - length(replace(s.sources, ',', '')) + 1) * 0.2 * 0.5 +
+             (${nameMatchClauses || '0'}) +
+             (rank * -1) * 0.3 +
+             (CASE WHEN s.use_count > 0 THEN log(s.use_count + 1) ELSE 0 END) * 0.2 +
              (CASE WHEN s.sources LIKE '%official%' THEN 3.0
               WHEN s.verified = 1 THEN 1.5
               ELSE 0 END) * 0.15
@@ -225,6 +235,11 @@ export function searchServers(
   `;
 
   const params: Record<string, unknown> = { query: sanitized, limit };
+
+  // Bind name-match parameters
+  nameMatchTerms.forEach((term, i) => {
+    params[`nm${i}`] = `%${term.toLowerCase()}%`;
+  });
 
   if (filters?.transportType && filters.transportType !== 'any') {
     sql += ' AND s.transport_type = @transportType';
