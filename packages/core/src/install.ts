@@ -1,19 +1,71 @@
 /**
  * Generate installation commands for MCP servers.
- * Supports Claude Desktop, Cursor, and generic configurations.
+ * Supports Claude Desktop, Cursor, Claude Code, Cline/Roo Code, Windsurf, and generic configurations.
  */
 import type Database from 'better-sqlite3';
 import type { McpServer, RegistryEnvVar } from './types.js';
 
-export type ClientType = 'claude-desktop' | 'cursor' | 'vscode' | 'generic';
+export type ClientType =
+  | 'claude-desktop'
+  | 'cursor'
+  | 'claude-code'
+  | 'cline'
+  | 'windsurf'
+  | 'vscode'
+  | 'generic';
 
-interface InstallConfig {
+export interface InstallConfig {
   client: ClientType;
   serverName: string;
+  configFilePath: string;
   config: Record<string, unknown>;
   instructions: string;
+  postInstallNote: string;
   envVarsNeeded: RegistryEnvVar[];
 }
+
+/** Platform metadata: config file paths and notes. */
+const PLATFORM_INFO: Record<
+  ClientType,
+  { configPath: string; configPathWin?: string; displayName: string; postInstall: string }
+> = {
+  'claude-desktop': {
+    configPath: '~/Library/Application Support/Claude/claude_desktop_config.json',
+    configPathWin: '%APPDATA%\\Claude\\claude_desktop_config.json',
+    displayName: 'Claude Desktop',
+    postInstall: 'Restart Claude Desktop to activate the new server.',
+  },
+  cursor: {
+    configPath: '.cursor/mcp.json (project) or ~/.cursor/mcp.json (global)',
+    displayName: 'Cursor',
+    postInstall: 'Cursor auto-detects config changes — no restart needed.',
+  },
+  'claude-code': {
+    configPath: '.mcp.json (project) or ~/.claude.json (global)',
+    displayName: 'Claude Code',
+    postInstall: 'Claude Code will detect the new server automatically on next tool use.',
+  },
+  cline: {
+    configPath: '.vscode/mcp.json or VS Code settings (Cline MCP config)',
+    displayName: 'Cline / Roo Code',
+    postInstall: 'Reload the VS Code window or restart Cline to activate.',
+  },
+  windsurf: {
+    configPath: '~/.windsurf/mcp.json',
+    displayName: 'Windsurf',
+    postInstall: 'Restart Windsurf to activate the new server.',
+  },
+  vscode: {
+    configPath: '.vscode/mcp.json',
+    displayName: 'VS Code',
+    postInstall: 'Reload the VS Code window to activate.',
+  },
+  generic: {
+    configPath: 'your MCP client config file',
+    displayName: 'MCP Client',
+    postInstall: "Refer to your client's docs for how to reload MCP config.",
+  },
+};
 
 /**
  * Generate install configuration for a specific MCP server and client.
@@ -61,17 +113,41 @@ export function getInstallCommand(
     return generateRemoteConfig(serverKey, row.remote_url, envVars, client);
   }
 
+  const platform = PLATFORM_INFO[client];
   return {
     client,
     serverName: serverKey,
+    configFilePath: platform.configPath,
     config: {
       note: 'Unable to generate auto-config. Check the repository for installation instructions.',
       repositoryUrl: row.repository_url,
       registryType: row.registry_type,
       packageIdentifier: row.package_identifier,
     },
-    instructions: `Check the repository for installation instructions: ${row.repository_url || 'N/A'}`,
+    instructions: `Could not auto-generate config. Check the repository: ${row.repository_url || 'N/A'}`,
+    postInstallNote: '',
     envVarsNeeded: envVars,
+  };
+}
+
+function buildInstructions(
+  mcpConfig: Record<string, unknown>,
+  client: ClientType,
+  prefix?: string,
+): { instructions: string; configFilePath: string; postInstallNote: string } {
+  const platform = PLATFORM_INFO[client];
+  const json = JSON.stringify(mcpConfig, null, 2);
+  const prefixStr = prefix ? `${prefix}\n\n` : '';
+
+  const instructions =
+    `${prefixStr}Add to your ${platform.displayName} config (${platform.configPath}):\n\n` +
+    '```json\n' + json + '\n```' +
+    (platform.configPathWin ? `\n\nOn Windows: ${platform.configPathWin}` : '');
+
+  return {
+    instructions,
+    configFilePath: platform.configPath,
+    postInstallNote: platform.postInstall,
   };
 }
 
@@ -95,20 +171,9 @@ function generateNpmConfig(
   }
 
   const mcpConfig = { mcpServers: { [serverKey]: config } };
+  const meta = buildInstructions(mcpConfig, client);
 
-  let instructions: string;
-  switch (client) {
-    case 'claude-desktop':
-      instructions = `Add to your Claude Desktop config (~/Library/Application Support/Claude/claude_desktop_config.json):\n\n${JSON.stringify(mcpConfig, null, 2)}`;
-      break;
-    case 'cursor':
-      instructions = `Add to your Cursor MCP config (.cursor/mcp.json):\n\n${JSON.stringify(mcpConfig, null, 2)}`;
-      break;
-    default:
-      instructions = `MCP server configuration:\n\n${JSON.stringify(mcpConfig, null, 2)}`;
-  }
-
-  return { client, serverName: serverKey, config: mcpConfig, instructions, envVarsNeeded: envVars };
+  return { client, serverName: serverKey, ...meta, config: mcpConfig, envVarsNeeded: envVars };
 }
 
 function generatePypiConfig(
@@ -126,14 +191,9 @@ function generatePypiConfig(
   if (Object.keys(env).length > 0) config.env = env;
 
   const mcpConfig = { mcpServers: { [serverKey]: config } };
+  const meta = buildInstructions(mcpConfig, client, 'Install via uvx (recommended) or pip.');
 
-  return {
-    client,
-    serverName: serverKey,
-    config: mcpConfig,
-    instructions: `Install via uvx/pip. Add to your MCP config:\n\n${JSON.stringify(mcpConfig, null, 2)}`,
-    envVarsNeeded: envVars,
-  };
+  return { client, serverName: serverKey, ...meta, config: mcpConfig, envVarsNeeded: envVars };
 }
 
 function generateDockerConfig(
@@ -142,23 +202,15 @@ function generateDockerConfig(
   envVars: RegistryEnvVar[],
   client: ClientType,
 ): InstallConfig {
-  const envFlags = envVars.map((v) => `-e ${v.name}=<YOUR_VALUE>`).join(' ');
-  const dockerCmd = `docker run -i ${envFlags} ${packageId}`.trim();
-
   const config: Record<string, unknown> = {
     command: 'docker',
     args: ['run', '-i', ...envVars.flatMap((v) => ['-e', `${v.name}=<YOUR_VALUE>`]), packageId],
   };
 
   const mcpConfig = { mcpServers: { [serverKey]: config } };
+  const meta = buildInstructions(mcpConfig, client, 'Run via Docker container.');
 
-  return {
-    client,
-    serverName: serverKey,
-    config: mcpConfig,
-    instructions: `Run via Docker:\n\n${dockerCmd}\n\nOr add to MCP config:\n\n${JSON.stringify(mcpConfig, null, 2)}`,
-    envVarsNeeded: envVars,
-  };
+  return { client, serverName: serverKey, ...meta, config: mcpConfig, envVarsNeeded: envVars };
 }
 
 function generateRemoteConfig(
@@ -168,12 +220,7 @@ function generateRemoteConfig(
   client: ClientType,
 ): InstallConfig {
   const mcpConfig = { mcpServers: { [serverKey]: { url: remoteUrl } } };
+  const meta = buildInstructions(mcpConfig, client, 'This is a hosted/remote MCP server — no local installation needed.');
 
-  return {
-    client,
-    serverName: serverKey,
-    config: mcpConfig,
-    instructions: `This server is available remotely. Add to your MCP config:\n\n${JSON.stringify(mcpConfig, null, 2)}`,
-    envVarsNeeded: envVars,
-  };
+  return { client, serverName: serverKey, ...meta, config: mcpConfig, envVarsNeeded: envVars };
 }
