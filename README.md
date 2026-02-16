@@ -1,5 +1,7 @@
 # MCPfinder — An App Store for Your AI 🔍
 
+> **The MCP server that finds MCP servers.**
+
 **Install once. Your AI finds and installs MCP servers for you.**
 
 Every time you need a new tool — a database connector, file manager, API integration — you have to manually search GitHub, npm, or registries, find the right MCP server, figure out the config format, and paste it into a JSON file. 
