@@ -1,141 +1,111 @@
-# MCPfinder 🔧🤖 (`@mcpfinder/server`)
+# MCPfinder — Search Engine for MCP Servers 🔍
 
-A serverless platform for registering and discovering MCP (Model Context Protocol) tools.
+**Find the right MCP server for any task.** MCPfinder aggregates the Official MCP Registry into a fast, searchable index with full-text search. Works as an MCP server itself — so your AI assistant can discover and install other MCP servers.
 
-## Overview
+> Think of it as "Google for MCP" — search by keyword, use case, or technology.
 
-- **api-worker/**: Core REST API Worker for registration and discovery. Also provides MCP Server via HTTP/SSE transport at `/mcp` endpoint.
-- **health-worker/**: Cron-triggered Worker to perform periodic health checks.
-- **mcpfinder-www/**: Worker + static site for landing page and documentation (replacing `landingpage`).
-- **mcpfinder-server/**: MCP Server providing tools for clients to find and manage other MCP servers via stdio transport (external submodule: [mcpfinder/server](https://github.com/mcpfinder/server)).
-- **cli/**: Node.js-based CLI for publishers to register tools.
-- **schemas/**: JSON Schema definitions for validating tool manifests.
-- **mcp-inspector/**: Testing tool for both stdio and HTTP/SSE MCP variants (git submodule).
+## Features
 
-## Cloning
-
-This repository uses Git submodules. To clone it correctly, including the `mcpfinder-server` submodule, use:
-
-```bash
-git clone --recursive git@github.com:lksrz/mcpfinder.git
-cd mcpfinder
-```
-
-If you have already cloned the repository without the `--recursive` flag, you can initialize and update the submodules using:
-
-```bash
-git submodule update --init --recursive
-```
-
-## Folder Structure
-
-```
-/ (root)
-├── api-worker/        # Core registry Worker code for REST API + MCP HTTP/SSE endpoint
-├── health-worker/     # Cron-triggered Worker for health checks
-├── mcpfinder-www/     # Worker + static site for landing page
-│   ├── worker.js      # Worker to serve landing page
-│   └── public/        # Static assets (HTML, CSS, images)
-├── mcpfinder-server/  # MCP Server stdio variant (submodule -> mcpfinder/server)
-├── mcp-inspector/     # MCP testing tool (submodule -> modelcontextprotocol/inspector)
-├── cli/               # Publisher CLI implementation
-│   └── bin/
-│       └── mcp-cli.js # CLI entry
-├── schemas/           # JSON schemas for manifest validation
-├── .gitmodules        # Submodule configuration
-└── README.md          # This file
-```
+- 🔍 **Full-text search** across 2000+ MCP servers (FTS5-powered)
+- 📦 **Install commands** ready to paste into Claude Desktop, Cursor, or VS Code
+- 🏷️ **Category browsing** — explore servers by domain (database, filesystem, AI, etc.)
+- 🔄 **Auto-sync** with the Official MCP Registry (incremental updates)
+- ⚡ **Zero config** — just add to your MCP client and start searching
 
 ## Quick Start
 
-1.  **Clone the repository (including submodules):**
-    ```bash
-    git clone --recursive git@github.com:lksrz/mcpfinder.git
-    cd mcpfinder
-    ```
-2.  Install dependencies:
-    ```bash
-    npm install
-    ```
+### Claude Desktop
 
-3.  Configure Workers:
-    - Set `MCP_REGISTRY_SECRET` in your environment.
-    - Update `wrangler.toml` files in each worker folder with KV/R2 bindings.
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
-4.  Publish API Worker:
-    ```bash
-    cd api-worker
-    npx wrangler deploy # Use npx to ensure correct version
-    cd ..
-    ```
+```json
+{
+  "mcpServers": {
+    "mcpfinder": {
+      "command": "npx",
+      "args": ["-y", "@mcpfinder/server"]
+    }
+  }
+}
+```
 
-5.  Publish Health Worker:
-    ```bash
-    cd health-worker
-    npx wrangler deploy
-    cd ..
-    ```
+### Cursor / VS Code
 
-6.  Publish Landing Page (`mcpfinder-www`):
-    ```bash
-    cd mcpfinder-www
-    npx wrangler deploy
-    cd ..
-    ```
+Add to your MCP config:
 
-7.  Using the `mcpfinder-server`:
-    The MCP Server is available in two transport variants:
+```json
+{
+  "mcpServers": {
+    "mcpfinder": {
+      "command": "npx",
+      "args": ["-y", "@mcpfinder/server"]
+    }
+  }
+}
+```
 
-    *   **Stdio Transport** (`./mcpfinder-server/index.js`):
-        Default mode for local MCP clients (e.g., Cursor, Claude CLI):
-        ```bash
-        node ./mcpfinder-server/index.js
-        ```
-        
-    *   **HTTP/SSE Transport** (API Worker `/mcp` endpoint):
-        Web-accessible variant with Server-Sent Events support:
-        ```bash
-        # Start the api-worker locally
-        cd api-worker && npm run dev
-        # MCP endpoint available at: http://localhost:8787/mcp
-        ```
-        Configuration options available for both transports:
-        *   `--api-url <url>`: Specify the MCP Finder Registry API URL (Default: `https://mcpfinder.dev` or `MCPFINDER_API_URL` env var).
-            ```bash
-            # For stdio transport
-            node ./mcpfinder-server/index.js --api-url http://localhost:8787
-            
-            # For HTTP/SSE transport, configure in api-worker/wrangler.toml
-            MCPFINDER_API_URL = "http://localhost:8787"
-            ```
+## Tools
 
-    *   **Execute Commands:**
-        *   Interactive Setup (for users/AI clients to configure a client):
-            ```bash
-            node ./mcpfinder-server/index.js install
-            ```
-            (Aliases: `setup`, `init`)
-        *   Register Server Package (for server publishers):
-            ```bash
-            node ./mcpfinder-server/index.js register
-            ```
-            (This requires appropriate environment variables like `MCPFINDER_API_URL` and `MCPFINDER_REGISTRY_SECRET` to be set for the registry interaction).
+MCPfinder exposes 5 MCP tools:
 
-    *   **Display Help:**
-        ```bash
-        node ./mcpfinder-server/index.js --help
-        ```
+| Tool | Description |
+|------|-------------|
+| `search_mcp_servers` | Search by keyword, use case, or technology. Supports filters for transport type and package registry. |
+| `get_server_details` | Get full details for a specific server — description, version, repository, environment variables. |
+| `get_install_command` | Get copy-paste install config for Claude Desktop, Cursor, VS Code, or generic MCP clients. |
+| `list_categories` | Browse all server categories with counts. |
+| `browse_category` | List servers within a specific category. |
 
-8.  Install `mcp-cli` globally (for `./cli/bin/mcp-cli.js`):
-    ```bash
-    # No longer a separate 'cli' package.json, use root:
-    npm link # Links the bin specified in the root package.json
-    ```
+## Examples
 
-Now you can register a tool:
+**"Find me a database server for PostgreSQL"**
+→ `search_mcp_servers` with query "postgres database"
+
+**"How do I install the filesystem server in Cursor?"**
+→ `get_install_command` with name "filesystem", client "cursor"
+
+**"What categories of MCP servers exist?"**
+→ `list_categories`
+
+## Architecture
+
+```
+mcpfinder/
+├── packages/
+│   ├── core/          # Database, sync engine, search logic (SQLite + FTS5)
+│   └── mcp-server/    # MCP server exposing search tools via stdio
+├── pnpm-workspace.yaml
+└── package.json
+```
+
+- **@mcpfinder/core** — SQLite database with FTS5 full-text search, registry sync engine, search/browse/install logic
+- **@mcpfinder/server** — MCP server (stdio transport) that exposes core functionality as tools
+
+## Development
 
 ```bash
-export MCPFINDER_API_URL='...' # e.g., http://localhost:8787 or deployed URL
-export MCPFINDER_REGISTRY_SECRET='your-secret'
-mcp-cli register path/to/mcp.json
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm --filter @mcpfinder/core build
+pnpm --filter @mcpfinder/server build
+
+# Run the server locally
+node packages/mcp-server/dist/index.js
 ```
+
+## Data Source
+
+MCPfinder syncs from the [Official MCP Registry](https://registry.modelcontextprotocol.io) — the canonical source for MCP servers. Data is cached locally in SQLite and refreshed automatically when stale.
+
+## Roadmap
+
+- [ ] Multi-registry support (Glama, Smithery)
+- [ ] Server ranking algorithm (popularity + recency + quality)
+- [ ] Web UI at findmcp.dev
+- [ ] npm publish `@mcpfinder/server` v1.0.0
+
+## License
+
+MIT — Built by [Coder AI](https://coderai.dev)
