@@ -7,13 +7,23 @@ import type { McpServer, SearchResult, ServerDetail } from './types.js';
 
 /**
  * Find a server by name, slug, or fuzzy match.
- * Tries (in order): exact id/slug/name, suffix match, substring in name/slug,
- * then falls back to FTS5 search for the best single match.
+ *
+ * Lookup priority:
+ * 1. Exact match (id, slug, name, suffix /query)
+ * 2. Fuzzy substring match with smart ranking:
+ *    - Exact word boundary match (e.g. /puppeteer) ranks highest
+ *    - Closer to start of name ranks higher (puppeteer-xxx > xxx-puppeteer)
+ *    - Higher popularity (use_count) breaks ties
+ * 3. FTS5 fallback for best semantic match
  */
 export function findServerByNameOrSlug(
   db: Database.Database,
   nameOrSlug: string,
 ): McpServer | undefined {
+  // Reject empty/whitespace queries
+  const query = nameOrSlug.trim();
+  if (!query) return undefined;
+
   // 1. Exact match (id, slug, name, or name ending with /query)
   let row = db
     .prepare(
@@ -24,26 +34,74 @@ export function findServerByNameOrSlug(
           OR name LIKE ?
        LIMIT 1`,
     )
-    .get(nameOrSlug, nameOrSlug, nameOrSlug, `%/${nameOrSlug}`) as McpServer | undefined;
+    .get(query, query, query, `%/${query}`) as McpServer | undefined;
 
   if (row) return row;
 
-  // 2. Case-insensitive substring match on name or slug
-  const pattern = `%${nameOrSlug}%`;
-  row = db
+  // 2. Fuzzy substring match with smart ranking
+  //    Score: exact word boundary > prefix > early position > late position
+  //    Within each tier, sort by popularity (use_count)
+  const pattern = `%${query}%`;
+  const rows = db
     .prepare(
       `SELECT * FROM servers
        WHERE name LIKE ? COLLATE NOCASE
           OR slug LIKE ? COLLATE NOCASE
        ORDER BY use_count DESC
-       LIMIT 1`,
+       LIMIT 50`,
     )
-    .get(pattern, pattern) as McpServer | undefined;
+    .all(pattern, pattern) as McpServer[];
 
-  if (row) return row;
+  if (rows.length > 0) {
+    const qLower = query.toLowerCase();
+
+    // Score each match — lower is better
+    const scored = rows.map((r) => {
+      const nameLower = (r.name || '').toLowerCase();
+      const slugLower = (r.slug || '').toLowerCase();
+
+      // Check both name and slug, take best score
+      let score = 1000;
+
+      for (const field of [nameLower, slugLower]) {
+        if (!field) continue;
+        const pos = field.indexOf(qLower);
+        if (pos === -1) continue;
+
+        // Extract the last segment after / for name matching
+        const lastSegment = field.includes('/') ? field.split('/').pop()! : field;
+        const segPos = lastSegment.indexOf(qLower);
+
+        if (lastSegment === qLower) {
+          // Exact match on last segment: /puppeteer → best
+          score = Math.min(score, 0);
+        } else if (segPos === 0) {
+          // Prefix of last segment: puppeteer-xxx → very good
+          score = Math.min(score, 10);
+        } else if (field.charAt(pos - 1) === '-' || field.charAt(pos - 1) === '_' || field.charAt(pos - 1) === '/') {
+          // Word boundary match: xxx-puppeteer or xxx/puppeteer → good
+          score = Math.min(score, 20 + pos);
+        } else {
+          // Substring match: xxxpuppeteerxxx → ok, rank by position
+          score = Math.min(score, 50 + pos);
+        }
+      }
+
+      return { server: r, score };
+    });
+
+    // Sort by score (lower = better), then use_count (higher = better), then shorter name (simpler = better)
+    scored.sort((a, b) =>
+      a.score - b.score
+      || (b.server.use_count || 0) - (a.server.use_count || 0)
+      || (a.server.name || '').length - (b.server.name || '').length
+    );
+
+    return scored[0].server;
+  }
 
   // 3. FTS5 fallback — best single match
-  const sanitized = sanitizeFtsQuery(nameOrSlug);
+  const sanitized = sanitizeFtsQuery(query);
   if (sanitized) {
     row = db
       .prepare(
