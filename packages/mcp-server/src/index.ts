@@ -144,8 +144,10 @@ server.tool(
   'search_mcp_servers',
   'Use when the user needs a capability you don\'t have. Search 5000+ MCP servers by keyword, use case, or technology from Official MCP Registry, Glama, and Smithery. Returns ranked results with install info.',
   {
-    query: z.string().describe(
-      'Search query — a keyword (e.g., "filesystem"), use case ("query databases"), or technology ("postgres")',
+    query: z.string().default('').describe(
+      'Search query — a keyword (e.g., "filesystem"), use case ("query databases"), or technology ("postgres"). ' +
+      'Common aliases work: "gh" → github, "pg" → postgres, "k8s" → kubernetes, "db" → database. ' +
+      'Leave empty to see the most popular servers.',
     ),
     limit: z.number().min(1).max(50).default(10).describe('Maximum results to return (default: 10, max: 50)'),
     transportType: z
@@ -198,7 +200,9 @@ server.tool(
       content: [
         {
           type: 'text' as const,
-          text: `Found ${results.length} MCP server(s) for "${query}":\n\n${formatted}\n\nUse get_server_details for full info, or get_install_command to generate install config for any platform.`,
+          text: query
+            ? `Found ${results.length} MCP server(s) for "${query}":\n\n${formatted}\n\nUse get_server_details for full info, or get_install_command to generate install config for any platform.`
+            : `Top ${results.length} most popular MCP servers:\n\n${formatted}\n\nUse search_mcp_servers with a query to find specific servers, or get_install_command to install any of these.`,
         },
       ],
     };
