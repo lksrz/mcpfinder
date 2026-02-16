@@ -185,3 +185,14 @@ test_*.js
 
 # macOS
 .DS_Store
+-e 
+# Build output
+dist/
+
+# MCPfinder monorepo
+packages/*/dist/
+packages/*/node_modules/
+*.db
+*.db-wal
+*.db-shm
+.mcpfinder/
