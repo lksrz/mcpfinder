@@ -2,7 +2,7 @@
 /**
  * MCPfinder MCP Server
  * Search engine for MCP servers — find the right tool for any task.
- * Aggregates the Official MCP Registry with full-text search.
+ * Aggregates Official MCP Registry, Glama, and Smithery with full-text search.
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -10,6 +10,8 @@ import { z } from 'zod';
 import {
   initDatabase,
   syncOfficialRegistry,
+  syncGlamaRegistry,
+  syncSmitheryRegistry,
   isSyncNeeded,
   getServerCount,
   searchServers,
@@ -25,17 +27,52 @@ const db = initDatabase();
 // Create MCP server
 const server = new McpServer({
   name: 'mcpfinder',
-  version: '1.0.0-beta.1',
+  version: '1.1.0',
 });
 
 /**
+ * Format use count for display (e.g., 7900000 -> "7.9M")
+ */
+function formatUseCount(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
+  return String(count);
+}
+
+/**
+ * Build source badges string for display.
+ */
+function sourceBadges(sources: string[], useCount: number, verified: boolean): string {
+  const badges: string[] = [];
+  if (sources.includes('official')) badges.push('📦 Official');
+  if (sources.includes('smithery')) {
+    let badge = '🌟 Smithery';
+    if (useCount > 0) badge += ` (${formatUseCount(useCount)} uses)`;
+    if (verified) badge += ' ✓';
+    badges.push(badge);
+  }
+  if (sources.includes('glama')) badges.push('🔍 Glama');
+  return badges.length > 0 ? badges.join(' | ') : '';
+}
+
+/**
  * Ensure data is synced before handling requests.
+ * Syncs all three registries, failing gracefully per-registry.
  */
 async function ensureSync(): Promise<void> {
   const count = getServerCount(db);
   if (count === 0 || isSyncNeeded(db)) {
-    const synced = await syncOfficialRegistry(db);
-    process.stderr.write(`[mcpfinder] Synced ${synced} servers (${getServerCount(db)} total)\n`);
+    // Sync all registries in parallel, each handles its own errors
+    const results = await Promise.allSettled([
+      syncOfficialRegistry(db),
+      syncGlamaRegistry(db),
+      syncSmitheryRegistry(db),
+    ]);
+
+    const counts = results.map((r) => (r.status === 'fulfilled' ? r.value : 0));
+    process.stderr.write(
+      `[mcpfinder] Synced: Official=${counts[0]}, Glama=${counts[1]}, Smithery=${counts[2]} (${getServerCount(db)} total)\n`,
+    );
   }
 }
 
@@ -43,7 +80,7 @@ async function ensureSync(): Promise<void> {
 
 server.tool(
   'search_mcp_servers',
-  'Search for MCP servers by keyword, use case, or technology. Returns ranked results from the Official MCP Registry.',
+  'Search for MCP servers by keyword, use case, or technology. Returns ranked results from Official Registry, Glama, and Smithery.',
   {
     query: z.string().describe(
       'Search query — a keyword (e.g., "filesystem"), use case ("query databases"), or technology ("postgres")',
@@ -57,13 +94,18 @@ server.tool(
       .enum(['npm', 'pypi', 'oci', 'any'])
       .default('any')
       .describe('Filter by package registry type'),
+    registrySource: z
+      .enum(['official', 'glama', 'smithery', 'any'])
+      .default('any')
+      .describe('Filter by registry source'),
   },
-  async ({ query, limit, transportType, registryType }) => {
+  async ({ query, limit, transportType, registryType, registrySource }) => {
     await ensureSync();
 
     const results = searchServers(db, query, limit, {
       transportType: transportType === 'any' ? undefined : transportType,
       registryType: registryType === 'any' ? undefined : registryType,
+      registrySource: registrySource === 'any' ? undefined : registrySource,
     });
 
     if (results.length === 0) {
@@ -78,13 +120,16 @@ server.tool(
     }
 
     const formatted = results
-      .map(
-        (r) =>
-          `${r.rank}. **${r.name}** (v${r.version})\n` +
+      .map((r) => {
+        const badges = sourceBadges(r.sources, r.useCount, r.verified);
+        return (
+          `${r.rank}. **${r.name}** (v${r.version || 'n/a'})\n` +
           `   ${r.description}\n` +
           `   Package: ${r.packageIdentifier || 'N/A'} | Transport: ${r.transportType || 'N/A'}` +
-          (r.hasRemote ? ' | 🌐 Remote available' : ''),
-      )
+          (r.hasRemote ? ' | 🌐 Remote available' : '') +
+          (badges ? `\n   ${badges}` : '')
+        );
+      })
       .join('\n\n');
 
     return {
@@ -132,12 +177,14 @@ server.tool(
             .join('\n')
         : '';
 
+    const badges = sourceBadges(detail.sources, detail.useCount, detail.verified);
+
     const text = [
       `# ${detail.name}`,
       '',
       detail.description,
       '',
-      `**Version:** ${detail.version}`,
+      `**Version:** ${detail.version || 'N/A'}`,
       `**Status:** ${detail.status}`,
       `**Package:** ${detail.packageIdentifier || 'N/A'} (${detail.registryType || 'unknown'})`,
       `**Transport:** ${detail.transportType || 'N/A'}`,
@@ -146,6 +193,9 @@ server.tool(
       `**Published:** ${detail.publishedAt || 'N/A'}`,
       `**Updated:** ${detail.updatedAt || 'N/A'}`,
       detail.categories.length > 0 ? `**Categories:** ${detail.categories.join(', ')}` : '',
+      badges ? `**Sources:** ${badges}` : '',
+      detail.useCount > 0 ? `**Popularity:** ${formatUseCount(detail.useCount)} uses` : '',
+      detail.verified ? '**Verified:** ✓' : '',
       envSection,
     ]
       .filter(Boolean)

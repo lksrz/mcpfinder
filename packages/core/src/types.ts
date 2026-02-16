@@ -78,6 +78,10 @@ export interface McpServer {
   sources: string; // JSON array
   raw_data: string; // Full JSON from source
   env_vars: string; // JSON array of env var definitions
+  source: string; // 'official' | 'glama' | 'smithery'
+  use_count: number;
+  verified: number; // 0 or 1
+  icon_url: string | null;
 }
 
 /** Search result returned to MCP clients */
@@ -91,6 +95,10 @@ export interface SearchResult {
   repositoryUrl: string | null;
   hasRemote: boolean;
   rank: number;
+  sources: string[];
+  useCount: number;
+  verified: boolean;
+  iconUrl: string | null;
 }
 
 /** Server detail returned to MCP clients */
@@ -110,6 +118,10 @@ export interface ServerDetail {
   remoteUrl: string | null;
   categories: string[];
   environmentVariables: RegistryEnvVar[];
+  sources: string[];
+  useCount: number;
+  verified: boolean;
+  iconUrl: string | null;
 }
 
 /** Category with server count */
@@ -117,4 +129,53 @@ export interface Category {
   name: string;
   count: number;
   keywords: string[];
+}
+
+// ─── Glama Registry Types ───────────────────────────────────────────────────
+
+export interface GlamaServer {
+  id: string;
+  name: string;
+  namespace: string;
+  slug: string;
+  description: string | null;
+  repository: { url: string } | null;
+  spdxLicense: string | null;
+  tools: unknown[];
+  url: string | null;
+  environmentVariablesJsonSchema: unknown;
+  attributes: Record<string, unknown>;
+}
+
+export interface GlamaListResponse {
+  pageInfo: {
+    endCursor: string | null;
+    hasNextPage: boolean;
+  };
+  servers: GlamaServer[];
+}
+
+// ─── Smithery Registry Types ────────────────────────────────────────────────
+
+export interface SmitheryServer {
+  qualifiedName: string;
+  displayName: string;
+  description: string | null;
+  useCount: number;
+  verified: boolean;
+  remote: boolean;
+  isDeployed: boolean;
+  iconUrl: string | null;
+  homepage: string | null;
+  createdAt: string;
+}
+
+export interface SmitheryListResponse {
+  servers: SmitheryServer[];
+  pagination: {
+    currentPage: number;
+    pageSize: number;
+    totalPages: number;
+    totalCount: number;
+  };
 }

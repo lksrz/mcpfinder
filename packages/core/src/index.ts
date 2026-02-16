@@ -14,13 +14,17 @@ export type {
   SearchResult,
   ServerDetail,
   Category,
+  GlamaServer,
+  GlamaListResponse,
+  SmitheryServer,
+  SmitheryListResponse,
 } from './types.js';
 
 // Database
 export { initDatabase, getDataDir, getLastSyncTimestamp, updateSyncLog } from './db.js';
 
 // Sync
-export { syncOfficialRegistry, isSyncNeeded, getServerCount } from './sync.js';
+export { syncOfficialRegistry, syncGlamaRegistry, syncSmitheryRegistry, isSyncNeeded, getServerCount } from './sync.js';
 
 // Search
 export { searchServers, getServerDetails } from './search.js';

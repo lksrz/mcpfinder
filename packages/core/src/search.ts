@@ -1,12 +1,13 @@
 /**
  * Search engine using SQLite FTS5 for MCP server discovery.
+ * Ranking formula: fts_rank * 0.4 + log(useCount+1) * 0.3 + source_count * 0.2 + recency * 0.1
  */
 import type Database from 'better-sqlite3';
 import type { McpServer, SearchResult, ServerDetail } from './types.js';
 
 /**
  * Search for MCP servers using FTS5 full-text search.
- * Searches across name, description, and keywords.
+ * Searches across name, description, and keywords with multi-factor ranking.
  */
 export function searchServers(
   db: Database.Database,
@@ -15,17 +16,31 @@ export function searchServers(
   filters?: {
     transportType?: string;
     registryType?: string;
+    registrySource?: string;
   },
 ): SearchResult[] {
   const sanitized = sanitizeFtsQuery(query);
 
   if (!sanitized) {
-    return getRecentServers(db, limit);
+    return getRecentServers(db, limit, filters);
   }
 
+  // Multi-factor ranking:
+  // - FTS5 rank (negated because FTS5 returns negative scores where more negative = better)
+  // - log(use_count + 1) for popularity
+  // - number of sources for cross-registry presence
+  // - recency based on updated_at
   let sql = `
     SELECT s.*,
-           rank * -1 as relevance
+           (rank * -1) as fts_relevance,
+           (
+             (rank * -1) * 0.4 +
+             (CASE WHEN s.use_count > 0 THEN log(s.use_count + 1) ELSE 0 END) * 0.3 +
+             (length(s.sources) - length(replace(s.sources, ',', '')) + 1) * 0.2 * 0.5 +
+             (CASE WHEN s.updated_at IS NOT NULL
+               THEN MAX(0, 1.0 - (julianday('now') - julianday(s.updated_at)) / 365.0)
+               ELSE 0 END) * 0.1
+           ) as combined_score
     FROM servers_fts fts
     JOIN servers s ON s.rowid = fts.rowid
     WHERE servers_fts MATCH @query
@@ -43,37 +58,53 @@ export function searchServers(
     params.registryType = filters.registryType;
   }
 
-  sql += ' ORDER BY relevance DESC LIMIT @limit';
+  if (filters?.registrySource && filters.registrySource !== 'any') {
+    sql += ' AND s.sources LIKE @registrySource';
+    params.registrySource = `%${filters.registrySource}%`;
+  }
 
-  const rows = db.prepare(sql).all(params) as (McpServer & { relevance: number })[];
+  sql += ' ORDER BY combined_score DESC LIMIT @limit';
 
-  return rows.map((row, idx) => ({
-    name: row.name,
-    description: row.description,
-    version: row.version,
-    registryType: row.registry_type,
-    packageIdentifier: row.package_identifier,
-    transportType: row.transport_type,
-    repositoryUrl: row.repository_url,
-    hasRemote: row.has_remote === 1,
-    rank: idx + 1,
-  }));
+  const rows = db.prepare(sql).all(params) as (McpServer & { fts_relevance: number; combined_score: number })[];
+
+  return rows.map((row, idx) => formatSearchResult(row, idx));
 }
 
 /**
  * Get most recent servers (fallback for empty query).
  */
-function getRecentServers(db: Database.Database, limit: number): SearchResult[] {
-  const rows = db
-    .prepare(
-      `SELECT * FROM servers
-       WHERE status = 'active'
-       ORDER BY updated_at DESC NULLS LAST
-       LIMIT ?`,
-    )
-    .all(limit) as McpServer[];
+function getRecentServers(
+  db: Database.Database,
+  limit: number,
+  filters?: { registrySource?: string },
+): SearchResult[] {
+  let sql = `SELECT * FROM servers WHERE status = 'active'`;
+  const params: Record<string, unknown> = { limit };
 
-  return rows.map((row, idx) => ({
+  if (filters?.registrySource && filters.registrySource !== 'any') {
+    sql += ' AND sources LIKE @registrySource';
+    params.registrySource = `%${filters.registrySource}%`;
+  }
+
+  sql += ' ORDER BY use_count DESC, updated_at DESC NULLS LAST LIMIT @limit';
+
+  const rows = db.prepare(sql).all(params) as McpServer[];
+
+  return rows.map((row, idx) => formatSearchResult(row, idx));
+}
+
+/**
+ * Format a database row into a SearchResult.
+ */
+function formatSearchResult(row: McpServer, idx: number): SearchResult {
+  let sources: string[] = [];
+  try {
+    sources = JSON.parse(row.sources || '[]');
+  } catch {
+    sources = [];
+  }
+
+  return {
     name: row.name,
     description: row.description,
     version: row.version,
@@ -83,7 +114,11 @@ function getRecentServers(db: Database.Database, limit: number): SearchResult[] 
     repositoryUrl: row.repository_url,
     hasRemote: row.has_remote === 1,
     rank: idx + 1,
-  }));
+    sources,
+    useCount: row.use_count || 0,
+    verified: row.verified === 1,
+    iconUrl: row.icon_url,
+  };
 }
 
 /**
@@ -120,6 +155,13 @@ export function getServerDetails(
     categories = [];
   }
 
+  let sources: string[] = [];
+  try {
+    sources = JSON.parse(row.sources || '[]');
+  } catch {
+    sources = [];
+  }
+
   return {
     name: row.name,
     description: row.description,
@@ -136,6 +178,10 @@ export function getServerDetails(
     remoteUrl: row.remote_url,
     categories,
     environmentVariables: envVars,
+    sources,
+    useCount: row.use_count || 0,
+    verified: row.verified === 1,
+    iconUrl: row.icon_url,
   };
 }
 

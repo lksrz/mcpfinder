@@ -29,7 +29,11 @@ CREATE TABLE IF NOT EXISTS servers (
   last_synced_at TEXT,
   sources TEXT DEFAULT '[]',
   raw_data TEXT,
-  env_vars TEXT DEFAULT '[]'
+  env_vars TEXT DEFAULT '[]',
+  source TEXT DEFAULT 'official',
+  use_count INTEGER DEFAULT 0,
+  verified INTEGER DEFAULT 0,
+  icon_url TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_servers_slug ON servers(slug);
@@ -101,7 +105,31 @@ export function initDatabase(dbPath?: string): Database.Database {
   // Create schema
   db.exec(SCHEMA_SQL);
 
+  // Migrate: add new columns if they don't exist (for existing databases)
+  migrateSchema(db);
+
   return db;
+}
+
+/**
+ * Gracefully add columns that may not exist in older databases.
+ */
+function migrateSchema(db: Database.Database): void {
+  const columns = db.prepare("PRAGMA table_info('servers')").all() as Array<{ name: string }>;
+  const existing = new Set(columns.map((c) => c.name));
+
+  const migrations: Array<[string, string]> = [
+    ['source', "TEXT DEFAULT 'official'"],
+    ['use_count', 'INTEGER DEFAULT 0'],
+    ['verified', 'INTEGER DEFAULT 0'],
+    ['icon_url', 'TEXT'],
+  ];
+
+  for (const [col, def] of migrations) {
+    if (!existing.has(col)) {
+      db.exec(`ALTER TABLE servers ADD COLUMN ${col} ${def}`);
+    }
+  }
 }
 
 /**
