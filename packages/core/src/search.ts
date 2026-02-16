@@ -1,9 +1,52 @@
 /**
  * Search engine using SQLite FTS5 for MCP server discovery.
- * Ranking formula: fts_rank * 0.4 + log(useCount+1) * 0.3 + source_count * 0.2 + recency * 0.1
+ * Ranking formula: fts_rank * 0.4 + log(useCount+1) * 0.3 + source_count * 0.2 + official_boost * 0.1
  */
 import type Database from 'better-sqlite3';
 import type { McpServer, SearchResult, ServerDetail } from './types.js';
+
+/**
+ * Alias dictionary: common abbreviations → full terms.
+ * Applied before FTS5 search to expand short queries.
+ */
+const SEARCH_ALIASES: Record<string, string> = {
+  // SCM / Code
+  gh: 'github',
+  gl: 'gitlab',
+  bb: 'bitbucket',
+  git: 'git github',
+  // Databases
+  pg: 'postgres postgresql',
+  db: 'database',
+  mysql: 'mysql database',
+  mongo: 'mongodb',
+  redis: 'redis cache',
+  sql: 'sql database',
+  // Cloud / Infra
+  k8s: 'kubernetes',
+  aws: 'amazon aws',
+  gcp: 'google cloud',
+  az: 'azure microsoft',
+  cf: 'cloudflare',
+  // Languages / Runtimes
+  js: 'javascript nodejs',
+  ts: 'typescript',
+  py: 'python',
+  rb: 'ruby',
+  rs: 'rust',
+  // Communication
+  email: 'email smtp gmail',
+  msg: 'message messaging',
+  // AI / ML
+  llm: 'language model ai',
+  ml: 'machine learning',
+  cv: 'computer vision',
+  // Common tools
+  fs: 'filesystem file',
+  ci: 'continuous integration',
+  cd: 'continuous deployment',
+  s3: 'amazon s3 storage',
+};
 
 /**
  * Find a server by name, slug, or fuzzy match.
@@ -123,6 +166,24 @@ export function findServerByNameOrSlug(
  * Search for MCP servers using FTS5 full-text search.
  * Searches across name, description, and keywords with multi-factor ranking.
  */
+/**
+ * Expand a query using the alias dictionary.
+ * Returns both the expanded query and whether aliases were used (for OR logic).
+ * E.g., "gh issues" → { query: "github issues", hasAlias: true }
+ */
+function expandAliases(query: string): { query: string; hasAlias: boolean } {
+  const words = query.toLowerCase().trim().split(/\s+/);
+  let hasAlias = false;
+  const expanded = words.map((w) => {
+    if (SEARCH_ALIASES[w]) {
+      hasAlias = true;
+      return SEARCH_ALIASES[w];
+    }
+    return w;
+  });
+  return { query: expanded.join(' '), hasAlias };
+}
+
 export function searchServers(
   db: Database.Database,
   query: string,
@@ -133,17 +194,20 @@ export function searchServers(
     registrySource?: string;
   },
 ): SearchResult[] {
-  const sanitized = sanitizeFtsQuery(query);
+  // Expand aliases before sanitizing
+  const { query: expandedQuery, hasAlias } = expandAliases(query);
+  const sanitized = sanitizeFtsQuery(expandedQuery, hasAlias);
 
   if (!sanitized) {
-    return getRecentServers(db, limit, filters);
+    // Fix #2: empty query → return top popular servers
+    return getPopularServers(db, limit, filters);
   }
 
   // Multi-factor ranking:
   // - FTS5 rank (negated because FTS5 returns negative scores where more negative = better)
   // - log(use_count + 1) for popularity
-  // - number of sources for cross-registry presence
-  // - recency based on updated_at
+  // - source count for cross-registry presence
+  // - Official registry boost (Fix #4)
   let sql = `
     SELECT s.*,
            (rank * -1) as fts_relevance,
@@ -151,9 +215,9 @@ export function searchServers(
              (rank * -1) * 0.4 +
              (CASE WHEN s.use_count > 0 THEN log(s.use_count + 1) ELSE 0 END) * 0.3 +
              (length(s.sources) - length(replace(s.sources, ',', '')) + 1) * 0.2 * 0.5 +
-             (CASE WHEN s.updated_at IS NOT NULL
-               THEN MAX(0, 1.0 - (julianday('now') - julianday(s.updated_at)) / 365.0)
-               ELSE 0 END) * 0.1
+             (CASE WHEN s.sources LIKE '%official%' THEN 3.0
+              WHEN s.verified = 1 THEN 1.5
+              ELSE 0 END) * 0.15
            ) as combined_score
     FROM servers_fts fts
     JOIN servers s ON s.rowid = fts.rowid
@@ -185,9 +249,10 @@ export function searchServers(
 }
 
 /**
- * Get most recent servers (fallback for empty query).
+ * Get most popular servers (for empty query / onboarding).
+ * Prioritizes: official > verified > high use_count > recent.
  */
-function getRecentServers(
+function getPopularServers(
   db: Database.Database,
   limit: number,
   filters?: { registrySource?: string },
@@ -200,7 +265,13 @@ function getRecentServers(
     params.registrySource = `%${filters.registrySource}%`;
   }
 
-  sql += ' ORDER BY use_count DESC, updated_at DESC NULLS LAST LIMIT @limit';
+  // Official first, then verified, then by popularity
+  sql += ` ORDER BY
+    CASE WHEN sources LIKE '%official%' THEN 0 ELSE 1 END,
+    CASE WHEN verified = 1 THEN 0 ELSE 1 END,
+    use_count DESC,
+    updated_at DESC NULLS LAST
+    LIMIT @limit`;
 
   const rows = db.prepare(sql).all(params) as McpServer[];
 
@@ -292,8 +363,9 @@ export function getServerDetails(
 
 /**
  * Sanitize a query string for FTS5.
+ * When useOr is true (alias expansion), joins with OR for broader matching.
  */
-function sanitizeFtsQuery(query: string): string {
+function sanitizeFtsQuery(query: string, useOr: boolean = false): string {
   const words = query
     .replace(/[^\w\s-]/g, ' ')
     .split(/\s+/)
@@ -301,5 +373,5 @@ function sanitizeFtsQuery(query: string): string {
     .map((w) => `"${w}"`);
 
   if (words.length === 0) return '';
-  return words.join(' ');
+  return useOr ? words.join(' OR ') : words.join(' ');
 }
