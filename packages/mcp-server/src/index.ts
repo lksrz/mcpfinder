@@ -27,7 +27,7 @@ const db = initDatabase();
 // Create MCP server
 const server = new McpServer({
   name: 'mcpfinder',
-  version: '1.0.0-beta.4',
+  version: '1.0.0-beta.5',
 });
 
 // ─── Platform Configuration ─────────────────────────────────────────────────
