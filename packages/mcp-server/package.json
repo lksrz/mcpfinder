@@ -1,7 +1,7 @@
 {
   "name": "@mcpfinder/server",
   "version": "1.0.0-beta.3",
-  "description": "Search engine for MCP servers — find the right tool for any task. Aggregates the Official MCP Registry with full-text search.",
+  "description": "Search engine for 5000+ MCP servers. Aggregates Official Registry, Glama, and Smithery with ranked full-text search. Find and install MCP tools from your AI assistant.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
