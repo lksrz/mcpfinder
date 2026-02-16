@@ -27,7 +27,7 @@ export { initDatabase, getDataDir, getLastSyncTimestamp, updateSyncLog } from '.
 export { syncOfficialRegistry, syncGlamaRegistry, syncSmitheryRegistry, isSyncNeeded, getServerCount } from './sync.js';
 
 // Search
-export { searchServers, getServerDetails } from './search.js';
+export { searchServers, getServerDetails, findServerByNameOrSlug } from './search.js';
 
 // Categories
 export {

@@ -6,6 +6,62 @@ import type Database from 'better-sqlite3';
 import type { McpServer, SearchResult, ServerDetail } from './types.js';
 
 /**
+ * Find a server by name, slug, or fuzzy match.
+ * Tries (in order): exact id/slug/name, suffix match, substring in name/slug,
+ * then falls back to FTS5 search for the best single match.
+ */
+export function findServerByNameOrSlug(
+  db: Database.Database,
+  nameOrSlug: string,
+): McpServer | undefined {
+  // 1. Exact match (id, slug, name, or name ending with /query)
+  let row = db
+    .prepare(
+      `SELECT * FROM servers
+       WHERE id = ?
+          OR slug = ?
+          OR name = ?
+          OR name LIKE ?
+       LIMIT 1`,
+    )
+    .get(nameOrSlug, nameOrSlug, nameOrSlug, `%/${nameOrSlug}`) as McpServer | undefined;
+
+  if (row) return row;
+
+  // 2. Case-insensitive substring match on name or slug
+  const pattern = `%${nameOrSlug}%`;
+  row = db
+    .prepare(
+      `SELECT * FROM servers
+       WHERE name LIKE ? COLLATE NOCASE
+          OR slug LIKE ? COLLATE NOCASE
+       ORDER BY use_count DESC
+       LIMIT 1`,
+    )
+    .get(pattern, pattern) as McpServer | undefined;
+
+  if (row) return row;
+
+  // 3. FTS5 fallback — best single match
+  const sanitized = sanitizeFtsQuery(nameOrSlug);
+  if (sanitized) {
+    row = db
+      .prepare(
+        `SELECT s.* FROM servers_fts fts
+         JOIN servers s ON s.rowid = fts.rowid
+         WHERE servers_fts MATCH @q
+         ORDER BY rank
+         LIMIT 1`,
+      )
+      .get({ q: sanitized }) as McpServer | undefined;
+
+    if (row) return row;
+  }
+
+  return undefined;
+}
+
+/**
  * Search for MCP servers using FTS5 full-text search.
  * Searches across name, description, and keywords with multi-factor ranking.
  */
@@ -128,16 +184,7 @@ export function getServerDetails(
   db: Database.Database,
   nameOrSlug: string,
 ): ServerDetail | null {
-  const row = db
-    .prepare(
-      `SELECT * FROM servers
-       WHERE id = ?
-          OR slug = ?
-          OR name = ?
-          OR name LIKE ?
-       LIMIT 1`,
-    )
-    .get(nameOrSlug, nameOrSlug, nameOrSlug, `%/${nameOrSlug}`) as McpServer | undefined;
+  const row = findServerByNameOrSlug(db, nameOrSlug);
 
   if (!row) return null;
 

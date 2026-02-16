@@ -4,6 +4,7 @@
  */
 import type Database from 'better-sqlite3';
 import type { McpServer, RegistryEnvVar } from './types.js';
+import { findServerByNameOrSlug } from './search.js';
 
 export type ClientType =
   | 'claude-desktop'
@@ -75,16 +76,7 @@ export function getInstallCommand(
   nameOrSlug: string,
   client: ClientType = 'claude-desktop',
 ): InstallConfig | null {
-  const row = db
-    .prepare(
-      `SELECT * FROM servers
-       WHERE id = ?
-          OR slug = ?
-          OR name = ?
-          OR name LIKE ?
-       LIMIT 1`,
-    )
-    .get(nameOrSlug, nameOrSlug, nameOrSlug, `%/${nameOrSlug}`) as McpServer | undefined;
+  const row = findServerByNameOrSlug(db, nameOrSlug);
 
   if (!row) return null;
 
