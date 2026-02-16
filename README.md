@@ -1,24 +1,61 @@
-# MCPfinder — Search Engine for MCP Servers 🔍
+# MCPfinder — An App Store for Your AI 🔍
 
-**Find the right MCP server for any task.** MCPfinder aggregates 5000+ servers from three registries — Official MCP Registry, Glama, and Smithery — into a fast, searchable index. Works as an MCP server itself, so your AI assistant can discover and install other MCP servers.
+**Install once. Your AI finds and installs MCP servers for you.**
 
-> "Google for MCP" — search by keyword, use case, or technology.
+Every time you need a new tool — a database connector, file manager, API integration — you have to manually search GitHub, npm, or registries, find the right MCP server, figure out the config format, and paste it into a JSON file. 
 
-## Features
+MCPfinder eliminates all of that. Add it to your AI tool once, and from that point on your AI can **discover, evaluate, and install any MCP server on demand** from 5000+ options across three registries.
 
-- 🔍 **Full-text search** across 5000+ MCP servers (FTS5-powered)
-- 📦 **Install commands** ready to paste into Claude Desktop, Cursor, or VS Code
-- 🏷️ **Category browsing** — explore servers by domain (database, filesystem, AI, etc.)
-- 🔄 **Multi-registry sync** — Official MCP Registry + Glama + Smithery
-- ⭐ **Popularity ranking** — servers ranked by usage data from Smithery
-- 🔗 **Deduplication** — same server from multiple registries merged intelligently
-- ⚡ **Zero config** — just add to your MCP client and start searching
+> **You:** "I need to connect to my PostgreSQL database"  
+> **AI:** *(uses MCPfinder)* → finds `postgres-mcp-server` → generates config → done.
 
-## Quick Start
+## Why MCPfinder?
+
+- 🔍 **Your AI searches for you** — 5000+ servers, 3 registries, full-text search with ranking
+- 📦 **Ready-to-paste configs** — for Claude Desktop, Cursor, Claude Code, Cline, Windsurf, VS Code
+- ⭐ **Smart ranking** — popularity, relevance, recency, and cross-registry presence
+- 🌐 **Remote servers supported** — hosted MCP servers work out of the box (no npm install needed)
+- ⚡ **Zero config** — just add MCPfinder and start asking
+
+## Quick Install
+
+Add MCPfinder to your AI tool — pick your platform:
 
 ### Claude Desktop
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "mcpfinder": {
+      "command": "npx",
+      "args": ["-y", "@mcpfinder/server@beta"]
+    }
+  }
+}
+```
+Restart Claude Desktop to activate.
+
+### Cursor
+
+Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
+
+```json
+{
+  "mcpServers": {
+    "mcpfinder": {
+      "command": "npx",
+      "args": ["-y", "@mcpfinder/server@beta"]
+    }
+  }
+}
+```
+Cursor auto-detects config changes — no restart needed.
+
+### Claude Code (CLI)
+
+Add to `.mcp.json` (project) or `~/.claude.json` (global):
 
 ```json
 {
@@ -31,9 +68,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### Cursor / VS Code
+### Cline / Roo Code (VS Code)
 
-Add to your MCP config:
+Add to `.vscode/mcp.json`:
 
 ```json
 {
@@ -46,83 +83,85 @@ Add to your MCP config:
 }
 ```
 
-> **Note:** First run syncs all registries (~2 min). Subsequent calls are instant (SQLite cache).
+### Windsurf
 
-## Tools
+Add to `~/.windsurf/mcp.json`:
 
-MCPfinder exposes 5 MCP tools:
+```json
+{
+  "mcpServers": {
+    "mcpfinder": {
+      "command": "npx",
+      "args": ["-y", "@mcpfinder/server@beta"]
+    }
+  }
+}
+```
 
-| Tool | Description |
-|------|-------------|
-| `search_mcp_servers` | Search by keyword, use case, or technology. Filter by transport type, package registry, or source registry. Results ranked by relevance + popularity. |
-| `get_server_details` | Get full details — description, version, repository, environment variables, source registries, popularity. |
-| `get_install_command` | Get copy-paste config for Claude Desktop, Cursor, VS Code, or generic MCP clients. |
-| `list_categories` | Browse all server categories with counts. |
-| `browse_category` | List servers within a specific category. |
+> **Note:** First run syncs all registries (~1-2 min). After that, data is cached locally and refreshes automatically.
 
-### Search Filters
+## What Can Your AI Do With MCPfinder?
 
-`search_mcp_servers` supports:
-- `query` — keyword, use case, or technology (e.g., "postgres", "query databases")
-- `limit` — max results (1-50, default 10)
-- `transportType` — `stdio`, `streamable-http`, `sse`, or `any`
-- `registryType` — `npm`, `pypi`, `oci`, or `any`
-- `registrySource` — `official`, `glama`, `smithery`, or `any`
+| Tool | What it does | When to use |
+|------|-------------|-------------|
+| `search_mcp_servers` | Search 5000+ servers by keyword, use case, or technology | User needs a capability you don't have |
+| `get_server_details` | Full details — description, env vars, popularity, sources | Evaluate a server before recommending it |
+| `get_install_command` | Ready-to-paste config for any platform | User wants to install a specific server |
+| `list_categories` | Browse categories with server counts | User isn't sure what they need |
+| `browse_category` | Popular servers in a specific category | Explore a domain (database, AI, cloud, etc.) |
 
-### Ranking
+## How It Works
 
-Results are ranked using a multi-factor algorithm:
-- **FTS5 relevance** (40%) — how well the query matches
+```
+User: "I need to access my Slack workspace"
+  ↓
+AI calls search_mcp_servers("slack")
+  ↓
+MCPfinder searches 5000+ servers across 3 registries
+  ↓
+Returns ranked results (relevance × popularity × recency)
+  ↓
+AI calls get_install_command("slack-mcp", "cursor")
+  ↓
+Returns ready-to-paste JSON config + file path + env vars needed
+  ↓
+AI configures it (or shows user what to paste)
+  ↓
+Done — new capability added ✨
+```
+
+## Search & Ranking
+
+**Full-text search** powered by SQLite FTS5. Results ranked by:
+- **Relevance** (40%) — how well the query matches name/description
 - **Popularity** (30%) — Smithery usage count (log-scaled)
-- **Registry presence** (20%) — appears in more registries = more established
+- **Registry presence** (20%) — appears in multiple registries = more established
 - **Recency** (10%) — recently updated servers ranked higher
 
-### Source Badges
-
-Search results show where each server comes from:
-- 📦 Official — from the Official MCP Registry
-- 🌟 Smithery — with usage count and ✓ for verified servers
-- 🔍 Glama — from the Glama registry
-
-## Examples
-
-**"Find me a database server for PostgreSQL"**
-→ `search_mcp_servers` with query "postgres database"
-
-**"How do I install the filesystem server in Cursor?"**
-→ `get_install_command` with name "filesystem", client "cursor"
-
-**"What categories of MCP servers exist?"**
-→ `list_categories`
-
-**"Show me the most popular AI servers"**
-→ `browse_category` with category "ai"
+**Filters:** transport type (`stdio`/`sse`/`http`), package type (`npm`/`pypi`/`docker`), registry source (`official`/`glama`/`smithery`).
 
 ## Data Sources
 
-MCPfinder syncs from three registries:
+| Registry | Servers | Highlights |
+|----------|---------|------------|
+| [Official MCP Registry](https://registry.modelcontextprotocol.io) | ~2,000 | Packages, transport, env vars |
+| [Glama](https://glama.ai/mcp/servers) | ~5,000 | Repository, license, tools metadata |
+| [Smithery](https://smithery.ai) | ~3,500 | Popularity (useCount), verification, hosted/remote servers |
 
-| Registry | Servers | Data |
-|----------|---------|------|
-| [Official MCP Registry](https://registry.modelcontextprotocol.io) | ~2000 | Packages, transport, env vars |
-| [Glama](https://glama.ai/mcp/servers) | ~5000 | Repository, license, tools |
-| [Smithery](https://smithery.ai) | ~3500 | Popularity (useCount), verification, icons |
-
-Data is cached locally in SQLite and refreshed automatically when stale (every 15 minutes).
+Servers appearing in multiple registries are **deduplicated** and **merged** — combining metadata from all sources. Data refreshes automatically every 15 minutes.
 
 ## Architecture
 
 ```
 mcpfinder/
 ├── packages/
-│   ├── core/          # Database, sync engine, search logic (SQLite + FTS5)
-│   └── mcp-server/    # MCP server exposing search tools via stdio
-├── pnpm-workspace.yaml
-└── package.json
+│   ├── core/          # SQLite + FTS5 database, multi-registry sync, search, install
+│   └── mcp-server/    # MCP server (stdio) exposing tools
+└── README.md
 ```
 
-- **@mcpfinder/core** — SQLite + FTS5 database, multi-registry sync, deduplication, ranked search
-- **@mcpfinder/server** — MCP server (stdio transport) exposing core functionality as tools
+- **@mcpfinder/core** — Database, sync engine, ranked search, multi-platform install config generation
+- **@mcpfinder/server** — MCP server you add to your AI tool
 
 ## Development
 
@@ -139,16 +178,17 @@ node packages/mcp-server/dist/index.js
 - [x] Multi-registry support (Glama, Smithery)
 - [x] Popularity ranking (Smithery useCount)
 - [x] Source badges and deduplication
-- [x] Published to npm
+- [x] Multi-platform install configs (6 platforms)
+- [x] Published to npm (beta)
 - [ ] Web UI at findmcp.dev
-- [ ] Stable v1.0.0 release (currently beta)
+- [ ] Stable v1.0.0 release
 
 ## Links
 
 - **npm:** [@mcpfinder/server](https://www.npmjs.com/package/@mcpfinder/server)
-- **Website:** [mcpfinder.dev](https://mcpfinder.dev) / [findmcp.dev](https://findmcp.dev)
+- **Website:** [mcpfinder.dev](https://mcpfinder.dev) · [findmcp.dev](https://findmcp.dev)
 - **GitHub:** [lksrz/mcpfinder](https://github.com/lksrz/mcpfinder)
 
-## License
+---
 
-MIT — Built by [Coder AI](https://coderai.dev)
+Built by [Coder AI](https://coderai.dev) · MIT License
