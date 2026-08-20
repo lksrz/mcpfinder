@@ -24,6 +24,7 @@ import {
   bootstrapFromSnapshot,
 } from '@mcpfinder/core';
 import type { RegistryEnvVar } from '@mcpfinder/core';
+import { reportSyncResults } from './sync-report.js';
 
 const pkg = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'),
@@ -186,7 +187,7 @@ function runSync(): Promise<void> {
       syncGlamaRegistry(db),
       syncSmitheryRegistry(db),
     ]);
-    const counts = results.map((r) => (r.status === 'fulfilled' ? r.value : 0));
+    const counts = reportSyncResults(results);
     process.stderr.write(
       `[mcpfinder] Synced: Official=${counts[0]}, Glama=${counts[1]}, Smithery=${counts[2]} (${getServerCount(db)} total)\n`,
     );

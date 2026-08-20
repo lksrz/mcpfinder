@@ -14,6 +14,11 @@ routes = [
   { pattern = "mcpfinder.dev/api/*", zone_name = "mcpfinder.dev" }  # Support + snapshot API endpoints
 ]
 
+# This Worker is request-only. Keeping an explicit empty list makes
+# `wrangler deploy` / `wrangler triggers deploy` remove legacy cron triggers.
+[triggers]
+crons = []
+
 # Pre-built SQLite snapshot served at /api/v1/snapshot/*
 # Populated by scripts/build-snapshot.mjs (via CI cron).
 # Create with: npx wrangler r2 bucket create mcp-finder-db-snapshots

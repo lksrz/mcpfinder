@@ -5,18 +5,21 @@
  * Output:
  *   dist/snapshot/data.sqlite         (uncompressed)
  *   dist/snapshot/data.sqlite.gz      (gzip, what clients download)
+ *   dist/snapshot/data.sqlite.gz.sha256 (durable fallback commit marker)
  *   dist/snapshot/manifest.json       (metadata + sha256 of the gz file)
  *
  * Usage (from repo root):
  *   node scripts/build-snapshot.mjs [--out=<dir>] [--no-glama] [--no-smithery]
+ *     [--allow-quality-regression]
  *
  * The script uses the built core package (packages/core/dist). Run
  *   pnpm --filter @mcpfinder/core build
  * first if it is stale.
  *
  * Upload step (done separately, e.g. in CI):
- *   wrangler r2 object put mcp-finder-db-snapshots/data.sqlite.gz \
+ *   wrangler r2 object put mcp-finder-db-snapshots/snapshots/<sha256>.sqlite.gz \
  *     --file=dist/snapshot/data.sqlite.gz
+ *   # Publish this mutable pointer only after the immutable DB upload succeeds.
  *   wrangler r2 object put mcp-finder-db-snapshots/manifest.json \
  *     --file=dist/snapshot/manifest.json
  */
@@ -27,6 +30,12 @@ import { pipeline } from 'node:stream/promises';
 import { createGzip, gunzipSync } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  evaluateCurrentSnapshotQuality,
+  evaluateSnapshotQuality,
+  fetchPreviousManifest,
+} from './snapshot-quality.mjs';
+import { snapshotManifestUrl } from '../shared/snapshot-artifacts.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
@@ -39,6 +48,11 @@ const argVal = (name) => {
   return null;
 };
 const outDir = resolve(repoRoot, argVal('--out') ?? 'dist/snapshot');
+const allowQualityRegression =
+  flag('--allow-quality-regression') || process.env.MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE === '1';
+const requiredSources = ['official'];
+if (!flag('--no-glama')) requiredSources.push('glama');
+if (!flag('--no-smithery')) requiredSources.push('smithery');
 
 console.log(`[build-snapshot] out=${outDir}`);
 
@@ -78,8 +92,20 @@ async function run(label, fn) {
   return n;
 }
 
-// Published snapshot, used as the persistent cache for incremental enrichment.
-const PREV_SNAPSHOT_URL = 'https://mcpfinder.dev/api/v1/snapshot/data.sqlite.gz';
+// Published snapshot and manifest: last-known-good baseline for enrichment and
+// publication quality checks.
+const PREV_MANIFEST_URL = 'https://mcpfinder.dev/api/v1/snapshot/manifest.json';
+
+// Start this request before registry sync so it does not extend the critical
+// path. Convert rejection into a handled result immediately; only a confirmed
+// 404 resolves to null, while exhausted transient/schema failures fail closed.
+const previousManifestPromise = fetchPreviousManifest({
+  url: PREV_MANIFEST_URL,
+  requiredSources,
+}).then(
+  (manifest) => ({ manifest, error: null }),
+  (error) => ({ manifest: null, error }),
+);
 
 /**
  * Seed deprecation/archived flags (and their probe timestamps) into the freshly
@@ -93,8 +119,10 @@ const PREV_SNAPSHOT_URL = 'https://mcpfinder.dev/api/v1/snapshot/data.sqlite.gz'
  * Returns the number of rows seeded. Throws if the previous snapshot can't be
  * fetched (e.g. the very first build) — the caller treats that as a soft skip.
  */
-async function carryOverFlags(targetDb, workDir) {
-  const res = await fetch(PREV_SNAPSHOT_URL);
+async function carryOverFlags(targetDb, workDir, previousManifest) {
+  if (!previousManifest) throw new Error('previous manifest is not available');
+  const snapshotUrl = new URL(previousManifest.url, PREV_MANIFEST_URL).toString();
+  const res = await fetch(snapshotUrl);
   if (!res.ok) throw new Error(`fetch previous snapshot: HTTP ${res.status}`);
   const prevPath = join(workDir, 'prev.sqlite');
   await writeFile(prevPath, gunzipSync(Buffer.from(await res.arrayBuffer())));
@@ -130,13 +158,66 @@ counts.official = await run('official', syncOfficialRegistry);
 if (!flag('--no-glama')) counts.glama = await run('glama   ', syncGlamaRegistry);
 if (!flag('--no-smithery')) counts.smithery = await run('smithery', syncSmitheryRegistry);
 
+function syncLogEntries() {
+  return db
+    .prepare('SELECT source, server_count, status, error FROM sync_log')
+    .all();
+}
+
+async function rejectBadSnapshot(previous, current) {
+  const quality = evaluateSnapshotQuality({
+    syncLog: syncLogEntries(),
+    requiredSources,
+    current,
+    previous,
+    allowRegression: allowQualityRegression,
+  });
+  for (const warning of quality.warnings) {
+    console.warn(`[build-snapshot] quality warning: ${warning}`);
+  }
+  if (!quality.ok) {
+    db.close();
+    await rm(outDir, { recursive: true, force: true });
+    throw new Error(`snapshot quality gate failed:\n- ${quality.errors.join('\n- ')}`);
+  }
+}
+
+async function rejectBadCurrentSnapshot(current) {
+  const quality = evaluateCurrentSnapshotQuality({
+    syncLog: syncLogEntries(),
+    requiredSources,
+    current,
+  });
+  if (!quality.ok) {
+    db.close();
+    await rm(outDir, { recursive: true, force: true });
+    throw new Error(`snapshot quality gate failed:\n- ${quality.errors.join('\n- ')}`);
+  }
+}
+
+async function rejectBaselineFetch(error) {
+  db.close();
+  await rm(outDir, { recursive: true, force: true });
+  throw new Error(`snapshot quality gate failed: ${error?.message ?? error}`);
+}
+
+// Fail fast on degraded registry state. Using the same counts as both sides
+// disables only the regression portion of this first pass.
+const postSyncState = { serverCount: getServerCount(db), counts };
+await rejectBadCurrentSnapshot(postSyncState);
+
+// Resolve the already-handled baseline request before enrichment. Its URL also
+// selects the exact immutable DB used for flag carry-over.
+const previousResult = await previousManifestPromise;
+if (previousResult.error) await rejectBaselineFetch(previousResult.error);
+
 // Carry deprecation/archived flags forward from the last published snapshot so
 // the enrichment probes stay incremental (skipped with --no-carryover).
 let carriedOver = 0;
 if (!flag('--no-carryover')) {
   const c0 = Date.now();
   try {
-    carriedOver = await carryOverFlags(db, outDir);
+    carriedOver = await carryOverFlags(db, outDir, previousResult.manifest);
     const cdt = ((Date.now() - c0) / 1000).toFixed(1);
     console.log(`[build-snapshot] carry  : ${carriedOver} rows seeded from previous snapshot (${cdt}s)`);
   } catch (err) {
@@ -170,6 +251,11 @@ if (!flag('--no-enrich')) {
 
 const serverCount = getServerCount(db);
 
+// Last-known-good gate: a healthy sync can still be unexpectedly sparse due
+// to upstream API behavior or enrichment merges. Refuse to replace the
+// published manifest when total or per-source counts fall by more than 5%.
+await rejectBadSnapshot(previousResult.manifest, { serverCount, counts });
+
 // Collapse WAL so the file is self-contained
 db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
 db.exec('VACUUM');
@@ -183,6 +269,7 @@ await pipeline(createReadStream(dbPath), createGzip({ level: 9 }), createWriteSt
 const hash = createHash('sha256');
 for await (const chunk of createReadStream(gzPath)) hash.update(chunk);
 const sha256 = hash.digest('hex');
+await writeFile(join(outDir, 'data.sqlite.gz.sha256'), `${sha256}\n`);
 
 const [rawSize, gzSize] = await Promise.all([
   stat(dbPath).then((s) => s.size),
@@ -195,7 +282,7 @@ const manifest = {
   sha256,
   sizeBytes: gzSize,
   rawSizeBytes: rawSize,
-  url: 'data.sqlite.gz',
+  url: snapshotManifestUrl(sha256),
   builder: process.env.GITHUB_SHA || 'local',
   counts,
   carriedOver,

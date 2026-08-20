@@ -1,6 +1,4 @@
 import type { Context } from "hono";
-export interface Bindings {
-	/** R2 bucket holding the pre-built DB snapshot (optional). */
-	MCP_DB_SNAPSHOTS?: R2Bucket;
-}
+/** Bindings are generated from wrangler.toml; runtime routes still fail safe if absent. */
+export type Bindings = Cloudflare.Env;
 export type AppContext = Context<{ Bindings: Bindings }>;

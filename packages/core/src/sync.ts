@@ -16,69 +16,100 @@ import type {
 import { getLastSyncTimestamp, updateSyncLog, transaction } from './db.js';
 import type { SqlParam } from './db.js';
 import { extractKeywords } from './categories.js';
+import {
+  assertBeforeDeadline,
+  delay,
+  fetchJsonPageWithRetry,
+} from './registry-fetch.js';
+import type { RegistryRuntime } from './registry-fetch.js';
 
 const REGISTRY_BASE = 'https://registry.modelcontextprotocol.io';
 const GLAMA_BASE = 'https://glama.ai/api/mcp/v1';
 const SMITHERY_BASE = 'https://registry.smithery.ai';
 const PAGE_LIMIT = 100;
 
-/** Per-request timeout and retry policy for registry fetches. */
-const REQUEST_TIMEOUT_MS = 20_000;
-const REQUEST_RETRIES = 3;
-
 /**
  * Wall-clock budget per registry. A degraded upstream that keeps responding
  * just slowly enough to dodge the per-request timeout still can't drag the
- * snapshot build into its 45-minute CI ceiling. Official overrun fails the
+ * snapshot build into its 90-minute CI ceiling. Official overrun fails the
  * build (a snapshot missing Official servers is worse than no new snapshot);
- * Glama/Smithery overrun ships a best-effort partial, matching their existing
- * error handling.
+ * Glama/Smithery overrun keeps the best-effort partial data for resilient
+ * local use, but records a degraded sync_log status so snapshot publication
+ * can reject it.
  */
 const OFFICIAL_SYNC_BUDGET_MS = 8 * 60_000;
-const GLAMA_SYNC_BUDGET_MS = 12 * 60_000;
+const DEFAULT_GLAMA_SYNC_BUDGET_MINUTES = 12;
+const MAX_GLAMA_SYNC_BUDGET_MINUTES = 40;
 const SMITHERY_SYNC_BUDGET_MS = 5 * 60_000;
 
-/** Delay helper for rate limiting */
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Keep local stdio behavior at the historical 12-minute limit while allowing
+ * the snapshot job to reserve more of its 90-minute ceiling for Glama. Reject
+ * invalid values instead of silently turning a typo into an unbounded sync.
+ */
+function getGlamaSyncBudgetMinutes(): number {
+  const raw = process.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES;
+  if (raw === undefined || raw === '') return DEFAULT_GLAMA_SYNC_BUDGET_MINUTES;
+  if (!/^\d+$/.test(raw)) {
+    throw new Error(
+      'MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES must be an integer between 1 and ' +
+        MAX_GLAMA_SYNC_BUDGET_MINUTES,
+    );
+  }
+  const minutes = Number(raw);
+  if (minutes < 1 || minutes > MAX_GLAMA_SYNC_BUDGET_MINUTES) {
+    throw new Error(
+      'MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES must be an integer between 1 and ' +
+        MAX_GLAMA_SYNC_BUDGET_MINUTES,
+    );
+  }
+  return minutes;
 }
 
-/**
- * `fetch()` with a per-request timeout and bounded retries. Retries on network
- * errors, aborts (timeout), HTTP 429, and 5xx using exponential backoff; 4xx
- * and success are returned as-is for the caller to handle. Throws once retries
- * are exhausted, so a hung or failing upstream surfaces fast instead of
- * blocking indefinitely.
- */
-async function fetchWithRetry(
-  url: string,
-  opts: { timeoutMs?: number; retries?: number; label?: string } = {},
-): Promise<Response> {
-  const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
-  const retries = opts.retries ?? REQUEST_RETRIES;
-  const label = opts.label ?? 'registry fetch';
-  let lastErr: unknown;
+function validateGlamaPage(data: unknown): asserts data is GlamaListResponse {
+  if (!data || typeof data !== 'object') throw new Error('Glama API: response must be an object');
+  const page = data as Partial<GlamaListResponse>;
+  if (!Array.isArray(page.servers)) throw new Error('Glama API: servers must be an array');
+  if (!page.pageInfo || typeof page.pageInfo !== 'object') {
+    throw new Error('Glama API: pageInfo must be an object');
+  }
+  if (typeof page.pageInfo.hasNextPage !== 'boolean') {
+    throw new Error('Glama API: pageInfo.hasNextPage must be boolean');
+  }
+  if (
+    page.pageInfo.hasNextPage &&
+    (typeof page.pageInfo.endCursor !== 'string' || page.pageInfo.endCursor.length === 0)
+  ) {
+    throw new Error('Glama API: pageInfo.endCursor is required when hasNextPage is true');
+  }
+}
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    if (attempt > 0) await delay(500 * 3 ** (attempt - 1)); // 0.5s, 1.5s, 4.5s
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timer);
-      // Retry transient server-side failures; return everything else (incl. 4xx).
-      if (res.status === 429 || res.status >= 500) {
-        lastErr = new Error(`HTTP ${res.status}`);
-        continue;
-      }
-      return res;
-    } catch (err) {
-      clearTimeout(timer);
-      lastErr = err;
+function validateSmitheryPage(
+  data: unknown,
+  requestedPage: number,
+): asserts data is SmitheryListResponse {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Smithery API: response must be an object');
+  }
+  const result = data as Partial<SmitheryListResponse>;
+  if (!Array.isArray(result.servers)) throw new Error('Smithery API: servers must be an array');
+  const pagination = result.pagination;
+  if (!pagination || typeof pagination !== 'object') {
+    throw new Error('Smithery API: pagination must be an object');
+  }
+  for (const field of ['currentPage', 'pageSize', 'totalPages', 'totalCount'] as const) {
+    if (!Number.isInteger(pagination[field]) || pagination[field] < 0) {
+      throw new Error(`Smithery API: pagination.${field} must be a non-negative integer`);
     }
   }
-  const reason = lastErr instanceof Error ? lastErr.message : String(lastErr);
-  throw new Error(`${label}: giving up after ${retries + 1} attempts — ${reason}`);
+  if (pagination.currentPage !== requestedPage) {
+    throw new Error(
+      `Smithery API: pagination.currentPage ${pagination.currentPage} does not match ${requestedPage}`,
+    );
+  }
+  if (pagination.totalPages > 0 && pagination.currentPage > pagination.totalPages) {
+    throw new Error('Smithery API: currentPage exceeds totalPages');
+  }
 }
 
 /**
@@ -179,12 +210,16 @@ function normalizeOfficialEntry(entry: RegistryServerEntry) {
 /**
  * Sync servers from the Official MCP Registry.
  */
-export async function syncOfficialRegistry(db: DatabaseSync): Promise<number> {
+export async function syncOfficialRegistry(
+  db: DatabaseSync,
+  runtime: RegistryRuntime = {},
+): Promise<number> {
   const lastSync = getLastSyncTimestamp(db, 'official');
 
   let cursor: string | null = null;
   let totalUpserted = 0;
-  const deadline = Date.now() + OFFICIAL_SYNC_BUDGET_MS;
+  const now = runtime.now ?? Date.now;
+  const deadline = now() + OFFICIAL_SYNC_BUDGET_MS;
 
   const upsert = db.prepare(`
     INSERT INTO servers (
@@ -218,7 +253,7 @@ export async function syncOfficialRegistry(db: DatabaseSync): Promise<number> {
   `);
 
   do {
-    if (Date.now() > deadline) {
+    if (now() >= deadline) {
       throw new Error(
         `Official registry sync exceeded its ${OFFICIAL_SYNC_BUDGET_MS / 60_000}-minute budget ` +
           `(upstream too slow) — aborting after ${totalUpserted} servers`,
@@ -231,15 +266,15 @@ export async function syncOfficialRegistry(db: DatabaseSync): Promise<number> {
     if (lastSync) url.searchParams.set('updated_since', lastSync);
     if (cursor) url.searchParams.set('cursor', cursor);
 
-    const res = await fetchWithRetry(url.toString(), { label: 'Registry API' });
+    const { response: res, data, errorText } = await fetchJsonPageWithRetry<RegistryListResponse>(
+      url.toString(),
+      { label: 'Registry API', deadline, ...runtime },
+    );
     if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      throw new Error(`Registry API error: ${res.status} ${res.statusText} — ${errText}`);
+      throw new Error(`Registry API error: ${res.status} ${res.statusText} — ${errorText ?? ''}`);
     }
 
-    const data = (await res.json()) as RegistryListResponse;
-
-    if (!data.servers || data.servers.length === 0) break;
+    if (!data?.servers || data.servers.length === 0) break;
 
     const insertBatch = transaction(db, (entries: RegistryServerEntry[]) => {
       for (const entry of entries) {
@@ -255,9 +290,10 @@ export async function syncOfficialRegistry(db: DatabaseSync): Promise<number> {
 
     cursor = data.metadata?.nextCursor ?? null;
 
-    if (cursor) await delay(100);
+    if (cursor) await delay(100, runtime);
   } while (cursor);
 
+  assertBeforeDeadline(deadline, runtime, 'Registry API');
   updateSyncLog(db, 'official', totalUpserted);
 
   return totalUpserted;
@@ -317,10 +353,17 @@ function normalizeGlamaEntry(entry: GlamaServer) {
 /**
  * Sync servers from Glama registry.
  */
-export async function syncGlamaRegistry(db: DatabaseSync): Promise<number> {
+export async function syncGlamaRegistry(
+  db: DatabaseSync,
+  runtime: RegistryRuntime = {},
+): Promise<number> {
   let cursor: string | null = null;
+  const seenCursors = new Set<string>();
   let totalUpserted = 0;
-  const deadline = Date.now() + GLAMA_SYNC_BUDGET_MS;
+  let degradation: string | null = null;
+  let budgetMinutes = DEFAULT_GLAMA_SYNC_BUDGET_MINUTES;
+  let deadline = Number.POSITIVE_INFINITY;
+  const now = runtime.now ?? Date.now;
 
   const upsert = db.prepare(`
     INSERT INTO servers (
@@ -345,10 +388,15 @@ export async function syncGlamaRegistry(db: DatabaseSync): Promise<number> {
   `);
 
   try {
+    budgetMinutes = getGlamaSyncBudgetMinutes();
+    deadline = now() + budgetMinutes * 60_000;
     do {
-      if (Date.now() > deadline) {
+      if (now() >= deadline) {
+        degradation =
+          `Glama sync exceeded its ${budgetMinutes}-minute budget ` +
+          `after ${totalUpserted} servers`;
         process.stderr.write(
-          `[mcpfinder] Glama sync budget exceeded — stopping with ${totalUpserted} servers\n`,
+          `[mcpfinder] ${degradation} — keeping partial local data\n`,
         );
         break;
       }
@@ -357,48 +405,62 @@ export async function syncGlamaRegistry(db: DatabaseSync): Promise<number> {
       url.searchParams.set('first', String(PAGE_LIMIT));
       if (cursor) url.searchParams.set('after', cursor);
 
-      const res = await fetchWithRetry(url.toString(), { label: 'Glama API' });
+      const { response: res, data, errorText } = await fetchJsonPageWithRetry<GlamaListResponse>(
+        url.toString(),
+        { label: 'Glama API', deadline, ...runtime },
+      );
       if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        throw new Error(`Glama API error: ${res.status} ${res.statusText} — ${errText}`);
+        throw new Error(`Glama API error: ${res.status} ${res.statusText} — ${errorText ?? ''}`);
       }
 
-      const data = (await res.json()) as GlamaListResponse;
+      validateGlamaPage(data);
+      const nextCursor = data.pageInfo.hasNextPage ? data.pageInfo.endCursor! : null;
+      if (nextCursor && seenCursors.has(nextCursor)) {
+        throw new Error(`Glama API: repeated pageInfo.endCursor ${nextCursor}`);
+      }
+      if (nextCursor) seenCursors.add(nextCursor);
 
-      if (!data.servers || data.servers.length === 0) break;
-
-      const insertBatch = transaction(db, (entries: GlamaServer[]) => {
-        for (const entry of entries) {
-          const row = normalizeGlamaEntry(entry);
-          // Try to find existing server by repo URL for dedup
-          const existingId = findExistingServer(
-            db,
-            row.repository_url,
-            row.package_identifier,
-            row.registry_type,
-            row.slug,
-            row.name,
-          );
-          if (existingId) {
-            mergeServerSources(db, existingId, 'glama');
-            // Also update with richer data from Glama if applicable
-            mergeServerData(db, existingId, row);
-          } else {
-            upsert.run(row);
-            mergeServerSources(db, row.id, 'glama');
+      if (data.servers.length > 0) {
+        const insertBatch = transaction(db, (entries: GlamaServer[]) => {
+          for (const entry of entries) {
+            const row = normalizeGlamaEntry(entry);
+            // Try to find existing server by repo URL for dedup
+            const existingId = findExistingServer(
+              db,
+              row.repository_url,
+              row.package_identifier,
+              row.registry_type,
+              row.slug,
+              row.name,
+            );
+            if (existingId) {
+              mergeServerSources(db, existingId, 'glama');
+              // Also update with richer data from Glama if applicable
+              mergeServerData(db, existingId, row);
+            } else {
+              upsert.run(row);
+              mergeServerSources(db, row.id, 'glama');
+            }
           }
-        }
-      });
+        });
 
-      insertBatch(data.servers);
-      totalUpserted += data.servers.length;
+        insertBatch(data.servers);
+        totalUpserted += data.servers.length;
+      }
 
-      cursor = data.pageInfo?.hasNextPage ? (data.pageInfo.endCursor ?? null) : null;
+      cursor = nextCursor;
 
-      if (cursor) await delay(100);
+      if (cursor) await delay(100, runtime);
     } while (cursor);
 
-    updateSyncLog(db, 'glama', totalUpserted);
+    if (!degradation) assertBeforeDeadline(deadline, runtime, 'Glama API');
+    updateSyncLog(
+      db,
+      'glama',
+      totalUpserted,
+      degradation ? 'error' : 'ok',
+      degradation ?? undefined,
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     updateSyncLog(db, 'glama', totalUpserted, 'error', msg);
@@ -456,11 +518,16 @@ function normalizeSmitheryEntry(entry: SmitheryServer) {
 /**
  * Sync servers from Smithery registry.
  */
-export async function syncSmitheryRegistry(db: DatabaseSync): Promise<number> {
+export async function syncSmitheryRegistry(
+  db: DatabaseSync,
+  runtime: RegistryRuntime = {},
+): Promise<number> {
   let page = 1;
   let totalUpserted = 0;
   let hasMore = true;
-  const deadline = Date.now() + SMITHERY_SYNC_BUDGET_MS;
+  let degradation: string | null = null;
+  const now = runtime.now ?? Date.now;
+  const deadline = now() + SMITHERY_SYNC_BUDGET_MS;
 
   const upsert = db.prepare(`
     INSERT INTO servers (
@@ -488,9 +555,12 @@ export async function syncSmitheryRegistry(db: DatabaseSync): Promise<number> {
 
   try {
     while (hasMore) {
-      if (Date.now() > deadline) {
+      if (now() >= deadline) {
+        degradation =
+          `Smithery sync exceeded its ${SMITHERY_SYNC_BUDGET_MS / 60_000}-minute budget ` +
+          `after ${totalUpserted} servers`;
         process.stderr.write(
-          `[mcpfinder] Smithery sync budget exceeded — stopping with ${totalUpserted} servers\n`,
+          `[mcpfinder] ${degradation} — keeping partial local data\n`,
         );
         break;
       }
@@ -499,15 +569,16 @@ export async function syncSmitheryRegistry(db: DatabaseSync): Promise<number> {
       url.searchParams.set('page', String(page));
       url.searchParams.set('pageSize', String(PAGE_LIMIT));
 
-      const res = await fetchWithRetry(url.toString(), { label: 'Smithery API' });
+      const { response: res, data, errorText } = await fetchJsonPageWithRetry<SmitheryListResponse>(
+        url.toString(),
+        { label: 'Smithery API', deadline, ...runtime },
+      );
       if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        throw new Error(`Smithery API error: ${res.status} ${res.statusText} — ${errText}`);
+        throw new Error(`Smithery API error: ${res.status} ${res.statusText} — ${errorText ?? ''}`);
       }
 
-      const data = (await res.json()) as SmitheryListResponse;
-
-      if (!data.servers || data.servers.length === 0) break;
+      validateSmitheryPage(data, page);
+      if (data.servers.length === 0) break;
 
       const insertBatch = transaction(db, (entries: SmitheryServer[]) => {
         for (const entry of entries) {
@@ -549,10 +620,17 @@ export async function syncSmitheryRegistry(db: DatabaseSync): Promise<number> {
       hasMore = page < (data.pagination?.totalPages ?? 0);
       page++;
 
-      if (hasMore) await delay(100);
+      if (hasMore) await delay(100, runtime);
     }
 
-    updateSyncLog(db, 'smithery', totalUpserted);
+    if (!degradation) assertBeforeDeadline(deadline, runtime, 'Smithery API');
+    updateSyncLog(
+      db,
+      'smithery',
+      totalUpserted,
+      degradation ? 'error' : 'ok',
+      degradation ?? undefined,
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     updateSyncLog(db, 'smithery', totalUpserted, 'error', msg);

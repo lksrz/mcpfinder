@@ -61,6 +61,38 @@ import { bootstrapFromSnapshot } from '@mcpfinder/core';
 await bootstrapFromSnapshot(); // downloads from https://mcpfinder.dev/api/v1/snapshot
 ```
 
+Published snapshots use last-known-good semantics. The scheduled builder
+requires every requested registry to have an `ok` row in `sync_log` and rejects
+total or per-source count drops above 5% relative to the published manifest.
+Glama and Smithery live syncs still return partial counts on upstream errors or
+budget exhaustion for resilient local stdio use, but record `status=error`, so
+that partial state cannot be published. Controlled corpus resets can override
+only the count-regression check with `--allow-quality-regression` or
+`MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE=1`.
+
+`MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES` can raise Glama's default 12-minute
+wall-clock budget for batch builds. It accepts integer values from 1 through
+40; invalid or unbounded values fail explicitly. The snapshot workflow uses 30
+minutes within its 90-minute job timeout. Malformed HTTP 200 JSON pages are
+retried at the same cursor before the sync records an error. The hard registry
+budget includes consuming and parsing the terminal response body; a page that
+finishes after its deadline is intentionally degraded rather than accepted as
+healthy, keeping the enclosing job bounded.
+Empty Glama pages may legally continue with a new non-empty cursor; missing or
+previously seen continuation cursors are structural errors, preventing an
+upstream pagination loop from running until the deadline.
+
+The previous manifest is optional only when its endpoint returns 404. Network,
+5xx, JSON, or missing/zero count failures are retried and then fail closed.
+Successful publication first uploads `snapshots/<sha256>.sqlite.gz`, then
+verifies that object through the public Worker endpoint, and only then
+atomically advances `manifest.json` to `data.sqlite.gz?sha=<sha256>`. Immutable
+snapshot objects have a 30-day prefix-scoped R2 lifecycle. After manifest
+publication, CI refreshes the non-expiring legacy key with the same current DB;
+it then publishes a `.sha256` commit marker. The Worker may use the durable key
+only when requested, manifest, and marker SHA all match, preventing a failed
+fallback upload from presenting stale bytes as current.
+
 ## Exports
 
 | Export | Purpose |

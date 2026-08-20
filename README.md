@@ -155,8 +155,65 @@ Counts vary over time and differ depending on whether you count raw upstream rec
 First run can bootstrap from a prebuilt SQLite snapshot instead of doing a slow live sync.
 
 - snapshot manifest: `/api/v1/snapshot/manifest.json`
-- snapshot database: `/api/v1/snapshot/data.sqlite.gz`
+- snapshot database: use `manifest.url` (`data.sqlite.gz?sha=<sha256>`) as the content-addressed primary endpoint
+- durable current fallback: `/api/v1/snapshot/data.sqlite.gz`, refreshed only after manifest publication
 - scheduled build: [`.github/workflows/snapshot.yml`](/Users/lukasz/Git/mcpfinder/.github/workflows/snapshot.yml:1)
+
+Snapshot publishing is last-known-good: all requested registries must finish
+with an `ok` sync status, and the merged total plus each per-source count may
+not fall more than 5% below the currently published manifest. A failed gate
+leaves the published R2 objects untouched. Only a confirmed missing manifest
+(HTTP 404, including the first build) skips the count comparison. Transient,
+malformed, or structurally incomplete baselines are retried and then fail
+closed; source health is always required.
+
+Publication uses a content-addressed handoff. The compressed database is first
+uploaded as `snapshots/<sha256>.sqlite.gz`; only then is `manifest.json`
+replaced with a pointer URL such as `data.sqlite.gz?sha=<sha256>`. Cached older
+manifests therefore continue to resolve to their exact immutable database.
+Legacy manifests without `sha` keep using the existing `data.sqlite.gz` key.
+Before advancing the manifest, CI downloads the new object through the public
+Worker endpoint and verifies both its SHA-256 and the Worker's acknowledged
+content address. This prevents publication while an older Worker still ignores
+the `sha` query or while the new R2 object is not publicly readable. The
+preflight is bounded to four attempts with 0.5/1.5/4.5-second backoff and a
+per-attempt timeout covering both response headers and the complete body;
+deterministic SHA/header/size mismatches fail immediately.
+
+Immutable objects under `snapshots/` expire after 30 days; neither
+`manifest.json` nor legacy `data.sqlite.gz` matches that lifecycle prefix.
+Incomplete multipart uploads retain the existing 7-day abort policy.
+After the manifest pointer is published, CI refreshes non-expiring
+`data.sqlite.gz` with the same database and then publishes
+`data.sqlite.gz.sha256` as the final commit marker. If the current immutable
+object later expires, the Worker serves this durable copy only when the
+requested SHA, current manifest SHA, and marker SHA all match. A failed DB or
+marker upload therefore cannot label stale bytes as a new snapshot. Older
+cached SHA requests remain 404 after their 30-day history window.
+The Worker coalesces concurrent current-proof reads and caches both positive
+and malformed/missing proof results for five minutes; SHA-specific 404s are
+also publicly cacheable for five minutes.
+Actual R2 read failures remain distinct from missing or malformed proof: they
+return an uncached 503 and are retried by the next request.
+
+For an intentional corpus reset, manually dispatch the snapshot workflow with
+`allow_quality_regression` enabled, or run the builder with
+`--allow-quality-regression` (equivalently
+`MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE=1`). The override permits count drops but
+never permits an errored or incomplete required source.
+
+Glama keeps a 12-minute sync budget for normal local stdio use. The scheduled
+snapshot job sets `MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES=30` because a full Glama
+pagination regularly exceeds the local limit, while still leaving headroom
+inside the job's 90-minute timeout. Custom values must be whole minutes from 1
+through 40. HTTP 200 pages with truncated or malformed JSON are retried on the
+same cursor before the source is marked as errored. The hard registry deadline
+covers the terminal response body as well as transport and parsing: a page that
+finishes after the budget is deliberately marked degraded, protecting the
+snapshot job from silently exceeding its wall-clock budget.
+An empty Glama page with `hasNextPage=true` is followed when it supplies a new,
+non-empty cursor. Missing or repeated cursors fail safely as structural errors,
+preventing upstream pagination loops.
 
 ## Example Workflow
 

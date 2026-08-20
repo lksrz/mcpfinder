@@ -7,7 +7,7 @@
  *
  * Protocol (served by api-worker):
  *   GET <base>/manifest.json   → { publishedAt, serverCount, sha256, sizeBytes, url }
- *   GET <base>/data.sqlite.gz  → gzipped SQLite file
+ *   GET <base>/data.sqlite.gz?sha=<sha256> → immutable gzipped SQLite file
  */
 import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';

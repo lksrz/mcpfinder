@@ -11,7 +11,13 @@ name: build-snapshot
 on:
   schedule:
     - cron: '17 */6 * * *' # every 6 hours at :17
-  workflow_dispatch: {} # manual run from Actions tab
+  workflow_dispatch:
+    inputs:
+      allow_quality_regression:
+        description: Allow a >5% count drop for a controlled data reset
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: snapshot
@@ -20,7 +26,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Registry budgets can consume 43 minutes; keep at least 47 minutes for
+    # install, focused tests, enrichment, vacuum/gzip, preflight, and upload.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
 
@@ -33,19 +41,63 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm --filter @mcpfinder/core build
+      - name: Build core and test snapshot publication
+        run: |
+          pnpm --filter @mcpfinder/core build
+          node scripts/test-snapshot-quality.mjs
+          node scripts/test-snapshot-artifacts.mjs
 
       - name: Build snapshot
         run: node scripts/build-snapshot.mjs
         env:
           GITHUB_SHA: ${{ github.sha }}
+          # Manual-only escape hatch for an intentional corpus reset. It does
+          # not bypass missing/error source status checks.
+          MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_quality_regression && '1' || '0' }}
+          # Glama has repeatedly needed more than the 12-minute local budget.
+          # Thirty minutes leaves headroom inside the 90-minute job ceiling.
+          MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES: '30'
           # Powers the Smithery repo-probe and archived-repo enrichment. The
           # Actions-provided GITHUB_TOKEN is capped at ~1000 REST req/hr, so the
           # archived-repo pass is incremental: capped per run, with flags
           # carried across builds (see scripts/build-snapshot.mjs).
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload to R2
+      - name: Read snapshot digest
+        id: snapshot
+        run: node -e "const fs=require('node:fs');const m=JSON.parse(fs.readFileSync('dist/snapshot/manifest.json'));if(!/^[a-f0-9]{64}$/.test(m.sha256))throw new Error('invalid snapshot sha256');fs.appendFileSync(process.env.GITHUB_OUTPUT,'sha='+m.sha256+'\n')"
+
+      # Atomic handoff: upload the immutable database first. Only after it is
+      # durable do we replace manifest.json, which is the publication pointer.
+      - name: Upload immutable database to R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 r2 object put \
+            mcp-finder-db-snapshots/snapshots/${{ steps.snapshot.outputs.sha }}.sqlite.gz \
+            --file=dist/snapshot/data.sqlite.gz \
+            --content-type=application/octet-stream \
+            --remote
+
+      - name: Verify immutable database through public endpoint
+        run: node scripts/verify-snapshot-upload.mjs dist/snapshot/manifest.json
+
+      - name: Publish manifest pointer to R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4 r2 object put \
+            mcp-finder-db-snapshots/manifest.json \
+            --file=dist/snapshot/manifest.json \
+            --content-type=application/json \
+            --remote
+
+      # Refresh only after the immutable object is verified and the manifest
+      # pointer is live. This non-expiring copy keeps the current SHA available
+      # after its 30-day immutable history object ages out.
+      - name: Update durable current fallback in R2
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -55,10 +107,18 @@ jobs:
             --file=dist/snapshot/data.sqlite.gz \
             --content-type=application/octet-stream \
             --remote
+
+      # Commit the durable fallback only after both its manifest and bytes are
+      # live. The Worker requires this proof before serving the mutable key.
+      - name: Publish durable current commit marker in R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
           npx --yes wrangler@4 r2 object put \
-            mcp-finder-db-snapshots/manifest.json \
-            --file=dist/snapshot/manifest.json \
-            --content-type=application/json \
+            mcp-finder-db-snapshots/data.sqlite.gz.sha256 \
+            --file=dist/snapshot/data.sqlite.gz.sha256 \
+            --content-type=text/plain \
             --remote
 
       - name: Summary

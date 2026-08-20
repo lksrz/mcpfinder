@@ -1,0 +1,2 @@
+# Wrangler's generated runtime declarations contain intentional trailing spaces.
+api-worker/worker-configuration.d.ts whitespace=-trailing-space

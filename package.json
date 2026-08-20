@@ -8,9 +8,10 @@
   "scripts": {
     "build": "pnpm --filter @mcpfinder/core build && pnpm --filter @mcpfinder/server build",
     "build:mcpb": "pnpm build && node scripts/build-mcpb.mjs",
-    "test": "pnpm --filter @mcpfinder/core build && pnpm --filter @mcpfinder/server build && node scripts/test-contracts.mjs && node scripts/test-core-capabilities.mjs",
+    "test": "pnpm --filter @mcpfinder/core build && pnpm --filter @mcpfinder/server build && pnpm --filter cloudflare-workers-openapi typecheck && pnpm --filter cloudflare-workers-openapi check:types && node scripts/test-contracts.mjs && node scripts/test-core-capabilities.mjs && node scripts/test-sync-reporting.mjs && node scripts/test-snapshot-quality.mjs && node scripts/test-snapshot-artifacts.mjs",
     "test:contracts": "node scripts/test-contracts.mjs",
-    "test:core": "node scripts/test-core-capabilities.mjs"
+    "test:core": "node scripts/test-core-capabilities.mjs",
+    "test:snapshot-quality": "pnpm --filter @mcpfinder/core build && node scripts/test-snapshot-quality.mjs"
   },
   "keywords": [
     "mcp",
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@anthropic-ai/mcpb": "^2.1.2",
     "esbuild-wasm": "^0.25.10",
-    "wrangler": "^4.14.1"
+    "wrangler": "^4.124.0",
+    "yaml": "^2.9.0"
   }
 }

@@ -1,0 +1,28 @@
+{
+  "rules": [
+    {
+      "id": "expire-content-addressed-snapshots-after-30-days",
+      "enabled": true,
+      "conditions": {
+        "prefix": "snapshots/"
+      },
+      "deleteObjectsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 2592000
+        }
+      }
+    },
+    {
+      "id": "abort-incomplete-multipart-uploads-after-7-days",
+      "enabled": true,
+      "conditions": {},
+      "abortMultipartUploadsTransition": {
+        "condition": {
+          "type": "Age",
+          "maxAge": 604800
+        }
+      }
+    }
+  ]
+}

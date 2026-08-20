@@ -6,15 +6,18 @@
 		"deploy": "wrangler deploy -c wrangler.toml",
 		"dev": "wrangler dev -c wrangler.toml",
 		"start": "wrangler dev -c wrangler.toml",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types --include-env=true --env-file .typegen.env -c wrangler.toml",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"check:types": "wrangler types --check --include-env=true --env-file .typegen.env -c wrangler.toml",
+		"r2:lifecycle:apply": "wrangler r2 bucket lifecycle set mcp-finder-db-snapshots --file r2-lifecycle.json --force"
 	},
 	"dependencies": {
-		"hono": "^4.7.8"
+		"hono": "^4.13.3"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20250504.0",
-		"@types/node": "22.13.0",
+		"@types/node": "22.20.1",
 		"@types/service-worker-mock": "^2.0.4",
-		"wrangler": "^4.20.3"
+		"typescript": "^5.9.3",
+		"wrangler": "^4.124.0"
 	}
 }
