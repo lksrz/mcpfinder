@@ -26,9 +26,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Registry budgets can consume 43 minutes; keep at least 47 minutes for
-    # install, focused tests, enrichment, vacuum/gzip, preflight, and upload.
-    timeout-minutes: 90
+    # Glama alone currently needs about an hour to enumerate its full corpus;
+    # keep another hour for install, tests, enrichment, packaging, and upload.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v6
 
@@ -54,9 +54,10 @@ jobs:
           # Manual-only escape hatch for an intentional corpus reset. It does
           # not bypass missing/error source status checks.
           MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_quality_regression && '1' || '0' }}
-          # Glama has repeatedly needed more than the 12-minute local budget.
-          # Thirty minutes leaves headroom inside the 90-minute job ceiling.
-          MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES: '30'
+          # Glama's corpus has outgrown the old 30-minute budget. Keep this a
+          # bounded full sync so publication never trades freshness for a
+          # silent partial dataset.
+          MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES: '90'
           # Powers the Smithery repo-probe and archived-repo enrichment. The
           # Actions-provided GITHUB_TOKEN is capped at ~1000 REST req/hr, so the
           # archived-repo pass is incremental: capped per run, with flags

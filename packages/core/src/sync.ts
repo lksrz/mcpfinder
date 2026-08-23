@@ -31,7 +31,7 @@ const PAGE_LIMIT = 100;
 /**
  * Wall-clock budget per registry. A degraded upstream that keeps responding
  * just slowly enough to dodge the per-request timeout still can't drag the
- * snapshot build into its 90-minute CI ceiling. Official overrun fails the
+ * snapshot build into its CI ceiling. Official overrun fails the
  * build (a snapshot missing Official servers is worse than no new snapshot);
  * Glama/Smithery overrun keeps the best-effort partial data for resilient
  * local use, but records a degraded sync_log status so snapshot publication
@@ -39,12 +39,12 @@ const PAGE_LIMIT = 100;
  */
 const OFFICIAL_SYNC_BUDGET_MS = 8 * 60_000;
 const DEFAULT_GLAMA_SYNC_BUDGET_MINUTES = 12;
-const MAX_GLAMA_SYNC_BUDGET_MINUTES = 40;
+const MAX_GLAMA_SYNC_BUDGET_MINUTES = 120;
 const SMITHERY_SYNC_BUDGET_MS = 5 * 60_000;
 
 /**
  * Keep local stdio behavior at the historical 12-minute limit while allowing
- * the snapshot job to reserve more of its 90-minute ceiling for Glama. Reject
+ * the snapshot job to reserve more time for Glama's growing corpus. Reject
  * invalid values instead of silently turning a typo into an unbounded sync.
  */
 function getGlamaSyncBudgetMinutes(): number {

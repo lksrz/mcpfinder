@@ -72,8 +72,8 @@ only the count-regression check with `--allow-quality-regression` or
 
 `MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES` can raise Glama's default 12-minute
 wall-clock budget for batch builds. It accepts integer values from 1 through
-40; invalid or unbounded values fail explicitly. The snapshot workflow uses 30
-minutes within its 90-minute job timeout. Malformed HTTP 200 JSON pages are
+120; invalid or unbounded values fail explicitly. The snapshot workflow uses 90
+minutes within its 150-minute job timeout. Malformed HTTP 200 JSON pages are
 retried at the same cursor before the sync records an error. The hard registry
 budget includes consuming and parsing the terminal response body; a page that
 finishes after its deadline is intentionally degraded rather than accepted as

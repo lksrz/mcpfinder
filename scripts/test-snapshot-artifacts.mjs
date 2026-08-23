@@ -191,7 +191,7 @@ assert.ok(
     durableFallback > manifestUpload &&
     durableProof > durableFallback,
 );
-assert.match(workflow, /timeout-minutes: 90/);
+assert.match(workflow, /timeout-minutes: 150/);
 assert.doesNotMatch(workflow, /run: pnpm test(?:\s|$)/);
 assert.doesNotMatch(workflow, /check:types/);
 

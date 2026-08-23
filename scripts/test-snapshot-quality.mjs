@@ -180,7 +180,7 @@ try {
   smitheryStructureDb.close();
 
   // Valid and invalid Glama budget configuration both leave auditable state.
-  process.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES = '30';
+  process.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES = '90';
   const overrideDb = initDatabase(join(dir, 'override.sqlite'));
   let overrideCalls = 0;
   const overrideTimes = [0, 20 * 60_000];
@@ -199,7 +199,7 @@ try {
   const invalidBudgetDb = initDatabase(join(dir, 'invalid-budget.sqlite'));
   assert.equal(await syncGlamaRegistry(invalidBudgetDb, runtime(async () => Response.json(glamaEmpty))), 0);
   assert.equal(syncLog(invalidBudgetDb, 'glama').status, 'error');
-  assert.match(syncLog(invalidBudgetDb, 'glama').error, /integer between 1 and 40/);
+  assert.match(syncLog(invalidBudgetDb, 'glama').error, /integer between 1 and 120/);
   invalidBudgetDb.close();
   if (originalGlamaBudget === undefined) delete process.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES;
   else process.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES = originalGlamaBudget;
