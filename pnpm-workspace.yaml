@@ -2,6 +2,10 @@ packages:
   - "packages/*"
   - "api-worker"
 
+minimumReleaseAge: 10080
+blockExoticSubdeps: true
+trustPolicy: no-downgrade
+
 allowBuilds:
   esbuild: true
   sharp: true
