@@ -13,6 +13,7 @@ import type {
   TrustSignals,
 } from './types.js';
 import { categorizeServer } from './categories.js';
+import { parseRawEnvelope, rawPayloads } from './raw-envelope.js';
 
 /**
  * Alias dictionary: common abbreviations → full terms.
@@ -448,8 +449,12 @@ function sanitizeFtsQuery(query: string, useOr: boolean = false): string {
 
 function extractTools(row: McpServer): ToolSummary[] {
   try {
-    const raw = JSON.parse(row.raw_data || '{}') as Record<string, unknown>;
-    const sources = getRawSources(raw);
+    const envelope = parseRawEnvelope(row.raw_data || '{}', row.source);
+    const sources = envelope
+      ? rawPayloads(envelope).filter(
+          (value): value is Record<string, unknown> => Boolean(value && typeof value === 'object'),
+        )
+      : [];
     const tools = new Map<string, ToolSummary>();
 
     for (const sourcePayload of sources) {
@@ -467,15 +472,6 @@ function extractTools(row: McpServer): ToolSummary[] {
   } catch {
     return [];
   }
-}
-
-function getRawSources(raw: Record<string, unknown>): Record<string, unknown>[] {
-  if (isRawEnvelope(raw)) {
-    const bySource = Object.values(raw.bySource).filter((value): value is Record<string, unknown> => Boolean(value && typeof value === 'object'));
-    const primary = raw.primary && typeof raw.primary === 'object' ? [raw.primary as Record<string, unknown>] : [];
-    return [...primary, ...bySource];
-  }
-  return [raw];
 }
 
 function extractToolSummariesFromPayload(payload: Record<string, unknown>): ToolSummary[] {
@@ -557,16 +553,6 @@ function extractToolSummariesFromPayload(payload: Record<string, unknown>): Tool
   }
 
   return found;
-}
-
-function isRawEnvelope(value: unknown): value is { primary?: unknown; bySource: Record<string, unknown> } {
-  return Boolean(
-    value &&
-      typeof value === 'object' &&
-      'bySource' in value &&
-      (value as { bySource?: unknown }).bySource &&
-      typeof (value as { bySource?: unknown }).bySource === 'object',
-  );
 }
 
 function getRecommendationReason(row: McpServer, sources: string[]): string {

@@ -22,9 +22,10 @@ import {
   listCategories,
   getServersByCategory,
   bootstrapFromSnapshot,
+  buildEnvPlaceholders,
 } from '@mcpfinder/core';
-import type { RegistryEnvVar } from '@mcpfinder/core';
 import { reportSyncResults } from './sync-report.js';
+import { settleSequentially } from './sync-orchestration.js';
 
 const pkg = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'),
@@ -144,14 +145,6 @@ function sourceBadges(sources: string[], useCount: number, verified: boolean): s
   return badges.length > 0 ? badges.join(' | ') : '';
 }
 
-function buildEnvMap(envVars: RegistryEnvVar[]): Record<string, string> {
-  const env: Record<string, string> = {};
-  for (const v of envVars) {
-    env[v.name] = v.isSecret ? '<YOUR_VALUE>' : (v.description || '<VALUE>');
-  }
-  return env;
-}
-
 // Returns a CallToolResult with both a human-readable text block and a
 // machine-readable `structuredContent` field. Clients that understand the
 // MCP 2025-12-11 spec can read structuredContent directly; older clients
@@ -182,10 +175,10 @@ let inFlightSync: Promise<void> | null = null;
 function runSync(): Promise<void> {
   if (inFlightSync) return inFlightSync;
   inFlightSync = (async () => {
-    const results = await Promise.allSettled([
-      syncOfficialRegistry(db),
-      syncGlamaRegistry(db),
-      syncSmitheryRegistry(db),
+    const results = await settleSequentially([
+      () => syncOfficialRegistry(db),
+      () => syncGlamaRegistry(db),
+      () => syncSmitheryRegistry(db),
     ]);
     const counts = reportSyncResults(results);
     process.stderr.write(
@@ -489,7 +482,7 @@ async function buildInstallConfigResponse(name: string, platform: Platform) {
 
   const serverKey = detail.name.includes('/') ? detail.name.split('/').pop() || detail.name : detail.name;
   const envVars = detail.environmentVariables || [];
-  const env = buildEnvMap(envVars);
+  const env = buildEnvPlaceholders(envVars);
   const platformInfo = PLATFORMS[platform];
   const isRemote = detail.hasRemote && detail.remoteUrl;
 

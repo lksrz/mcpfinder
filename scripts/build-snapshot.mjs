@@ -51,8 +51,13 @@ const outDir = resolve(repoRoot, argVal('--out') ?? 'dist/snapshot');
 const allowQualityRegression =
   flag('--allow-quality-regression') || process.env.MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE === '1';
 const requiredSources = ['official'];
-if (!flag('--no-glama')) requiredSources.push('glama');
 if (!flag('--no-smithery')) requiredSources.push('smithery');
+// Glama is best-effort: it requires GLAMA_API_KEY since 2026-08-26 and has
+// repeatedly overrun its crawl budget. A missing or degraded Glama warns and
+// still publishes; counts.glama stays in the manifest (0 when absent) so the
+// gap remains visible to monitoring.
+const optionalSources = [];
+if (!flag('--no-glama')) optionalSources.push('glama');
 
 console.log(`[build-snapshot] out=${outDir}`);
 
@@ -168,6 +173,7 @@ async function rejectBadSnapshot(previous, current) {
   const quality = evaluateSnapshotQuality({
     syncLog: syncLogEntries(),
     requiredSources,
+    optionalSources,
     current,
     previous,
     allowRegression: allowQualityRegression,
@@ -186,8 +192,12 @@ async function rejectBadCurrentSnapshot(current) {
   const quality = evaluateCurrentSnapshotQuality({
     syncLog: syncLogEntries(),
     requiredSources,
+    optionalSources,
     current,
   });
+  for (const warning of quality.warnings) {
+    console.warn(`[build-snapshot] quality warning: ${warning}`);
+  }
   if (!quality.ok) {
     db.close();
     await rm(outDir, { recursive: true, force: true });

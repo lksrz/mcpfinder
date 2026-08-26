@@ -179,6 +179,13 @@ const markerCommand = parsedUploadCommand(
 assert.match(immutableCommand, /snapshots\/\$\{\{ steps\.snapshot\.outputs\.sha \}\}\.sqlite\.gz/);
 assert.match(durableCommand, /mcp-finder-db-snapshots\/data\.sqlite\.gz/);
 assert.match(markerCommand, /mcp-finder-db-snapshots\/data\.sqlite\.gz\.sha256/);
+// Glama needs a key since 2026-08-26 and stays best-effort: the secret must be
+// wired through, and its crawl budget must stay at the deliberate 30 minutes.
+const buildStep = parsedWorkflow.jobs.build.steps.find((step) => step.name === 'Build snapshot');
+assert.equal(buildStep?.env?.GLAMA_API_KEY, '${{ secrets.GLAMA_API_KEY }}');
+assert.equal(buildStep.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES, '30');
+assert.equal(parsedWorkflow.jobs.build['timeout-minutes'], 90);
+
 const immutableUpload = workflow.indexOf('Upload immutable database to R2');
 const preflight = workflow.indexOf('Verify immutable database through public endpoint');
 const manifestUpload = workflow.indexOf('Publish manifest pointer to R2');

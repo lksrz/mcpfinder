@@ -36,6 +36,22 @@ export interface RegistryEnvVar {
   description?: string;
   format?: string;
   isSecret?: boolean;
+  isRequired?: boolean;
+  /**
+   * Concrete value a registry suggests for the variable. Registries mostly
+   * publish strings, but JSON Schema defaults can also be numbers/booleans —
+   * keep them as-is here and coerce at the point of rendering a config.
+   */
+  default?: string | number | boolean;
+  /**
+   * Example value a registry publishes for the variable. No normalizer sets
+   * this field: it arrives verbatim through the Official passthrough, which
+   * stores `packages[].environmentVariables` as published (124 servers in the
+   * 2026-08-26 corpus carry one). Glama's JSON Schema has no equivalent —
+   * its properties only ever carry `type`, `description` and `default` — so
+   * there is nothing to map there.
+   */
+  placeholder?: string;
 }
 
 export interface ToolSummary {
@@ -83,9 +99,9 @@ export interface RegistryMeta {
 /** Registry API list response */
 export interface RegistryListResponse {
   servers: RegistryServerEntry[];
-  metadata?: {
+  metadata: {
     nextCursor?: string | null;
-    total?: number;
+    count: number;
   };
 }
 

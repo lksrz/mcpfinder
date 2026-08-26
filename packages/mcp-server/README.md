@@ -15,8 +15,18 @@ manual browsing required.
 ## Quick install
 
 Add the snippet below to your client's MCP config file. First run downloads a
-pre-built snapshot (~13 MB gzipped) from `https://mcpfinder.dev/api/v1/snapshot`,
-so bootstrap takes under a second instead of doing a 10-minute live sync.
+pre-built gzipped snapshot from `https://mcpfinder.dev/api/v1/snapshot`, so
+bootstrap is a single download instead of a 10-minute live sync. Its size
+tracks the size of the indexed corpus and grows with it — the current figure is
+the `sizeBytes` field of the snapshot manifest at
+`https://mcpfinder.dev/api/v1/snapshot/manifest.json`.
+When a live refresh is needed, registries run sequentially as Official → Glama
+→ Smithery so each later dedup index sees earlier inserts. A failed source is
+reported but does not prevent attempts for the remaining sources.
+Normal cold start uses the snapshot and does not pay the sum of live registry
+budgets. The sequential worst case applies only when snapshot bootstrap is
+explicitly disabled or fails while starting from an empty database; the order
+is retained for deterministic cross-registry deduplication.
 
 ### Claude Desktop
 
@@ -95,6 +105,10 @@ Four canonical tools, optimized for AI consumption (typed `outputSchema` +
   `single-source-only`, `missing-repository-url`, `install-method-unclear`.
 - Install metadata: target file path per OS, required env vars (secrets
   marked), `safe_to_autoinstall` and `requires_user_secrets` signals.
+- The `env` block of a generated config carries values, never prose: secrets
+  get `<YOUR_VALUE>`, other variables get the registry-published `default`,
+  then `placeholder`, then `<VALUE>`. Descriptions stay in the "Required
+  environment variables" section under the snippet.
 
 ## Configuration
 
@@ -103,6 +117,12 @@ Four canonical tools, optimized for AI consumption (typed `outputSchema` +
 | `MCPFINDER_DATA_DIR` | `~/.mcpfinder/` | Where the local SQLite DB lives. |
 | `MCPFINDER_DISABLE_SNAPSHOT` | unset | Set to `1` to skip snapshot bootstrap and do a live sync instead. |
 | `MCPFINDER_SNAPSHOT_BASE` | `https://mcpfinder.dev/api/v1/snapshot` | Override the snapshot host for mirrors / testing. |
+| `GLAMA_API_KEY` | unset | API key for Glama's registry ([create one](https://glama.ai/settings/api-keys)). Without it a live refresh skips Glama entirely — the sync is Official → Smithery, logged as `skipped`. Published snapshots normally carry Glama data, but a snapshot built while Glama was unavailable ships with `counts.glama = 0` (check `counts` in the manifest). |
+
+Glama's API Data License requires visible Glama attribution on every page
+displaying data obtained through its API
+(<https://glama.ai/policies/terms-of-service>) — any surface rendering servers
+whose `sources` include `glama` must carry it.
 
 ## Links
 

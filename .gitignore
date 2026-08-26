@@ -229,3 +229,4 @@ package-lock.json
 
 # MCPB build artifacts
 *.mcpb
+.claude/cr/

@@ -51,30 +51,59 @@ export function currentSnapshotErrors(current, requiredSources) {
   return errors;
 }
 
-function sourceHealthErrors(syncLog, requiredSources) {
-  const errors = [];
+function sourceHealthMessages(syncLog, sources, kind) {
+  const messages = [];
   const bySource = new Map(syncLog.map((entry) => [entry.source, entry]));
-  for (const source of requiredSources) {
+  for (const source of sources) {
     const entry = bySource.get(source);
     if (!entry) {
-      errors.push(`required source ${source} has no sync_log entry`);
+      messages.push(`${kind} source ${source} has no sync_log entry`);
     } else if (entry.status !== 'ok') {
-      errors.push(
-        `required source ${source} is ${entry.status}` +
+      messages.push(
+        `${kind} source ${source} is ${entry.status}` +
           (entry.error ? `: ${entry.error}` : ''),
       );
     }
   }
-  return errors;
+  return messages;
+}
+
+function sourceHealthErrors(syncLog, requiredSources) {
+  return sourceHealthMessages(syncLog, requiredSources, 'required');
+}
+
+/**
+ * Best-effort sources never gate publication. A degraded, skipped, or missing
+ * one only warns, so an upstream that closes its API (Glama did on 2026-08-26)
+ * cannot stall the snapshot pipeline indefinitely.
+ */
+function bestEffortSourceWarnings(syncLog, optionalSources) {
+  return sourceHealthMessages(syncLog, optionalSources, 'best-effort');
+}
+
+/** Sources that did not report a healthy sync in this run. */
+function unhealthySources(syncLog, sources) {
+  const bySource = new Map(syncLog.map((entry) => [entry.source, entry]));
+  return sources.filter((source) => bySource.get(source)?.status !== 'ok');
 }
 
 /** Source health and positive current counts, without baseline diagnostics. */
-export function evaluateCurrentSnapshotQuality({ syncLog, requiredSources, current }) {
+export function evaluateCurrentSnapshotQuality({
+  syncLog,
+  requiredSources,
+  optionalSources = [],
+  current,
+}) {
   const errors = [
     ...sourceHealthErrors(syncLog, requiredSources),
     ...currentSnapshotErrors(current, requiredSources),
   ];
-  return { ok: errors.length === 0, errors, warnings: [], regressionOverridden: false };
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings: bestEffortSourceWarnings(syncLog, optionalSources),
+    regressionOverridden: false,
+  };
 }
 
 /**
@@ -137,11 +166,20 @@ function regressionMessage(label, current, previous, maxDropRatio) {
 /**
  * Evaluate source health and last-known-good count regressions.
  * Count regressions may be explicitly overridden for a controlled data reset;
- * degraded/missing required sources are never overrideable.
+ * degraded/missing required sources are never overrideable. Best-effort
+ * sources listed in `optionalSources` only ever produce warnings.
+ *
+ * `previous.serverCount` is a deduplicated row count while `previous.counts.X`
+ * are raw per-registry record counts that overlap across registries, so a
+ * degraded best-effort source cannot be subtracted from the baseline in any
+ * honest way. Instead, when such a source is unhealthy the aggregate
+ * `serverCount` regression check is skipped with an explicit warning; the
+ * per-source checks for required sources (raw vs raw) keep guarding the gate.
  */
 export function evaluateSnapshotQuality({
   syncLog,
   requiredSources,
+  optionalSources = [],
   current,
   previous = null,
   maxDropRatio = DEFAULT_MAX_DROP_RATIO,
@@ -155,7 +193,7 @@ export function evaluateSnapshotQuality({
     ...sourceHealthErrors(syncLog, requiredSources),
     ...currentSnapshotErrors(current, requiredSources),
   ];
-  const warnings = [];
+  const warnings = bestEffortSourceWarnings(syncLog, optionalSources);
 
   const regressions = [];
   if (!previous) {
@@ -171,13 +209,28 @@ export function evaluateSnapshotQuality({
         regressionOverridden: false,
       };
     }
-    const totalRegression = regressionMessage(
-      'serverCount',
-      current.serverCount,
-      previous.serverCount,
-      maxDropRatio,
-    );
-    if (totalRegression) regressions.push(totalRegression);
+
+    // A degraded best-effort source legitimately shrinks the corpus, but the
+    // baseline cannot be corrected for it: `serverCount` is deduplicated while
+    // `counts.X` are raw, overlapping per-registry totals. Skip the aggregate
+    // check outright rather than subtract incomparable units.
+    const degradedOptional = unhealthySources(syncLog, optionalSources);
+    for (const source of degradedOptional) {
+      warnings.push(
+        `serverCount regression check skipped: best-effort source ${source} is ` +
+          `unavailable and its contribution to the deduplicated baseline cannot be isolated`,
+      );
+    }
+
+    if (degradedOptional.length === 0) {
+      const totalRegression = regressionMessage(
+        'serverCount',
+        current.serverCount,
+        previous.serverCount,
+        maxDropRatio,
+      );
+      if (totalRegression) regressions.push(totalRegression);
+    }
 
     for (const source of requiredSources) {
       const sourceRegression = regressionMessage(
@@ -187,6 +240,19 @@ export function evaluateSnapshotQuality({
         maxDropRatio,
       );
       if (sourceRegression) regressions.push(sourceRegression);
+    }
+
+    // A per-source shrink of a best-effort registry only warns; the aggregate
+    // serverCount check above still guards the corpus while that source is
+    // healthy, so a real collapse it caused remains a blocking error.
+    for (const source of optionalSources) {
+      const sourceRegression = regressionMessage(
+        `counts.${source}`,
+        current.counts?.[source],
+        previous.counts?.[source],
+        maxDropRatio,
+      );
+      if (sourceRegression) warnings.push(`best-effort ${sourceRegression}`);
     }
   }
 

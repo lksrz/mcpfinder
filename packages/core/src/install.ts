@@ -69,6 +69,40 @@ const PLATFORM_INFO: Record<
 };
 
 /**
+ * Coerce a registry-provided value into something that can sit in a config
+ * file. Anything that is not a scalar (objects, arrays, null, NaN) is dropped
+ * so the caller falls through to the next preference instead of emitting
+ * `[object Object]`.
+ */
+function envValueToString(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : undefined;
+  if (typeof value === 'boolean') return String(value);
+  return undefined;
+}
+
+/**
+ * Value to put in the `env` block of a generated config. Secrets always get a
+ * placeholder the user must replace; everything else prefers a concrete value
+ * published by the registry (`default`, then `placeholder`) and falls back to
+ * `<VALUE>`. Descriptions are prose and belong in the "Required environment
+ * variables" section, never in the JSON snippet.
+ */
+export function envPlaceholderValue(v: RegistryEnvVar): string {
+  if (v.isSecret) return '<YOUR_VALUE>';
+  return envValueToString(v.default) ?? envValueToString(v.placeholder) ?? '<VALUE>';
+}
+
+/** Build the `env` map of a generated config from registry env var definitions. */
+export function buildEnvPlaceholders(envVars: RegistryEnvVar[]): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const v of envVars) {
+    env[v.name] = envPlaceholderValue(v);
+  }
+  return env;
+}
+
+/**
  * Generate install configuration for a specific MCP server and client.
  */
 export function getInstallCommand(
@@ -149,10 +183,7 @@ function generateNpmConfig(
   envVars: RegistryEnvVar[],
   client: ClientType,
 ): InstallConfig {
-  const env: Record<string, string> = {};
-  for (const v of envVars) {
-    env[v.name] = v.isSecret ? '<YOUR_VALUE>' : (v.description || '<VALUE>');
-  }
+  const env = buildEnvPlaceholders(envVars);
 
   const config: Record<string, unknown> = {
     command: 'npx',
@@ -174,10 +205,7 @@ function generatePypiConfig(
   envVars: RegistryEnvVar[],
   client: ClientType,
 ): InstallConfig {
-  const env: Record<string, string> = {};
-  for (const v of envVars) {
-    env[v.name] = v.isSecret ? '<YOUR_VALUE>' : (v.description || '<VALUE>');
-  }
+  const env = buildEnvPlaceholders(envVars);
 
   const config: Record<string, unknown> = { command: 'uvx', args: [packageId] };
   if (Object.keys(env).length > 0) config.env = env;

@@ -6,6 +6,7 @@
  */
 import type { DatabaseSync } from 'node:sqlite';
 import type {
+  RegistryEnvVar,
   RegistryListResponse,
   RegistryServerEntry,
   GlamaListResponse,
@@ -13,15 +14,33 @@ import type {
   SmitheryListResponse,
   SmitheryServer,
 } from './types.js';
-import { getLastSyncTimestamp, updateSyncLog, transaction } from './db.js';
-import type { SqlParam } from './db.js';
+import {
+  getLastSuccessfulSyncTimestamp,
+  getLastSyncTimestamp,
+  updateSyncLog,
+  transaction,
+} from './db.js';
 import { extractKeywords } from './categories.js';
+import { envVarsFromJsonSchema } from './env-vars.js';
 import {
   assertBeforeDeadline,
   delay,
   fetchJsonPageWithRetry,
 } from './registry-fetch.js';
 import type { RegistryRuntime } from './registry-fetch.js';
+import { buildDedupIndex } from './dedup-index.js';
+import { CrawlStaging } from './crawl-staging.js';
+import {
+  extractRepoKey,
+  normalizeRepositoryUrl,
+  repositorySource,
+} from './repository-url.js';
+import {
+  validateGlamaPage,
+  validateOfficialPage,
+  validateSmitheryPage,
+} from './registry-page-validation.js';
+import { mergeServerData, mergeServerSources } from './server-merge.js';
 
 const REGISTRY_BASE = 'https://registry.modelcontextprotocol.io';
 const GLAMA_BASE = 'https://glama.ai/api/mcp/v1';
@@ -33,14 +52,23 @@ const PAGE_LIMIT = 100;
  * just slowly enough to dodge the per-request timeout still can't drag the
  * snapshot build into its 90-minute CI ceiling. Official overrun fails the
  * build (a snapshot missing Official servers is worse than no new snapshot);
- * Glama/Smithery overrun keeps the best-effort partial data for resilient
- * local use, but records a degraded sync_log status so snapshot publication
- * can reject it.
+ * Glama/Smithery overrun discards the current staged crawl, leaves the local
+ * last-known-good data unchanged, and records a degraded sync_log status.
+ * Smithery is a required source, so its degradation blocks publication; Glama
+ * is best-effort and only produces a warning (see scripts/snapshot-quality.mjs).
  */
 const OFFICIAL_SYNC_BUDGET_MS = 8 * 60_000;
 const DEFAULT_GLAMA_SYNC_BUDGET_MINUTES = 12;
 const MAX_GLAMA_SYNC_BUDGET_MINUTES = 40;
+const MAX_GLAMA_CRAWL_ATTEMPTS = 2;
 const SMITHERY_SYNC_BUDGET_MS = 5 * 60_000;
+const MAX_SMITHERY_CRAWL_ATTEMPTS = 2;
+// Smithery's unseeded reranker exposes only five pages. A fixed integer seed
+// selects the documented stable deep-pagination path for the full catalogue.
+const SMITHERY_PAGINATION_SEED = 20260820;
+
+class SmitheryCrossPageDuplicateError extends Error {}
+class GlamaCrossPageDuplicateError extends Error {}
 
 /**
  * Keep local stdio behavior at the historical 12-minute limit while allowing
@@ -66,51 +94,24 @@ function getGlamaSyncBudgetMinutes(): number {
   return minutes;
 }
 
-function validateGlamaPage(data: unknown): asserts data is GlamaListResponse {
-  if (!data || typeof data !== 'object') throw new Error('Glama API: response must be an object');
-  const page = data as Partial<GlamaListResponse>;
-  if (!Array.isArray(page.servers)) throw new Error('Glama API: servers must be an array');
-  if (!page.pageInfo || typeof page.pageInfo !== 'object') {
-    throw new Error('Glama API: pageInfo must be an object');
-  }
-  if (typeof page.pageInfo.hasNextPage !== 'boolean') {
-    throw new Error('Glama API: pageInfo.hasNextPage must be boolean');
-  }
-  if (
-    page.pageInfo.hasNextPage &&
-    (typeof page.pageInfo.endCursor !== 'string' || page.pageInfo.endCursor.length === 0)
-  ) {
-    throw new Error('Glama API: pageInfo.endCursor is required when hasNextPage is true');
-  }
+/**
+ * Glama closed its public API on 2026-08-26: `/api/mcp/v1/servers` answers 401
+ * without a key minted at https://glama.ai/settings/api-keys. Verified against
+ * the live API with a real key on 2026-08-26: `Authorization: Bearer <key>`
+ * answers HTTP 200, while a bare `Authorization: <key>`, `x-api-key` and
+ * `X-Api-Key` all answer 401. The key itself only ever reaches the request
+ * header: it is never logged, persisted in raw_data, or written to the
+ * snapshot manifest.
+ */
+function glamaAuthHeaders(): Record<string, string> | null {
+  const key = process.env.GLAMA_API_KEY?.trim();
+  if (!key) return null;
+  return { authorization: `Bearer ${key}` };
 }
 
-function validateSmitheryPage(
-  data: unknown,
-  requestedPage: number,
-): asserts data is SmitheryListResponse {
-  if (!data || typeof data !== 'object') {
-    throw new Error('Smithery API: response must be an object');
-  }
-  const result = data as Partial<SmitheryListResponse>;
-  if (!Array.isArray(result.servers)) throw new Error('Smithery API: servers must be an array');
-  const pagination = result.pagination;
-  if (!pagination || typeof pagination !== 'object') {
-    throw new Error('Smithery API: pagination must be an object');
-  }
-  for (const field of ['currentPage', 'pageSize', 'totalPages', 'totalCount'] as const) {
-    if (!Number.isInteger(pagination[field]) || pagination[field] < 0) {
-      throw new Error(`Smithery API: pagination.${field} must be a non-negative integer`);
-    }
-  }
-  if (pagination.currentPage !== requestedPage) {
-    throw new Error(
-      `Smithery API: pagination.currentPage ${pagination.currentPage} does not match ${requestedPage}`,
-    );
-  }
-  if (pagination.totalPages > 0 && pagination.currentPage > pagination.totalPages) {
-    throw new Error('Smithery API: currentPage exceeds totalPages');
-  }
-}
+export const GLAMA_MISSING_KEY_MESSAGE =
+  'Glama API requires GLAMA_API_KEY; skipping Glama sync ' +
+  '(create a key at https://glama.ai/settings/api-keys)';
 
 /**
  * Generate a slug from a server name.
@@ -120,43 +121,6 @@ function slugify(name: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-}
-
-/**
- * Normalize a repository URL: lowercase, strip `.git` suffix, strip trailing slashes,
- * strip SCP-style `git@host:` prefix.
- * Returns null if the input is empty / not a usable URL.
- */
-function normalizeRepoUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  let u = url.trim().toLowerCase();
-  if (!u) return null;
-  // git@github.com:owner/repo[.git] -> https://github.com/owner/repo
-  const scp = u.match(/^git@([^:]+):(.+)$/);
-  if (scp) u = `https://${scp[1]}/${scp[2]}`;
-  u = u.replace(/\.git$/, '').replace(/\/+$/, '');
-  return u || null;
-}
-
-/**
- * Extract the canonical `owner/repo` tail from a known code-host URL.
- * Used as a cross-registry dedup key — matches GitHub, GitLab, Bitbucket.
- * Returns null if URL doesn't resemble a known code host.
- */
-function extractRepoKey(url: string | null | undefined): string | null {
-  const n = normalizeRepoUrl(url);
-  if (!n) return null;
-  const m = n.match(/\b(?:github|gitlab|bitbucket|codeberg)\.(?:com|org|io)\/([^/]+)\/([^/?#]+)/);
-  return m ? `${m[1]}/${m[2]}` : null;
-}
-
-/**
- * Merge sources arrays. Returns sorted, deduplicated list.
- */
-function mergeSources(existing: string[], newSource: string): string[] {
-  const set = new Set(existing);
-  set.add(newSource);
-  return [...set].sort();
 }
 
 // ─── Official Registry Sync ─────────────────────────────────────────────────
@@ -186,7 +150,7 @@ function normalizeOfficialEntry(entry: RegistryServerEntry) {
     registry_type: pkg?.registryType || null,
     package_identifier: pkg?.identifier || null,
     transport_type: pkg?.transport?.type || null,
-    repository_url: normalizeRepoUrl(s.repository?.url),
+    repository_url: normalizeRepositoryUrl(s.repository?.url),
     repository_source: s.repository?.source || null,
     published_at: meta?.publishedAt || null,
     updated_at: meta?.updatedAt || null,
@@ -214,9 +178,10 @@ export async function syncOfficialRegistry(
   db: DatabaseSync,
   runtime: RegistryRuntime = {},
 ): Promise<number> {
-  const lastSync = getLastSyncTimestamp(db, 'official');
+  const lastSync = getLastSuccessfulSyncTimestamp(db, 'official');
 
   let cursor: string | null = null;
+  const seenCursors = new Set<string>();
   let totalUpserted = 0;
   const now = runtime.now ?? Date.now;
   const deadline = now() + OFFICIAL_SYNC_BUDGET_MS;
@@ -244,59 +209,75 @@ export async function syncOfficialRegistry(
       published_at = COALESCE(excluded.published_at, servers.published_at),
       updated_at = COALESCE(excluded.updated_at, servers.updated_at),
       status = excluded.status,
-      keywords = excluded.keywords,
       remote_url = COALESCE(excluded.remote_url, servers.remote_url),
       has_remote = MAX(excluded.has_remote, servers.has_remote),
-      last_synced_at = excluded.last_synced_at,
-      raw_data = excluded.raw_data,
-      env_vars = CASE WHEN length(excluded.env_vars) > length(servers.env_vars) THEN excluded.env_vars ELSE servers.env_vars END
+      last_synced_at = excluded.last_synced_at
   `);
 
-  do {
-    if (now() >= deadline) {
-      throw new Error(
-        `Official registry sync exceeded its ${OFFICIAL_SYNC_BUDGET_MS / 60_000}-minute budget ` +
-          `(upstream too slow) — aborting after ${totalUpserted} servers`,
+  const staging = new CrawlStaging<RegistryServerEntry>(db, 'official');
+  try {
+    do {
+      if (now() >= deadline) {
+        throw new Error(
+          `Official registry sync exceeded its ${OFFICIAL_SYNC_BUDGET_MS / 60_000}-minute budget ` +
+            `(upstream too slow) — discarded ${staging.size} staged servers; ` +
+            'existing last-known-good database unchanged',
+        );
+      }
+
+      const url = new URL(`${REGISTRY_BASE}/v0.1/servers`);
+      url.searchParams.set('version', 'latest');
+      url.searchParams.set('limit', String(PAGE_LIMIT));
+      if (lastSync) url.searchParams.set('updated_since', lastSync);
+      if (cursor) url.searchParams.set('cursor', cursor);
+
+      const { response: res, data, errorText } = await fetchJsonPageWithRetry<RegistryListResponse>(
+        url.toString(),
+        { label: 'Registry API', deadline, ...runtime },
       );
-    }
+      if (!res.ok) {
+        throw new Error(`Registry API error: ${res.status} ${res.statusText} — ${errorText ?? ''}`);
+      }
 
-    const url = new URL(`${REGISTRY_BASE}/v0.1/servers`);
-    url.searchParams.set('version', 'latest');
-    url.searchParams.set('limit', String(PAGE_LIMIT));
-    if (lastSync) url.searchParams.set('updated_since', lastSync);
-    if (cursor) url.searchParams.set('cursor', cursor);
+      validateOfficialPage(data);
+      const nextCursor = data.metadata.nextCursor || null;
+      if (nextCursor && seenCursors.has(nextCursor)) {
+        throw new Error(`Registry API: repeated metadata.nextCursor ${nextCursor}`);
+      }
+      if (nextCursor) seenCursors.add(nextCursor);
+      staging.push(data.servers);
+      cursor = nextCursor;
+      if (cursor) await delay(100, runtime);
+    } while (cursor);
 
-    const { response: res, data, errorText } = await fetchJsonPageWithRetry<RegistryListResponse>(
-      url.toString(),
-      { label: 'Registry API', deadline, ...runtime },
+    assertBeforeDeadline(deadline, runtime, 'Registry API');
+    const existingIds = new Set(
+      (db.prepare('SELECT id FROM servers').all() as Array<{ id: string }>).map((row) => row.id),
     );
-    if (!res.ok) {
-      throw new Error(`Registry API error: ${res.status} ${res.statusText} — ${errorText ?? ''}`);
-    }
-
-    if (!data?.servers || data.servers.length === 0) break;
-
-    const insertBatch = transaction(db, (entries: RegistryServerEntry[]) => {
+    const applyCompletedCrawl = transaction(db, (entries: Iterable<RegistryServerEntry>) => {
       for (const entry of entries) {
         const row = normalizeOfficialEntry(entry);
+        const existed = existingIds.has(row.id);
         upsert.run(row);
-        // Merge sources
+        if (existed) mergeServerData(db, row.id, row);
+        existingIds.add(row.id);
         mergeServerSources(db, row.id, 'official');
       }
+      assertBeforeDeadline(deadline, runtime, 'Registry API');
     });
-
-    insertBatch(data.servers);
-    totalUpserted += data.servers.length;
-
-    cursor = data.metadata?.nextCursor ?? null;
-
-    if (cursor) await delay(100, runtime);
-  } while (cursor);
-
-  assertBeforeDeadline(deadline, runtime, 'Registry API');
-  updateSyncLog(db, 'official', totalUpserted);
-
-  return totalUpserted;
+    applyCompletedCrawl(staging.read());
+    totalUpserted = staging.size;
+    updateSyncLog(db, 'official', totalUpserted);
+    return totalUpserted;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    totalUpserted = 0;
+    updateSyncLog(db, 'official', 0, 'error', message);
+    process.stderr.write(`[mcpfinder] Official sync error: ${message}\n`);
+    throw error;
+  } finally {
+    staging.close();
+  }
 }
 
 // ─── Glama Registry Sync ────────────────────────────────────────────────────
@@ -309,16 +290,11 @@ function normalizeGlamaEntry(entry: GlamaServer) {
   const slug = slugify(entry.slug || name);
   const keywords = extractKeywords(name, entry.description || '');
 
-  // Extract env vars from JSON schema if present
-  let envVars: Array<{ name: string; description?: string }> = [];
-  if (entry.environmentVariablesJsonSchema && typeof entry.environmentVariablesJsonSchema === 'object') {
-    const schema = entry.environmentVariablesJsonSchema as Record<string, unknown>;
-    const props = (schema.properties || {}) as Record<string, { description?: string }>;
-    envVars = Object.keys(props).map((key) => ({
-      name: key,
-      description: props[key]?.description,
-    }));
-  }
+  // Extract env vars from JSON schema if present. The same mapping runs on the
+  // merge path (server-merge.ts) so a deduplicated row keeps `default`,
+  // `format` and the `writeOnly` secret flag the config generator needs.
+  const envVars: RegistryEnvVar[] =
+    envVarsFromJsonSchema(entry.environmentVariablesJsonSchema) ?? [];
 
   return {
     id: `glama:${entry.id}`,
@@ -329,8 +305,8 @@ function normalizeGlamaEntry(entry: GlamaServer) {
     registry_type: null,
     package_identifier: null,
     transport_type: null,
-    repository_url: normalizeRepoUrl(entry.repository?.url),
-    repository_source: entry.repository?.url ? 'github' : null,
+    repository_url: normalizeRepositoryUrl(entry.repository?.url),
+    repository_source: repositorySource(entry.repository?.url),
     published_at: null,
     updated_at: null,
     status: 'active',
@@ -357,14 +333,17 @@ export async function syncGlamaRegistry(
   db: DatabaseSync,
   runtime: RegistryRuntime = {},
 ): Promise<number> {
-  let cursor: string | null = null;
-  const seenCursors = new Set<string>();
   let totalUpserted = 0;
   let degradation: string | null = null;
   let budgetMinutes = DEFAULT_GLAMA_SYNC_BUDGET_MINUTES;
   let deadline = Number.POSITIVE_INFINITY;
   const now = runtime.now ?? Date.now;
 
+  // Insert-only: the apply loop routes every id already present in `servers`
+  // through mergeServerData, so this statement is reached exclusively for ids
+  // the database has never seen. A UNIQUE violation here would mean that
+  // invariant broke, and must abort (and roll back) the crawl rather than be
+  // papered over by an ON CONFLICT branch that no longer does the merging.
   const upsert = db.prepare(`
     INSERT INTO servers (
       id, slug, name, description, version, registry_type, package_identifier,
@@ -377,83 +356,154 @@ export async function syncGlamaRegistry(
       @status, @popularity_score, @categories, @keywords, @remote_url, @has_remote,
       @last_synced_at, @sources, @raw_data, @env_vars, @source, @use_count, @verified, @icon_url
     )
-    ON CONFLICT(id) DO UPDATE SET
-      description = CASE WHEN length(excluded.description) > length(servers.description) THEN excluded.description ELSE servers.description END,
-      repository_url = COALESCE(excluded.repository_url, servers.repository_url),
-      remote_url = COALESCE(excluded.remote_url, servers.remote_url),
-      has_remote = MAX(excluded.has_remote, servers.has_remote),
-      last_synced_at = excluded.last_synced_at,
-      keywords = excluded.keywords,
-      env_vars = CASE WHEN length(excluded.env_vars) > length(servers.env_vars) THEN excluded.env_vars ELSE servers.env_vars END
   `);
 
+  const authHeaders = glamaAuthHeaders();
+  if (!authHeaders) {
+    // Not a transient failure and not worth a request that can only 401.
+    // Glama is a best-effort source, so snapshot publication treats this
+    // 'skipped' status as a warning rather than a gate failure.
+    process.stderr.write(`[mcpfinder] ${GLAMA_MISSING_KEY_MESSAGE}\n`);
+    updateSyncLog(db, 'glama', 0, 'skipped', GLAMA_MISSING_KEY_MESSAGE);
+    return 0;
+  }
+
+  const staging = new CrawlStaging<GlamaServer>(db, 'glama');
   try {
     budgetMinutes = getGlamaSyncBudgetMinutes();
     deadline = now() + budgetMinutes * 60_000;
-    do {
-      if (now() >= deadline) {
-        degradation =
-          `Glama sync exceeded its ${budgetMinutes}-minute budget ` +
-          `after ${totalUpserted} servers`;
-        process.stderr.write(
-          `[mcpfinder] ${degradation} — keeping partial local data\n`,
-        );
-        break;
-      }
+    let crawlCompleted = false;
+    crawlAttempts:
+    for (let crawlAttempt = 1; crawlAttempt <= MAX_GLAMA_CRAWL_ATTEMPTS; crawlAttempt++) {
+      let cursor: string | null = null;
+      const seenCursors = new Set<string>();
+      const seenServerIds = new Set<string>();
+      staging.reset();
 
-      const url = new URL(`${GLAMA_BASE}/servers`);
-      url.searchParams.set('first', String(PAGE_LIMIT));
-      if (cursor) url.searchParams.set('after', cursor);
-
-      const { response: res, data, errorText } = await fetchJsonPageWithRetry<GlamaListResponse>(
-        url.toString(),
-        { label: 'Glama API', deadline, ...runtime },
-      );
-      if (!res.ok) {
-        throw new Error(`Glama API error: ${res.status} ${res.statusText} — ${errorText ?? ''}`);
-      }
-
-      validateGlamaPage(data);
-      const nextCursor = data.pageInfo.hasNextPage ? data.pageInfo.endCursor! : null;
-      if (nextCursor && seenCursors.has(nextCursor)) {
-        throw new Error(`Glama API: repeated pageInfo.endCursor ${nextCursor}`);
-      }
-      if (nextCursor) seenCursors.add(nextCursor);
-
-      if (data.servers.length > 0) {
-        const insertBatch = transaction(db, (entries: GlamaServer[]) => {
-          for (const entry of entries) {
-            const row = normalizeGlamaEntry(entry);
-            // Try to find existing server by repo URL for dedup
-            const existingId = findExistingServer(
-              db,
-              row.repository_url,
-              row.package_identifier,
-              row.registry_type,
-              row.slug,
-              row.name,
-            );
-            if (existingId) {
-              mergeServerSources(db, existingId, 'glama');
-              // Also update with richer data from Glama if applicable
-              mergeServerData(db, existingId, row);
-            } else {
-              upsert.run(row);
-              mergeServerSources(db, row.id, 'glama');
-            }
+      try {
+        while (true) {
+          if (now() >= deadline) {
+            degradation =
+              `Glama sync exceeded its ${budgetMinutes}-minute budget ` +
+              `— discarded ${staging.size} staged servers; ` +
+              'existing last-known-good database unchanged';
+            process.stderr.write(`[mcpfinder] ${degradation}\n`);
+            break crawlAttempts;
           }
-        });
 
-        insertBatch(data.servers);
-        totalUpserted += data.servers.length;
+          const url = new URL(`${GLAMA_BASE}/servers`);
+          url.searchParams.set('first', String(PAGE_LIMIT));
+          if (cursor) url.searchParams.set('after', cursor);
+
+          const { response: res, data, errorText } =
+            await fetchJsonPageWithRetry<GlamaListResponse>(url.toString(), {
+              label: 'Glama API', deadline, headers: authHeaders, ...runtime,
+            });
+          if (res.status === 401 || res.status === 403) {
+            // Credentials, not weather: never retried, and reported without
+            // echoing the response body so no header value can leak.
+            throw new Error(
+              `Glama API rejected GLAMA_API_KEY: HTTP ${res.status} — ` +
+                'the key is missing, expired, or lacks access',
+            );
+          }
+          if (!res.ok) {
+            throw new Error(`Glama API error: ${res.status} ${res.statusText} — ${errorText ?? ''}`);
+          }
+
+          validateGlamaPage(data);
+          const pageServerIds = new Set<string>();
+          for (const entry of data.servers) {
+            if (typeof entry.id !== 'string' || entry.id.trim().length === 0) {
+              throw new Error('Glama API: server id must be a non-empty string');
+            }
+            if (pageServerIds.has(entry.id)) {
+              throw new Error(`Glama API: duplicate server id ${entry.id}`);
+            }
+            if (seenServerIds.has(entry.id)) {
+              throw new GlamaCrossPageDuplicateError(
+                `Glama API: cross-page duplicate server id ${entry.id}`,
+              );
+            }
+            pageServerIds.add(entry.id);
+          }
+          for (const id of pageServerIds) seenServerIds.add(id);
+
+          const nextCursor = data.pageInfo.hasNextPage ? data.pageInfo.endCursor! : null;
+          if (nextCursor && seenCursors.has(nextCursor)) {
+            throw new Error(`Glama API: repeated pageInfo.endCursor ${nextCursor}`);
+          }
+          if (nextCursor) seenCursors.add(nextCursor);
+          staging.push(data.servers);
+
+          if (!nextCursor) {
+            crawlCompleted = true;
+            break crawlAttempts;
+          }
+          cursor = nextCursor;
+          await delay(100, runtime);
+        }
+      } catch (err) {
+        if (
+          err instanceof GlamaCrossPageDuplicateError &&
+          crawlAttempt < MAX_GLAMA_CRAWL_ATTEMPTS
+        ) {
+          process.stderr.write(
+            `[mcpfinder] ${err.message} — restarting cursor crawl ` +
+              `(${crawlAttempt + 1}/${MAX_GLAMA_CRAWL_ATTEMPTS})\n`,
+          );
+          await delay(250, runtime);
+          continue;
+        }
+        throw err;
       }
+    }
 
-      cursor = nextCursor;
-
-      if (cursor) await delay(100, runtime);
-    } while (cursor);
-
-    if (!degradation) assertBeforeDeadline(deadline, runtime, 'Glama API');
+    if (!degradation && !crawlCompleted) {
+      throw new Error('Glama API: crawl ended without a validated terminal page');
+    }
+    if (!degradation && crawlCompleted) {
+      assertBeforeDeadline(deadline, runtime, 'Glama API');
+      const dedup = buildDedupIndex(db);
+      assertBeforeDeadline(deadline, runtime, 'Glama API');
+      const existingIds = new Set(
+        (db.prepare('SELECT id FROM servers').all() as Array<{ id: string }>).map((row) => row.id),
+      );
+      const applyCompletedCrawl = transaction(db, (entries: Iterable<GlamaServer>) => {
+        for (const entry of entries) {
+          const row = normalizeGlamaEntry(entry);
+          const stableIdMatch = existingIds.has(row.id);
+          const existingId = stableIdMatch
+            ? row.id
+            : dedup.find(
+                row.repository_url,
+                row.package_identifier,
+                row.registry_type,
+                row.slug,
+                row.name,
+              );
+          if (existingId) {
+            mergeServerSources(db, existingId, 'glama');
+            const mergedRow = mergeServerData(
+              db,
+              existingId,
+              row,
+              { stableIdRefresh: stableIdMatch },
+            );
+            if (stableIdMatch) dedup.refreshStable(existingId, (mergedRow ?? row) as typeof row);
+            else dedup.merge(existingId, row);
+          } else {
+            upsert.run(row);
+            mergeServerSources(db, row.id, 'glama');
+            dedup.upsert(row);
+            existingIds.add(row.id);
+          }
+        }
+        assertBeforeDeadline(deadline, runtime, 'Glama API');
+      });
+      applyCompletedCrawl(staging.read());
+      totalUpserted = staging.size;
+    }
     updateSyncLog(
       db,
       'glama',
@@ -465,6 +515,8 @@ export async function syncGlamaRegistry(
     const msg = err instanceof Error ? err.message : String(err);
     updateSyncLog(db, 'glama', totalUpserted, 'error', msg);
     process.stderr.write(`[mcpfinder] Glama sync error: ${msg}\n`);
+  } finally {
+    staging.close();
   }
 
   return totalUpserted;
@@ -483,7 +535,7 @@ function normalizeSmitheryEntry(entry: SmitheryServer) {
   // sometimes a product landing page — only lift it into repository_url when it
   // looks like a known code host, so dedup keys stay clean.
   const homepageIsRepo = extractRepoKey(entry.homepage) !== null;
-  const repoUrl = homepageIsRepo ? normalizeRepoUrl(entry.homepage) : null;
+  const repoUrl = homepageIsRepo ? normalizeRepositoryUrl(entry.homepage) : null;
 
   return {
     id: `smithery:${entry.qualifiedName}`,
@@ -495,7 +547,7 @@ function normalizeSmitheryEntry(entry: SmitheryServer) {
     package_identifier: null,
     transport_type: null,
     repository_url: repoUrl,
-    repository_source: homepageIsRepo ? 'github' : null,
+    repository_source: homepageIsRepo ? repositorySource(entry.homepage) : null,
     published_at: entry.createdAt || null,
     updated_at: entry.createdAt || null,
     status: 'active',
@@ -522,13 +574,16 @@ export async function syncSmitheryRegistry(
   db: DatabaseSync,
   runtime: RegistryRuntime = {},
 ): Promise<number> {
-  let page = 1;
   let totalUpserted = 0;
-  let hasMore = true;
   let degradation: string | null = null;
   const now = runtime.now ?? Date.now;
   const deadline = now() + SMITHERY_SYNC_BUDGET_MS;
 
+  // Insert-only: the apply loop routes every id already present in `servers`
+  // through mergeServerData, so this statement is reached exclusively for ids
+  // the database has never seen. A UNIQUE violation here would mean that
+  // invariant broke, and must abort (and roll back) the crawl rather than be
+  // papered over by an ON CONFLICT branch that no longer does the merging.
   const upsert = db.prepare(`
     INSERT INTO servers (
       id, slug, name, description, version, registry_type, package_identifier,
@@ -541,89 +596,142 @@ export async function syncSmitheryRegistry(
       @status, @popularity_score, @categories, @keywords, @remote_url, @has_remote,
       @last_synced_at, @sources, @raw_data, @env_vars, @source, @use_count, @verified, @icon_url
     )
-    ON CONFLICT(id) DO UPDATE SET
-      description = CASE WHEN length(excluded.description) > length(servers.description) THEN excluded.description ELSE servers.description END,
-      repository_url = COALESCE(excluded.repository_url, servers.repository_url),
-      remote_url = COALESCE(excluded.remote_url, servers.remote_url),
-      has_remote = MAX(excluded.has_remote, servers.has_remote),
-      last_synced_at = excluded.last_synced_at,
-      keywords = excluded.keywords,
-      use_count = MAX(excluded.use_count, servers.use_count),
-      verified = MAX(excluded.verified, servers.verified),
-      icon_url = COALESCE(excluded.icon_url, servers.icon_url)
   `);
 
+  const staging = new CrawlStaging<SmitheryServer>(db, 'smithery');
   try {
-    while (hasMore) {
-      if (now() >= deadline) {
-        degradation =
-          `Smithery sync exceeded its ${SMITHERY_SYNC_BUDGET_MS / 60_000}-minute budget ` +
-          `after ${totalUpserted} servers`;
-        process.stderr.write(
-          `[mcpfinder] ${degradation} — keeping partial local data\n`,
-        );
-        break;
+    let crawlCompleted = false;
+    crawlAttempts:
+    for (let crawlAttempt = 1; crawlAttempt <= MAX_SMITHERY_CRAWL_ATTEMPTS; crawlAttempt++) {
+      let page = 1;
+      let shortPagePending = false;
+      staging.reset();
+      const seenQualifiedNames = new Set<string>();
+
+      try {
+        while (true) {
+          if (now() >= deadline) {
+            degradation =
+              `Smithery sync exceeded its ${SMITHERY_SYNC_BUDGET_MS / 60_000}-minute budget ` +
+              `— discarded ${staging.size} staged servers; ` +
+              'existing last-known-good database unchanged';
+            process.stderr.write(`[mcpfinder] ${degradation}\n`);
+            break crawlAttempts;
+          }
+
+          const url = new URL(`${SMITHERY_BASE}/servers`);
+          url.searchParams.set('page', String(page));
+          url.searchParams.set('pageSize', String(PAGE_LIMIT));
+          url.searchParams.set('seed', String(SMITHERY_PAGINATION_SEED));
+
+          const { response: res, data, errorText } =
+            await fetchJsonPageWithRetry<SmitheryListResponse>(url.toString(), {
+              label: 'Smithery API', deadline, ...runtime,
+            });
+          if (!res.ok) {
+            throw new Error(
+              `Smithery API error: ${res.status} ${res.statusText} — ${errorText ?? ''}`,
+            );
+          }
+
+          validateSmitheryPage(data, page, PAGE_LIMIT);
+          if (shortPagePending && data.servers.length > 0) {
+            throw new Error(
+              `Smithery API: non-empty page ${page} followed a short page; ` +
+                'pagination is truncated or has a gap',
+            );
+          }
+
+          const pageQualifiedNames = new Set<string>();
+          for (const entry of data.servers) {
+            if (typeof entry.qualifiedName !== 'string' || entry.qualifiedName.length === 0) {
+              throw new Error('Smithery API: qualifiedName must be a non-empty string');
+            }
+            if (pageQualifiedNames.has(entry.qualifiedName)) {
+              throw new Error(`Smithery API: duplicate qualifiedName ${entry.qualifiedName}`);
+            }
+            if (seenQualifiedNames.has(entry.qualifiedName)) {
+              throw new SmitheryCrossPageDuplicateError(
+                `Smithery API: cross-page duplicate qualifiedName ${entry.qualifiedName}`,
+              );
+            }
+            pageQualifiedNames.add(entry.qualifiedName);
+          }
+          for (const qualifiedName of pageQualifiedNames) seenQualifiedNames.add(qualifiedName);
+
+          if (data.servers.length === 0) {
+            crawlCompleted = true;
+            break crawlAttempts;
+          }
+
+          staging.push(data.servers);
+          shortPagePending = data.servers.length < PAGE_LIMIT;
+          page++;
+          await delay(100, runtime);
+        }
+      } catch (err) {
+        if (
+          err instanceof SmitheryCrossPageDuplicateError &&
+          crawlAttempt < MAX_SMITHERY_CRAWL_ATTEMPTS
+        ) {
+          process.stderr.write(
+            `[mcpfinder] ${err.message} — restarting seeded crawl ` +
+              `(${crawlAttempt + 1}/${MAX_SMITHERY_CRAWL_ATTEMPTS})\n`,
+          );
+          await delay(250, runtime);
+          continue;
+        }
+        throw err;
       }
+    }
 
-      const url = new URL(`${SMITHERY_BASE}/servers`);
-      url.searchParams.set('page', String(page));
-      url.searchParams.set('pageSize', String(PAGE_LIMIT));
-
-      const { response: res, data, errorText } = await fetchJsonPageWithRetry<SmitheryListResponse>(
-        url.toString(),
-        { label: 'Smithery API', deadline, ...runtime },
+    if (!degradation && !crawlCompleted) {
+      throw new Error('Smithery API: crawl ended without a validated terminal page');
+    }
+    if (!degradation && crawlCompleted) {
+      assertBeforeDeadline(deadline, runtime, 'Smithery API');
+      const dedup = buildDedupIndex(db);
+      assertBeforeDeadline(deadline, runtime, 'Smithery API');
+      const existingIds = new Set(
+        (db.prepare('SELECT id FROM servers').all() as Array<{ id: string }>).map((row) => row.id),
       );
-      if (!res.ok) {
-        throw new Error(`Smithery API error: ${res.status} ${res.statusText} — ${errorText ?? ''}`);
-      }
-
-      validateSmitheryPage(data, page);
-      if (data.servers.length === 0) break;
-
-      const insertBatch = transaction(db, (entries: SmitheryServer[]) => {
+      const applyCompletedCrawl = transaction(db, (entries: Iterable<SmitheryServer>) => {
         for (const entry of entries) {
           const row = normalizeSmitheryEntry(entry);
-          // Fix 2: prefer Official's ai.smithery/* mirror when it exists.
-          // This single heuristic catches the largest slice of cross-registry
-          // matches that Smithery's sparse repo URL can't surface.
-          const existingId =
-            findOfficialFromSmitheryQualifiedName(db, entry.qualifiedName) ??
-            findExistingServer(
-              db,
-              row.repository_url,
-              row.package_identifier,
-              row.registry_type,
-              row.slug,
-              row.name,
-            );
+          // Prefer Official's ai.smithery/* mirror when it exists.
+          const stableIdMatch = existingIds.has(row.id);
+          const existingId = stableIdMatch
+            ? row.id
+            : dedup.findOfficialFromSmithery(entry.qualifiedName) ??
+              dedup.find(
+                row.repository_url,
+                row.package_identifier,
+                row.registry_type,
+                row.slug,
+                row.name,
+              );
           if (existingId) {
             mergeServerSources(db, existingId, 'smithery');
-            mergeServerData(db, existingId, row);
-            // Always update use_count, verified, icon_url from Smithery
-            db.prepare(`
-              UPDATE servers SET
-                use_count = MAX(use_count, ?),
-                verified = MAX(verified, ?),
-                icon_url = COALESCE(icon_url, ?)
-              WHERE id = ?
-            `).run(row.use_count, row.verified, row.icon_url, existingId);
+            const mergedRow = mergeServerData(
+              db,
+              existingId,
+              row,
+              { stableIdRefresh: stableIdMatch },
+            );
+            if (stableIdMatch) dedup.refreshStable(existingId, (mergedRow ?? row) as typeof row);
+            else dedup.merge(existingId, row);
           } else {
             upsert.run(row);
             mergeServerSources(db, row.id, 'smithery');
+            dedup.upsert(row);
+            existingIds.add(row.id);
           }
         }
+        assertBeforeDeadline(deadline, runtime, 'Smithery API');
       });
-
-      insertBatch(data.servers);
-      totalUpserted += data.servers.length;
-
-      hasMore = page < (data.pagination?.totalPages ?? 0);
-      page++;
-
-      if (hasMore) await delay(100, runtime);
+      applyCompletedCrawl(staging.read());
+      totalUpserted = staging.size;
     }
-
-    if (!degradation) assertBeforeDeadline(deadline, runtime, 'Smithery API');
     updateSyncLog(
       db,
       'smithery',
@@ -635,287 +743,11 @@ export async function syncSmitheryRegistry(
     const msg = err instanceof Error ? err.message : String(err);
     updateSyncLog(db, 'smithery', totalUpserted, 'error', msg);
     process.stderr.write(`[mcpfinder] Smithery sync error: ${msg}\n`);
+  } finally {
+    staging.close();
   }
 
   return totalUpserted;
-}
-
-// ─── Deduplication Helpers ──────────────────────────────────────────────────
-
-/**
- * Strip common MCP-ish prefixes/suffixes and non-alnum chars so that
- * `mcp-foo-server`, `foo-mcp`, `foo_server` and `Foo Server` all collapse
- * to the same token. Used to rescue monorepo matches when one side has no
- * package_identifier.
- */
-function canonicalNameToken(s: string): string {
-  if (!s) return '';
-  let t = s.toLowerCase().replace(/[^a-z0-9]+/g, '');
-  for (;;) {
-    const before = t;
-    t = t.replace(/^(mcp|server)+/, '').replace(/(mcp|server)+$/, '');
-    if (t === before) break;
-  }
-  return t;
-}
-
-/**
- * Find an existing server that should be considered "the same project" as the
- * candidate row. Tried keys, in decreasing reliability:
- *   1. Canonical repo key (`owner/repo` on github/gitlab/bitbucket/codeberg).
- *      When the repo hosts a monorepo (>1 existing row share it), we require a
- *      secondary signal — package_identifier, slug, or canonicalized name token —
- *      before merging. If the monorepo is ambiguous we skip, to avoid the bug
- *      where `waystation-ai/mcp` (12 distinct Official servers) would eat any
- *      incoming Glama/Smithery entry pointing at the same repo.
- *   2. `(package_identifier, registry_type)` — deterministic match when both
- *      sides ship the same package.
- *   3. Slug (only when unique) — weakest, but catches cases where neither URL
- *      nor package id exists.
- */
-function findExistingServer(
-  db: DatabaseSync,
-  repoUrl: string | null,
-  packageIdentifier: string | null,
-  registryType: string | null,
-  slug: string,
-  name?: string | null,
-): string | null {
-  // 1) Repo URL match with monorepo disambiguation
-  const repoKey = extractRepoKey(repoUrl);
-  if (repoKey) {
-    const tail = `/${repoKey}`;
-    const candidates = db
-      .prepare(
-        `SELECT id, slug, name, package_identifier
-         FROM servers
-         WHERE LOWER(repository_url) LIKE ? OR LOWER(repository_url) LIKE ?`,
-      )
-      .all(`%${tail}`, `%${tail}.git`) as Array<{
-      id: string;
-      slug: string;
-      name: string;
-      package_identifier: string | null;
-    }>;
-
-    if (candidates.length === 1) return candidates[0].id;
-
-    if (candidates.length > 1) {
-      // Monorepo: need a secondary match inside the group
-      if (packageIdentifier) {
-        const hit = candidates.find(
-          (c) =>
-            c.package_identifier &&
-            c.package_identifier.toLowerCase() === packageIdentifier.toLowerCase(),
-        );
-        if (hit) return hit.id;
-      }
-      if (slug) {
-        const hit = candidates.find((c) => c.slug === slug);
-        if (hit) return hit.id;
-      }
-      if (name) {
-        const token = canonicalNameToken(name);
-        if (token) {
-          const hit = candidates.find((c) => {
-            const ct = canonicalNameToken(c.name);
-            return ct && (ct === token || ct.endsWith(token) || token.endsWith(ct));
-          });
-          if (hit) return hit.id;
-        }
-      }
-      // Ambiguous — don't merge, safer to keep as a new row
-      return null;
-    }
-  }
-
-  // 2) Package identifier (+ registry type)
-  if (packageIdentifier) {
-    const row = db
-      .prepare(
-        `SELECT id FROM servers
-         WHERE LOWER(package_identifier) = LOWER(?)
-           AND (? IS NULL OR registry_type IS NULL OR registry_type = ?)
-         LIMIT 1`,
-      )
-      .get(packageIdentifier, registryType, registryType) as { id: string } | undefined;
-    if (row) return row.id;
-  }
-
-  // 3) Slug — require uniqueness within the DB to avoid tying unrelated servers
-  if (slug) {
-    const rows = db
-      .prepare('SELECT id FROM servers WHERE slug = ? AND source != ? LIMIT 2')
-      .all(slug, 'unknown') as Array<{ id: string }>;
-    if (rows.length === 1) return rows[0].id;
-  }
-
-  return null;
-}
-
-/**
- * Smithery-specific heuristic: the Official registry re-publishes many Smithery
- * servers under `ai.smithery/<qualifiedName with / → ->`. If we see Smithery
- * `owner/name`, try that exact Official id first — it is by far the most common
- * cross-registry link and no other signal in Smithery carries it.
- */
-function findOfficialFromSmitheryQualifiedName(
-  db: DatabaseSync,
-  qualifiedName: string | null | undefined,
-): string | null {
-  if (!qualifiedName) return null;
-  const tail = qualifiedName.toLowerCase().replace(/\//g, '-').replace(/[^a-z0-9-]/g, '');
-  if (!tail) return null;
-  const row = db
-    .prepare(
-      `SELECT id FROM servers
-       WHERE LOWER(name) = ? AND source = 'official'
-       LIMIT 1`,
-    )
-    .get(`ai.smithery/${tail}`) as { id: string } | undefined;
-  return row?.id ?? null;
-}
-
-/**
- * Merge a source into a server's sources list.
- */
-function mergeServerSources(db: DatabaseSync, serverId: string, newSource: string): void {
-  const row = db.prepare('SELECT sources FROM servers WHERE id = ?').get(serverId) as
-    | { sources: string }
-    | undefined;
-  if (!row) return;
-
-  let existing: string[];
-  try {
-    existing = JSON.parse(row.sources || '[]');
-  } catch {
-    existing = [];
-  }
-
-  const merged = mergeSources(existing, newSource);
-  db.prepare('UPDATE servers SET sources = ? WHERE id = ?').run(JSON.stringify(merged), serverId);
-}
-
-/**
- * Merge richer data from a new source into an existing server.
- * Only updates fields that are currently empty/null with non-empty values.
- */
-function mergeServerData(
-  db: DatabaseSync,
-  existingId: string,
-  newRow: Record<string, unknown>,
-): void {
-  const existing = db.prepare('SELECT * FROM servers WHERE id = ?').get(existingId) as Record<string, unknown> | undefined;
-  if (!existing) return;
-
-  const updates: string[] = [];
-  const values: unknown[] = [];
-
-  // Merge description (prefer longer)
-  if (
-    typeof newRow.description === 'string' &&
-    newRow.description.length > ((existing.description as string) || '').length
-  ) {
-    updates.push('description = ?');
-    values.push(newRow.description);
-  }
-
-  // Merge nullable text fields
-  const textFields = ['repository_url', 'remote_url', 'icon_url', 'transport_type', 'registry_type', 'package_identifier'];
-  for (const f of textFields) {
-    if (newRow[f] && !existing[f]) {
-      updates.push(`${f} = ?`);
-      values.push(newRow[f]);
-    }
-  }
-
-  // Prefer newer updated/published dates when available
-  if (typeof newRow.updated_at === 'string' && (!existing.updated_at || String(newRow.updated_at) > String(existing.updated_at))) {
-    updates.push('updated_at = ?');
-    values.push(newRow.updated_at);
-  }
-  if (typeof newRow.published_at === 'string' && !existing.published_at) {
-    updates.push('published_at = ?');
-    values.push(newRow.published_at);
-  }
-
-  // Merge env vars arrays rather than keeping only one source.
-  if (typeof newRow.env_vars === 'string') {
-    const mergedEnvVars = mergeJsonArrayStrings(existing.env_vars, newRow.env_vars, 'name');
-    if (mergedEnvVars) {
-      updates.push('env_vars = ?');
-      values.push(mergedEnvVars);
-    }
-  }
-
-  // Preserve source-specific raw payloads so search/details can extract tools later.
-  const mergedRawData = mergeRawData(existing.raw_data, newRow.raw_data, String(newRow.source || 'unknown'));
-  if (mergedRawData) {
-    updates.push('raw_data = ?');
-    values.push(mergedRawData);
-  }
-
-  if (updates.length > 0) {
-    values.push(existingId);
-    db.prepare(`UPDATE servers SET ${updates.join(', ')} WHERE id = ?`).run(...(values as SqlParam[]));
-  }
-}
-
-function mergeJsonArrayStrings(
-  existingJson: unknown,
-  incomingJson: unknown,
-  key: string,
-): string | null {
-  try {
-    const existing = Array.isArray(JSON.parse(String(existingJson || '[]')))
-      ? JSON.parse(String(existingJson || '[]')) as Array<Record<string, unknown>>
-      : [];
-    const incoming = Array.isArray(JSON.parse(String(incomingJson || '[]')))
-      ? JSON.parse(String(incomingJson || '[]')) as Array<Record<string, unknown>>
-      : [];
-
-    const merged = new Map<string, Record<string, unknown>>();
-    for (const item of [...existing, ...incoming]) {
-      const itemKey = typeof item?.[key] === 'string' ? String(item[key]) : JSON.stringify(item);
-      const prev = merged.get(itemKey) || {};
-      merged.set(itemKey, { ...prev, ...item });
-    }
-    return JSON.stringify([...merged.values()]);
-  } catch {
-    return null;
-  }
-}
-
-function mergeRawData(existingRaw: unknown, incomingRaw: unknown, incomingSource: string): string | null {
-  try {
-    const existingParsed = existingRaw ? JSON.parse(String(existingRaw)) : null;
-    const incomingParsed = incomingRaw ? JSON.parse(String(incomingRaw)) : null;
-    const existingEnvelope: { primary: unknown; bySource: Record<string, unknown> } = isRawEnvelope(existingParsed)
-      ? existingParsed
-      : {
-          primary: existingParsed,
-          bySource: {} as Record<string, unknown>,
-        };
-
-    if (incomingParsed) {
-      existingEnvelope.bySource[incomingSource] = incomingParsed;
-      if (!existingEnvelope.primary) existingEnvelope.primary = incomingParsed;
-    }
-
-    return JSON.stringify(existingEnvelope);
-  } catch {
-    return null;
-  }
-}
-
-function isRawEnvelope(value: unknown): value is { primary: unknown; bySource: Record<string, unknown> } {
-  return Boolean(
-    value &&
-      typeof value === 'object' &&
-      'bySource' in value &&
-      value.bySource &&
-      typeof (value as { bySource: unknown }).bySource === 'object',
-  );
 }
 
 // ─── Utility Functions ──────────────────────────────────────────────────────

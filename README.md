@@ -153,6 +153,10 @@ Counts vary over time and differ depending on whether you count raw upstream rec
 ## Snapshots and Freshness
 
 First run can bootstrap from a prebuilt SQLite snapshot instead of doing a slow live sync.
+Normal startup therefore does not wait for all live registry budgets. The
+sequential Official → Glama → Smithery cold crawl is a fallback for an empty DB
+only when snapshot bootstrap is disabled or fails, preserving deterministic
+cross-registry deduplication.
 
 - snapshot manifest: `/api/v1/snapshot/manifest.json`
 - snapshot database: use `manifest.url` (`data.sqlite.gz?sha=<sha256>`) as the content-addressed primary endpoint
@@ -201,6 +205,57 @@ For an intentional corpus reset, manually dispatch the snapshot workflow with
 `--allow-quality-regression` (equivalently
 `MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE=1`). The override permits count drops but
 never permits an errored or incomplete required source.
+
+### Glama is a best-effort source
+
+Official MCP Registry and Smithery are *required* sources: an errored, missing,
+or degraded sync blocks snapshot publication. **Glama is best-effort.** On
+2026-08-26 Glama closed its public API — `GET /api/mcp/v1/servers` now answers
+`401 unauthorized` without a key — after a week in which required-source
+handling of Glama had already blocked every scheduled build (issue #8). A Glama
+failure, skip, or budget overrun now produces a warning
+(`[build-snapshot] quality warning: best-effort source glama is ...`) and the
+snapshot publishes from Official + Smithery alone. `counts.glama` stays in
+`manifest.json` — `0` when Glama is absent — so the gap remains visible to
+monitoring.
+
+A missing Glama legitimately shrinks the corpus, and the baseline cannot be
+corrected for it: `serverCount` in `manifest.json` is a *deduplicated* row count
+while `counts.<source>` are *raw* per-registry record counts that overlap across
+registries (they sum to more than `serverCount`). Subtracting one from the other
+compares incomparable units. So when any best-effort source is unhealthy —
+errored, skipped, or degraded — the aggregate `serverCount` regression check is
+**skipped entirely**, with a warning naming the source:
+
+```
+[build-snapshot] quality warning: serverCount regression check skipped:
+best-effort source glama is unavailable and its contribution to the
+deduplicated baseline cannot be isolated
+```
+
+The per-source regression checks for the *required* sources still run (raw
+against raw), so an Official or Smithery collapse fails the gate even in this
+degraded mode. When every best-effort source is healthy the aggregate check runs
+normally against the undoctored previous `serverCount`, and a drop beyond the 5%
+threshold blocks publication regardless of which source caused it — a real
+corpus collapse must stop the build. A per-source shrink of a best-effort
+registry only ever warns. All of this is automatic; the manual
+`MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE` escape hatch remains the only way to
+publish through a deliberate aggregate reset.
+
+Set `GLAMA_API_KEY` (create one at <https://glama.ai/settings/api-keys>) to sync
+Glama again. It is sent as `Authorization: Bearer <key>` and is never logged,
+stored in `raw_data`, or written to the manifest. Without it the sync is skipped
+before any request, recording `status=skipped` in `sync_log` with
+`Glama API requires GLAMA_API_KEY; skipping Glama sync`. A rejected key (401/403)
+is reported as a credential error and is never retried — it is not a transient
+failure. In CI the key comes from the optional repo secret `GLAMA_API_KEY`; an
+unset secret simply takes the skip path.
+
+> **Licensing:** Glama's API Data License requires *visible attribution to
+> Glama on every page that displays this data*
+> (<https://glama.ai/policies/terms-of-service>). Any surface rendering
+> Glama-sourced servers must carry that attribution.
 
 Glama keeps a 12-minute sync budget for normal local stdio use. The scheduled
 snapshot job sets `MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES=30` because a full Glama

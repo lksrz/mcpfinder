@@ -4,18 +4,28 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   baselineManifestErrors,
+  currentSnapshotErrors,
   evaluateCurrentSnapshotQuality,
   evaluateSnapshotQuality,
   fetchPreviousManifest,
 } from './snapshot-quality.mjs';
+import { runSnapshotDedupChecks } from './snapshot-dedup-checks.mjs';
+import { runSnapshotDbMigrationChecks } from './snapshot-db-migration-checks.mjs';
+import { runSnapshotGlamaCrawlChecks } from './snapshot-glama-crawl-checks.mjs';
+import { runSnapshotEnrichChecks } from './snapshot-enrich-checks.mjs';
+import { runSnapshotMergeChecks } from './snapshot-merge-checks.mjs';
+import { runSnapshotSmitheryPaginationChecks } from './snapshot-smithery-pagination-checks.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'mcpf-snapshot-quality-'));
 const originalGlamaBudget = process.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES;
+// Glama requires an API key since 2026-08-26; without one every sync short-
+// circuits before the first request. Give the crawl tests a stub credential.
+const originalGlamaKey = process.env.GLAMA_API_KEY;
+process.env.GLAMA_API_KEY = 'test-glama-key';
 const glamaEmpty = { servers: [], pageInfo: { hasNextPage: false, endCursor: null } };
-const smitheryEmpty = {
-  servers: [],
-  pagination: { currentPage: 1, pageSize: 100, totalPages: 1, totalCount: 0 },
-};
+const smitheryEmpty = { servers: [], pagination: {
+  currentPage: 1, pageSize: 100, totalPages: 0, totalCount: 0,
+} };
 
 function runtime(fetchImpl, now = () => 0) {
   return { fetchImpl, now, sleep: async () => {} };
@@ -27,18 +37,27 @@ function syncLog(db, source) {
     .get(source);
 }
 
+// `serverCount` is a deduplicated row count; `counts.X` are raw per-registry
+// record counts that overlap across registries. They deliberately sum to more
+// than `serverCount` here, as the published manifest's do.
 function healthyManifest(overrides = {}) {
   return {
     serverCount: 100,
-    counts: { official: 60, glama: 40, smithery: 20 },
+    counts: { official: 60, glama: 50, smithery: 20 },
     ...overrides,
   };
 }
 
 try {
-  const { initDatabase, syncGlamaRegistry, syncSmitheryRegistry } = await import(
-    '../packages/core/dist/index.js'
-  );
+  const {
+    getLastSuccessfulSyncTimestamp,
+    initDatabase,
+    isSyncNeeded,
+    syncOfficialRegistry,
+    syncGlamaRegistry,
+    syncSmitheryRegistry,
+    updateSyncLog,
+  } = await import('../packages/core/dist/index.js');
   const { fetchJsonPageWithRetry, fetchWithRetry, RegistryTransportError } = await import(
     '../packages/core/dist/registry-fetch.js'
   );
@@ -61,6 +80,352 @@ try {
       /giving up after 4 attempts.*network unavailable/.test(error.message),
   );
   assert.equal(persistentNetworkCalls, 4);
+  await runSnapshotDedupChecks();
+  await runSnapshotDbMigrationChecks(dir);
+  await runSnapshotEnrichChecks(dir);
+
+  const officialEntry = (name, repo = null, description = '') => ({
+    server: {
+      name,
+      version: '1.0.0',
+      description,
+      ...(repo
+        ? { repository: { url: repo, source: repo.includes('gitlab.com') ? 'gitlab' : 'github' } }
+        : {}),
+    },
+  });
+  const glamaEntry = (id, repo, overrides = {}) => ({
+    id,
+    name: id,
+    namespace: '',
+    slug: id,
+    description: '',
+    repository: repo ? { url: repo } : null,
+    spdxLicense: null,
+    tools: [],
+    url: null,
+    environmentVariablesJsonSchema: null,
+    attributes: {},
+    ...overrides,
+  });
+  const smitheryEntry = (qualifiedName, homepage, overrides = {}) => ({
+    qualifiedName,
+    displayName: qualifiedName,
+    description: '',
+    useCount: 0,
+    verified: false,
+    remote: false,
+    isDeployed: false,
+    iconUrl: null,
+    homepage,
+    createdAt: '2026-01-01T00:00:00Z',
+    ...overrides,
+  });
+
+  // Every registry follows all pagination metadata before recording healthy.
+  const paginationDb = initDatabase(join(dir, 'pagination.sqlite'));
+  let officialPage = 0;
+  assert.equal(
+    await syncOfficialRegistry(
+      paginationDb,
+      runtime(async () => {
+        officialPage++;
+        return Response.json({
+          servers: [officialEntry(`official/${officialPage}`)],
+          metadata: { nextCursor: officialPage === 1 ? 'official-next' : null, count: 1 },
+        });
+      }),
+    ),
+    2,
+  );
+  let glamaPage = 0;
+  assert.equal(
+    await syncGlamaRegistry(
+      paginationDb,
+      runtime(async () => {
+        glamaPage++;
+        return Response.json({
+          servers: [glamaEntry(`glama-${glamaPage}`, null)],
+          pageInfo: { hasNextPage: glamaPage === 1, endCursor: glamaPage === 1 ? 'glama-next' : null },
+        });
+      }),
+    ),
+    2,
+  );
+  let smitheryPage = 0;
+  assert.equal(
+    await syncSmitheryRegistry(
+      paginationDb,
+      runtime(async (requestUrl) => {
+        smitheryPage++;
+        const parsedUrl = new URL(requestUrl);
+        assert.equal(parsedUrl.searchParams.get('seed'), '20260820');
+        assert.equal(parsedUrl.searchParams.get('page'), String(smitheryPage));
+        const servers = smitheryPage === 1
+          ? Array.from({ length: 100 }, (_, index) =>
+              smitheryEntry(`smithery/item-${index}`, null))
+          : smitheryPage === 2 ? [smitheryEntry('smithery/item-100', null)] : [];
+        return Response.json({
+          servers,
+          pagination: { currentPage: smitheryPage, pageSize: 100, totalPages: 2, totalCount: 101 },
+        });
+      }),
+    ),
+    101,
+  );
+  assert.deepEqual([officialPage, glamaPage, smitheryPage], [2, 2, 3]);
+  assert.equal(paginationDb.prepare('SELECT COUNT(*) AS count FROM servers').get().count, 105);
+  assert.deepEqual(
+    paginationDb
+      .prepare('SELECT source, COUNT(*) AS count FROM servers GROUP BY source ORDER BY source')
+      .all()
+      .map((row) => ({ ...row })),
+    [
+      { source: 'glama', count: 2 },
+      { source: 'official', count: 2 },
+      { source: 'smithery', count: 101 },
+    ],
+  );
+  for (const source of ['official', 'glama', 'smithery']) {
+    assert.equal(syncLog(paginationDb, source).status, 'ok');
+  }
+  paginationDb.close();
+
+  const officialVariableCountDb = initDatabase(join(dir, 'official-variable-page-count.sqlite'));
+  let officialVariableCountCalls = 0;
+  assert.equal(
+    await syncOfficialRegistry(
+      officialVariableCountDb,
+      runtime(async () => {
+        officialVariableCountCalls++;
+        return officialVariableCountCalls === 1
+          ? Response.json({
+              servers: [officialEntry('official/variable-count')],
+              metadata: { nextCursor: 'empty-terminal', count: 1 },
+            })
+          : Response.json({
+              servers: [],
+              metadata: { nextCursor: null, count: 0 },
+            });
+      }),
+    ),
+    1,
+  );
+  assert.equal(officialVariableCountCalls, 2);
+  assert.equal(syncLog(officialVariableCountDb, 'official').status, 'ok');
+  officialVariableCountDb.close();
+
+  // Official nextCursor is `omitempty`; an exact-full page without it is a
+  // legal terminal response, not evidence of truncation.
+  const officialFullTerminalDb = initDatabase(join(dir, 'official-full-terminal.sqlite'));
+  let officialFullTerminalCalls = 0;
+  assert.equal(
+    await syncOfficialRegistry(
+      officialFullTerminalDb,
+      runtime(async () => {
+        officialFullTerminalCalls++;
+        return Response.json({
+          servers: Array.from({ length: 100 }, (_, index) =>
+            officialEntry(`official/full-terminal-${index}`)),
+          metadata: { count: 100 },
+        });
+      }),
+    ),
+    100,
+  );
+  assert.equal(officialFullTerminalCalls, 1);
+  assert.equal(syncLog(officialFullTerminalDb, 'official').status, 'ok');
+  officialFullTerminalDb.close();
+
+  const officialRepeatDb = initDatabase(join(dir, 'official-repeated-cursor.sqlite'));
+  let officialRepeatCalls = 0;
+  await assert.rejects(
+    () =>
+      syncOfficialRegistry(
+        officialRepeatDb,
+        runtime(async () => {
+          officialRepeatCalls++;
+          return Response.json({
+            servers: [],
+            metadata: { nextCursor: 'stuck', count: 0 },
+          });
+        }),
+      ),
+    /repeated metadata\.nextCursor/,
+  );
+  assert.equal(officialRepeatCalls, 2);
+  assert.equal(syncLog(officialRepeatDb, 'official').status, 'error');
+  officialRepeatDb.close();
+
+  const officialCountDb = initDatabase(join(dir, 'official-count-mismatch.sqlite'));
+  await assert.rejects(
+    () =>
+      syncOfficialRegistry(
+        officialCountDb,
+        runtime(async () => Response.json({
+          servers: [officialEntry('official/only-one')],
+          metadata: { nextCursor: null, count: 2 },
+        })),
+      ),
+    /metadata\.count 2 does not match 1 servers on this page/,
+  );
+  assert.equal(syncLog(officialCountDb, 'official').status, 'error');
+  officialCountDb.close();
+
+  for (const [name, payload, message] of [
+    ['missing-metadata', { servers: [] }, /metadata must be an object/],
+    ['missing-count', { servers: [], metadata: {} }, /metadata\.count/],
+  ]) {
+    const db = initDatabase(join(dir, `official-${name}.sqlite`));
+    await assert.rejects(
+      () => syncOfficialRegistry(db, runtime(async () => Response.json(payload))),
+      message,
+    );
+    assert.equal(syncLog(db, 'official').status, 'error');
+    db.close();
+  }
+
+  const officialOverwriteDb = initDatabase(join(dir, 'official-overwrite-health.sqlite'));
+  await syncOfficialRegistry(
+    officialOverwriteDb,
+    runtime(async () => Response.json({
+      servers: [officialEntry('official/healthy')],
+      metadata: { count: 1 },
+    })),
+  );
+  assert.equal(syncLog(officialOverwriteDb, 'official').status, 'ok');
+  const healthyBeforeFailure = officialOverwriteDb
+    .prepare("SELECT description, raw_data, sources FROM servers WHERE id = 'official/healthy'")
+    .get();
+  let overwriteCalls = 0;
+  await assert.rejects(
+    () =>
+      syncOfficialRegistry(
+        officialOverwriteDb,
+        runtime(async () => {
+          overwriteCalls++;
+          return overwriteCalls === 1
+            ? Response.json({
+                servers: [
+                  officialEntry('official/healthy', null, 'must roll back'),
+                  officialEntry('official/partial'),
+                ],
+                metadata: { count: 2, nextCursor: 'next' },
+              })
+            : Response.json({ servers: [] });
+        }),
+      ),
+    /metadata must be an object/,
+  );
+  assert.equal(syncLog(officialOverwriteDb, 'official').status, 'error');
+  assert.equal(syncLog(officialOverwriteDb, 'official').server_count, 0);
+  assert.equal(
+    officialOverwriteDb.prepare(
+      "SELECT COUNT(*) AS count FROM servers WHERE id = 'official/partial'",
+    ).get().count,
+    0,
+  );
+  assert.deepEqual(
+    officialOverwriteDb
+      .prepare("SELECT description, raw_data, sources FROM servers WHERE id = 'official/healthy'")
+      .get(),
+    healthyBeforeFailure,
+  );
+  officialOverwriteDb.close();
+
+  const officialApplyDeadlineDb = initDatabase(join(dir, 'official-apply-deadline.sqlite'));
+  await syncOfficialRegistry(
+    officialApplyDeadlineDb,
+    runtime(async () => Response.json({
+      servers: [officialEntry('official/lkg', null, 'unchanged')],
+      metadata: { count: 1 },
+    })),
+  );
+  const officialLkg = officialApplyDeadlineDb
+    .prepare("SELECT description, raw_data, sources FROM servers WHERE id = 'official/lkg'")
+    .get();
+  let officialApplyClock = 0;
+  const lateOfficialEntry = officialEntry('official/new-during-late-apply');
+  Object.defineProperty(lateOfficialEntry.server, 'description', {
+    enumerable: true,
+    get() { officialApplyClock = 8 * 60_000; return 'late apply'; },
+  });
+  await assert.rejects(
+    () => syncOfficialRegistry(officialApplyDeadlineDb, {
+      now: () => officialApplyClock,
+      sleep: async () => {},
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: async () => ({ servers: [lateOfficialEntry], metadata: { count: 1 } }),
+      }),
+    }),
+    /deadline exceeded/,
+  );
+  assert.equal(syncLog(officialApplyDeadlineDb, 'official').status, 'error');
+  assert.equal(syncLog(officialApplyDeadlineDb, 'official').server_count, 0);
+  assert.equal(
+    officialApplyDeadlineDb.prepare(
+      "SELECT COUNT(*) AS count FROM servers WHERE id = 'official/new-during-late-apply'",
+    ).get().count,
+    0,
+  );
+  assert.deepEqual(
+    officialApplyDeadlineDb
+      .prepare("SELECT description, raw_data, sources FROM servers WHERE id = 'official/lkg'")
+      .get(),
+    officialLkg,
+  );
+  officialApplyDeadlineDb.close();
+
+  const attemptThrottleDb = initDatabase(join(dir, 'official-attempt-throttle.sqlite'));
+  updateSyncLog(attemptThrottleDb, 'official', 0, 'error', 'temporary upstream failure');
+  assert.equal(isSyncNeeded(attemptThrottleDb), false, 'recent failed attempt must be throttled');
+  assert.equal(getLastSuccessfulSyncTimestamp(attemptThrottleDb, 'official'), null);
+  let incrementalCalls = 0;
+  await syncOfficialRegistry(
+    attemptThrottleDb,
+    runtime(async (requestUrl) => {
+      incrementalCalls++;
+      assert.equal(new URL(requestUrl).searchParams.get('updated_since'), null);
+      return Response.json({ servers: [], metadata: { count: 0 } });
+    }),
+  );
+  await syncOfficialRegistry(
+    attemptThrottleDb,
+    runtime(async (requestUrl) => {
+      incrementalCalls++;
+      assert.ok(new URL(requestUrl).searchParams.get('updated_since'));
+      return Response.json({ servers: [], metadata: { count: 0 } });
+    }),
+  );
+  updateSyncLog(attemptThrottleDb, 'official', 0, 'error', 'failure after a success');
+  assert.equal(isSyncNeeded(attemptThrottleDb), false);
+  assert.equal(getLastSuccessfulSyncTimestamp(attemptThrottleDb, 'official'), null);
+  const failedAfterSuccess = attemptThrottleDb
+    .prepare("SELECT status, last_successful_at FROM sync_log WHERE source = 'official'")
+    .get();
+  assert.equal(failedAfterSuccess.status, 'error');
+  assert.ok(failedAfterSuccess.last_successful_at, 'historical success timestamp must be retained');
+  await syncOfficialRegistry(
+    attemptThrottleDb,
+    runtime(async (requestUrl) => {
+      incrementalCalls++;
+      assert.equal(
+        new URL(requestUrl).searchParams.get('updated_since'),
+        null,
+        'a failed latest attempt must force a full Official sync',
+      );
+      return Response.json({ servers: [], metadata: { count: 0 } });
+    }),
+  );
+  assert.equal(incrementalCalls, 3);
+  attemptThrottleDb.close();
+
+  await runSnapshotSmitheryPaginationChecks(dir);
+
+  await runSnapshotMergeChecks(dir);
 
   // Glama retries a malformed page before any insert and can recover healthy.
   const recoveredDb = initDatabase(join(dir, 'glama-recovered.sqlite'));
@@ -140,6 +505,21 @@ try {
   assert.equal(syncLog(repeatedCursorDb, 'glama').status, 'error');
   assert.match(syncLog(repeatedCursorDb, 'glama').error, /repeated pageInfo\.endCursor/);
   repeatedCursorDb.close();
+
+  const missingGlamaIdDb = initDatabase(join(dir, 'glama-missing-server-id.sqlite'));
+  await syncGlamaRegistry(
+    missingGlamaIdDb,
+    runtime(async () => Response.json({
+      servers: [{ ...glamaEntry('omitted', null), id: undefined }],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    })),
+  );
+  assert.equal(syncLog(missingGlamaIdDb, 'glama').status, 'error');
+  assert.match(syncLog(missingGlamaIdDb, 'glama').error, /server id must be a non-empty string/);
+  assert.equal(missingGlamaIdDb.prepare('SELECT COUNT(*) AS count FROM servers').get().count, 0);
+  missingGlamaIdDb.close();
+
+  await runSnapshotGlamaCrawlChecks(dir);
 
   // Smithery has the same malformed-page recovery and persistent failure.
   const smitheryRecoveredDb = initDatabase(join(dir, 'smithery-recovered.sqlite'));
@@ -395,7 +775,7 @@ try {
   const totalRegression = evaluateSnapshotQuality({
     syncLog: healthyLog,
     requiredSources: ['official', 'glama'],
-    current: { serverCount: 94, counts: { official: 60, glama: 40 } },
+    current: { serverCount: 94, counts: { official: 60, glama: 50 } },
     previous: healthyManifest(),
   });
   assert.equal(totalRegression.ok, false);
@@ -442,6 +822,187 @@ try {
     assert.equal(result.ok, false, 'override must not bypass errored/missing source health');
   }
 
+  // ── Glama as a best-effort source (issue #8) ─────────────────────────────
+  // Its failure must warn, never block, while Official still gates the build.
+  const glamaDownLog = [
+    { source: 'official', status: 'ok', error: null },
+    { source: 'glama', status: 'error', error: 'Glama API rejected GLAMA_API_KEY: HTTP 401' },
+  ];
+  const bestEffortRequired = ['official'];
+  const bestEffortOptional = ['glama'];
+
+  const glamaErrored = evaluateSnapshotQuality({
+    syncLog: glamaDownLog,
+    requiredSources: bestEffortRequired,
+    optionalSources: bestEffortOptional,
+    current: { serverCount: 60, counts: { official: 60, glama: 0 } },
+    previous: healthyManifest(),
+  });
+  assert.equal(glamaErrored.ok, true, 'a failed best-effort source must not block publication');
+  assert.equal(glamaErrored.errors.length, 0);
+  assert.match(glamaErrored.warnings.join('\n'), /best-effort source glama is error/);
+  assert.match(glamaErrored.warnings.join('\n'), /HTTP 401/);
+  // The aggregate check is skipped, not recomputed against a doctored baseline:
+  // 60 deduplicated servers against a baseline of 100 would otherwise read as a
+  // 40% collapse even though only the best-effort source went away.
+  assert.match(
+    glamaErrored.warnings.join('\n'),
+    /serverCount regression check skipped: best-effort source glama is unavailable/,
+  );
+  assert.doesNotMatch(glamaErrored.warnings.join('\n'), /discounting/);
+
+  // Raw per-source counts may exceed the deduplicated serverCount (Glama's real
+  // corpus is ~78k records inside a ~103k-server snapshot). Discounting used to
+  // zero the baseline here and silently disable the aggregate gate entirely.
+  const overlappingCounts = evaluateSnapshotQuality({
+    syncLog: glamaDownLog,
+    requiredSources: bestEffortRequired,
+    optionalSources: bestEffortOptional,
+    current: { serverCount: 60, counts: { official: 60, glama: 0 } },
+    previous: healthyManifest({ serverCount: 100, counts: { official: 60, glama: 130 } }),
+  });
+  assert.equal(overlappingCounts.ok, true);
+  assert.match(
+    overlappingCounts.warnings.join('\n'),
+    /serverCount regression check skipped: best-effort source glama is unavailable/,
+  );
+
+  // A skipped Glama (no GLAMA_API_KEY) behaves the same way.
+  const glamaSkipped = evaluateSnapshotQuality({
+    syncLog: [
+      { source: 'official', status: 'ok', error: null },
+      { source: 'glama', status: 'skipped', error: 'Glama API requires GLAMA_API_KEY; skipping' },
+    ],
+    requiredSources: bestEffortRequired,
+    optionalSources: bestEffortOptional,
+    current: { serverCount: 60, counts: { official: 60, glama: 0 } },
+    previous: healthyManifest(),
+  });
+  assert.equal(glamaSkipped.ok, true);
+  assert.match(glamaSkipped.warnings.join('\n'), /best-effort source glama is skipped/);
+
+  // counts.glama = 0 passes both gates now that glama is not required.
+  assert.deepEqual(currentSnapshotErrors(
+    { serverCount: 60, counts: { official: 60, glama: 0 } },
+    bestEffortRequired,
+  ), []);
+  const zeroGlamaCurrent = evaluateCurrentSnapshotQuality({
+    syncLog: glamaDownLog,
+    requiredSources: bestEffortRequired,
+    optionalSources: bestEffortOptional,
+    current: { serverCount: 60, counts: { official: 60, glama: 0 } },
+  });
+  assert.equal(zeroGlamaCurrent.ok, true);
+  assert.match(zeroGlamaCurrent.warnings.join('\n'), /best-effort source glama is error/);
+
+  // A previous manifest with a healthy counts.glama is still a valid baseline.
+  assert.deepEqual(baselineManifestErrors(healthyManifest(), bestEffortRequired), []);
+
+  // Official failing still blocks, even with glama demoted.
+  const officialDown = evaluateSnapshotQuality({
+    syncLog: [
+      { source: 'official', status: 'error', error: 'upstream failed' },
+      { source: 'glama', status: 'ok', error: null },
+    ],
+    requiredSources: bestEffortRequired,
+    optionalSources: bestEffortOptional,
+    current: { serverCount: 100, counts: { official: 60, glama: 40 } },
+    previous: healthyManifest(),
+  });
+  assert.equal(officialDown.ok, false);
+  assert.match(officialDown.errors.join('\n'), /required source official is error/);
+
+  // Degraded mode is not a hole: the required per-source checks compare raw
+  // against raw, so an Official collapse behind an absent Glama still fails.
+  const officialCollapse = evaluateSnapshotQuality({
+    syncLog: glamaDownLog,
+    requiredSources: bestEffortRequired,
+    optionalSources: bestEffortOptional,
+    current: { serverCount: 20, counts: { official: 20, glama: 0 } },
+    previous: healthyManifest(),
+  });
+  assert.equal(officialCollapse.ok, false);
+  assert.match(officialCollapse.errors.join('\n'), /counts\.official dropped from 60 to 20/);
+  assert.doesNotMatch(officialCollapse.errors.join('\n'), /serverCount dropped/);
+
+  // With every best-effort source healthy the aggregate gate is live again, and
+  // a real corpus collapse blocks publication whichever source caused it. The
+  // manual MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE remains the intentional escape.
+  const healthyGlamaCollapse = evaluateSnapshotQuality({
+    syncLog: healthyLog,
+    requiredSources: bestEffortRequired,
+    optionalSources: bestEffortOptional,
+    current: { serverCount: 55, counts: { official: 60, glama: 5 } },
+    previous: healthyManifest(),
+  });
+  assert.equal(healthyGlamaCollapse.ok, false);
+  assert.match(healthyGlamaCollapse.errors.join('\n'), /serverCount dropped from 100 to 55/);
+  assert.match(healthyGlamaCollapse.warnings.join('\n'), /best-effort counts\.glama dropped/);
+
+  // A healthy but shrinking best-effort source warns instead of failing while
+  // the deduplicated total holds steady.
+  const glamaShrank = evaluateSnapshotQuality({
+    syncLog: healthyLog,
+    requiredSources: bestEffortRequired,
+    optionalSources: bestEffortOptional,
+    current: { serverCount: 97, counts: { official: 60, glama: 37 } },
+    previous: healthyManifest(),
+  });
+  assert.equal(glamaShrank.ok, true);
+  assert.equal(glamaShrank.errors.length, 0);
+  assert.match(glamaShrank.warnings.join('\n'), /best-effort counts\.glama dropped/);
+
+  // ── GLAMA_API_KEY plumbing ───────────────────────────────────────────────
+  const savedKey = process.env.GLAMA_API_KEY;
+  process.env.GLAMA_API_KEY = 'secret-glama-key';
+  const authDb = initDatabase(join(dir, 'glama-auth-header.sqlite'));
+  let seenAuthorization = null;
+  await syncGlamaRegistry(authDb, runtime(async (_url, init) => {
+    seenAuthorization = new Headers(init.headers).get('authorization');
+    return Response.json(glamaEmpty);
+  }));
+  assert.equal(seenAuthorization, 'Bearer secret-glama-key');
+  assert.equal(syncLog(authDb, 'glama').status, 'ok');
+  authDb.close();
+
+  // A rejected key is a credential problem, not weather: one request only, and
+  // the failure message must not echo the key or any request header.
+  const rejectedDb = initDatabase(join(dir, 'glama-rejected-key.sqlite'));
+  let rejectedCalls = 0;
+  await syncGlamaRegistry(rejectedDb, runtime(async () => {
+    rejectedCalls++;
+    return Response.json({ error: { code: 'unauthorized' } }, { status: 401 });
+  }));
+  assert.equal(rejectedCalls, 1, '401 must not be retried');
+  assert.equal(syncLog(rejectedDb, 'glama').status, 'error');
+  assert.match(syncLog(rejectedDb, 'glama').error, /rejected GLAMA_API_KEY: HTTP 401/);
+  assert.doesNotMatch(syncLog(rejectedDb, 'glama').error, /secret-glama-key|Bearer|authorization/i);
+  rejectedDb.close();
+
+  // No key at all: skip cleanly without issuing a request that can only 401.
+  delete process.env.GLAMA_API_KEY;
+  const noKeyDb = initDatabase(join(dir, 'glama-no-key.sqlite'));
+  let noKeyCalls = 0;
+  assert.equal(
+    await syncGlamaRegistry(noKeyDb, runtime(async () => {
+      noKeyCalls++;
+      return Response.json(glamaEmpty);
+    })),
+    0,
+  );
+  assert.equal(noKeyCalls, 0);
+  assert.equal(syncLog(noKeyDb, 'glama').status, 'skipped');
+  assert.match(syncLog(noKeyDb, 'glama').error, /requires GLAMA_API_KEY; skipping/);
+  assert.equal(noKeyDb.prepare('SELECT COUNT(*) AS count FROM servers').get().count, 0);
+  noKeyDb.close();
+  // A blank secret (an undefined GitHub secret expands to '') is the same case.
+  process.env.GLAMA_API_KEY = '   ';
+  const blankKeyDb = initDatabase(join(dir, 'glama-blank-key.sqlite'));
+  await syncGlamaRegistry(blankKeyDb, runtime(async () => Response.json(glamaEmpty)));
+  assert.equal(syncLog(blankKeyDb, 'glama').status, 'skipped');
+  blankKeyDb.close();
+  process.env.GLAMA_API_KEY = savedKey;
+
   for (const previous of [
     healthyManifest({ serverCount: 0 }),
     healthyManifest({ counts: { official: 60 } }),
@@ -458,6 +1019,8 @@ try {
 } finally {
   if (originalGlamaBudget === undefined) delete process.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES;
   else process.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES = originalGlamaBudget;
+  if (originalGlamaKey === undefined) delete process.env.GLAMA_API_KEY;
+  else process.env.GLAMA_API_KEY = originalGlamaKey;
   rmSync(dir, { recursive: true, force: true });
 }
 

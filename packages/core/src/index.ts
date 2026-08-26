@@ -24,7 +24,13 @@ export type {
 } from './types.js';
 
 // Database
-export { initDatabase, getDataDir, getLastSyncTimestamp, updateSyncLog } from './db.js';
+export {
+  initDatabase,
+  getDataDir,
+  getLastSyncTimestamp,
+  getLastSuccessfulSyncTimestamp,
+  updateSyncLog,
+} from './db.js';
 
 // Sync
 export { syncOfficialRegistry, syncGlamaRegistry, syncSmitheryRegistry, isSyncNeeded, getServerCount } from './sync.js';
@@ -49,5 +55,5 @@ export {
 } from './categories.js';
 
 // Install
-export { getInstallCommand } from './install.js';
+export { getInstallCommand, buildEnvPlaceholders, envPlaceholderValue } from './install.js';
 export type { ClientType } from './install.js';

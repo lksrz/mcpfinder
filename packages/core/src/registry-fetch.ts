@@ -16,6 +16,11 @@ interface RetryOptions extends RegistryRuntime {
   label?: string;
   /** Absolute timestamp in the runtime's `now()` clock. */
   deadline?: number;
+  /**
+   * Extra request headers (e.g. registry credentials). Never echoed into error
+   * messages — failures report status codes and response bodies only.
+   */
+  headers?: Record<string, string>;
 }
 
 export class RegistryDeadlineError extends Error {
@@ -90,7 +95,10 @@ export async function fetchWithRetry<T>(
     const timer = setTimeout(() => controller.abort(), requestTimeout);
     let responseReceived = false;
     try {
-      const response = await fetchImpl(url, { signal: controller.signal });
+      const response = await fetchImpl(url, {
+        signal: controller.signal,
+        ...(opts.headers ? { headers: opts.headers } : {}),
+      });
       responseReceived = true;
       remainingMs(opts, label);
       // Keep the request timeout active until the response body has been fully

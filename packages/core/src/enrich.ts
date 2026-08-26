@@ -4,7 +4,8 @@
  * latency-sensitive client sync path.
  */
 import type { DatabaseSync } from 'node:sqlite';
-import type { SqlParam } from './db.js';
+import { mergeServerData } from './server-merge.js';
+import { parseRawEnvelope, rawPayloadForSource } from './raw-envelope.js';
 
 export interface EnrichResult {
   probed: number;
@@ -87,13 +88,7 @@ export async function enrichSmitheryRepoUrls(
 
   const queue: Array<{ id: string; owner: string; repo: string; slug: string; name: string }> = [];
   for (const r of rows) {
-    let qn: string | null = null;
-    try {
-      const raw = JSON.parse(r.raw_data || '{}');
-      qn = raw?.qualifiedName ?? null;
-    } catch {
-      /* ignore */
-    }
+    const qn = smitheryQualifiedName(r.raw_data);
     if (!qn || !qn.includes('/')) continue;
     const [owner, repo] = qn.split('/', 2);
     if (!owner || !repo) continue;
@@ -113,19 +108,15 @@ export async function enrichSmitheryRepoUrls(
     'user-agent': 'mcpfinder-builder',
   };
 
-  const findByRepoUrl = db.prepare(
-    `SELECT id FROM servers
-     WHERE LOWER(repository_url) = ?
-       AND id != ?
-     LIMIT 1`,
-  );
   const findMonorepoSiblings = db.prepare(
     `SELECT id, slug, name, package_identifier
      FROM servers
      WHERE LOWER(repository_url) = ?
        AND id != ?`,
   );
-  const updateRepo = db.prepare('UPDATE servers SET repository_url = ? WHERE id = ?');
+  const updateRepo = db.prepare(
+    "UPDATE servers SET repository_url = ?, repository_source = 'github' WHERE id = ?",
+  );
   const deleteRow = db.prepare('DELETE FROM servers WHERE id = ?');
 
   async function probeOne(item: (typeof queue)[number]): Promise<void> {
@@ -146,16 +137,8 @@ export async function enrichSmitheryRepoUrls(
       // Record the repo URL on the Smithery row
       updateRepo.run(repoUrl, item.id);
 
-      // Try to merge with an existing row pointing at the same repo
-      const exact = findByRepoUrl.get(repoUrl, item.id) as { id: string } | undefined;
-      if (exact) {
-        mergeInto(db, exact.id, item.id);
-        deleteRow.run(item.id);
-        stats.merged++;
-        return;
-      }
-
-      // Try monorepo siblings — need secondary disambiguation
+      // A unique repository match is safe. Shared repositories require a
+      // unique secondary name/slug match; never select an arbitrary sibling.
       const siblings = findMonorepoSiblings.all(repoUrl, item.id) as Array<{
         id: string;
         slug: string;
@@ -163,9 +146,14 @@ export async function enrichSmitheryRepoUrls(
         package_identifier: string | null;
       }>;
       if (siblings.length === 0) return;
-      const byPkg = item.name && siblings.find((s) => s.name?.toLowerCase() === item.name.toLowerCase());
-      const bySlug = siblings.find((s) => s.slug === item.slug);
-      const winner = byPkg ?? bySlug;
+      const secondaryMatches = siblings.filter(
+        (s) =>
+          (item.name && s.name?.toLowerCase() === item.name.toLowerCase()) ||
+          s.slug === item.slug,
+      );
+      const winner = siblings.length === 1
+        ? siblings[0]
+        : secondaryMatches.length === 1 ? secondaryMatches[0] : null;
       if (winner) {
         mergeInto(db, winner.id, item.id);
         deleteRow.run(item.id);
@@ -193,6 +181,14 @@ export async function enrichSmitheryRepoUrls(
 
   stats.durationMs = Date.now() - t0;
   return stats;
+}
+
+function smitheryQualifiedName(rawData: string): string | null {
+  const envelope = parseRawEnvelope(rawData, 'smithery');
+  const payload = envelope ? rawPayloadForSource(envelope, 'smithery') : null;
+  if (!payload || typeof payload !== 'object') return null;
+  const qualifiedName = (payload as Record<string, unknown>).qualifiedName;
+  return typeof qualifiedName === 'string' ? qualifiedName : null;
 }
 
 /**
@@ -477,46 +473,9 @@ function mergeInto(db: DatabaseSync, toId: string, fromId: string): void {
     /* noop */
   }
   const mergedSources = [...new Set([...toSources, ...fromSources])].sort();
-
-  const updates: string[] = ['sources = ?'];
-  const vals: unknown[] = [JSON.stringify(mergedSources)];
-
-  if (
-    typeof from.description === 'string' &&
-    (from.description as string).length > ((to.description as string) || '').length
-  ) {
-    updates.push('description = ?');
-    vals.push(from.description);
-  }
-
-  const fillIfNull = [
-    'repository_url',
-    'remote_url',
-    'icon_url',
-    'transport_type',
-    'registry_type',
-    'package_identifier',
-    'repository_source',
-    'published_at',
-    'updated_at',
-  ];
-  for (const f of fillIfNull) {
-    if (from[f] && !to[f]) {
-      updates.push(`${f} = ?`);
-      vals.push(from[f]);
-    }
-  }
-
-  // Popularity-ish fields: take max
-  for (const f of ['use_count', 'verified', 'has_remote']) {
-    const fromN = Number(from[f] ?? 0);
-    const toN = Number(to[f] ?? 0);
-    if (fromN > toN) {
-      updates.push(`${f} = ?`);
-      vals.push(fromN);
-    }
-  }
-
-  vals.push(toId);
-  db.prepare(`UPDATE servers SET ${updates.join(', ')} WHERE id = ?`).run(...(vals as SqlParam[]));
+  db.prepare('UPDATE servers SET sources = ? WHERE id = ?').run(
+    JSON.stringify(mergedSources),
+    toId,
+  );
+  mergeServerData(db, toId, from);
 }

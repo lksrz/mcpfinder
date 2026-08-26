@@ -103,6 +103,7 @@ END;
 CREATE TABLE IF NOT EXISTS sync_log (
   source TEXT PRIMARY KEY,
   last_synced_at TEXT NOT NULL,
+  last_successful_at TEXT,
   server_count INTEGER DEFAULT 0,
   status TEXT DEFAULT 'ok',
   error TEXT
@@ -169,16 +170,41 @@ function migrateSchema(db: DatabaseSync): void {
       db.exec(`ALTER TABLE servers ADD COLUMN ${col} ${def}`);
     }
   }
+
+  const syncColumns = db.prepare("PRAGMA table_info('sync_log')").all() as Array<{ name: string }>;
+  if (!syncColumns.some((column) => column.name === 'last_successful_at')) {
+    db.exec('ALTER TABLE sync_log ADD COLUMN last_successful_at TEXT');
+  }
+  db.exec(
+    `UPDATE sync_log SET last_successful_at = last_synced_at
+     WHERE status = 'ok' AND last_successful_at IS NULL`,
+  );
 }
 
 /**
- * Get the last sync timestamp for a source.
+ * Get the last attempted sync timestamp for throttling, regardless of status.
  */
 export function getLastSyncTimestamp(db: DatabaseSync, source: string): string | null {
-  const row = db.prepare('SELECT last_synced_at FROM sync_log WHERE source = ?').get(source) as
+  const row = db
+    .prepare('SELECT last_synced_at FROM sync_log WHERE source = ?')
+    .get(source) as
     | { last_synced_at: string }
     | undefined;
   return row?.last_synced_at ?? null;
+}
+
+/**
+ * Get the last successful timestamp only when the most recent attempt was
+ * healthy. A failed latest attempt deliberately forces the next upstream sync
+ * to run without an incremental cursor.
+ */
+export function getLastSuccessfulSyncTimestamp(db: DatabaseSync, source: string): string | null {
+  const row = db
+    .prepare("SELECT last_successful_at FROM sync_log WHERE source = ? AND status = 'ok'")
+    .get(source) as
+    | { last_successful_at: string | null }
+    | undefined;
+  return row?.last_successful_at ?? null;
 }
 
 /**
@@ -191,8 +217,19 @@ export function updateSyncLog(
   status: string = 'ok',
   error?: string,
 ): void {
+  const attemptedAt = new Date().toISOString();
   db.prepare(
-    `INSERT OR REPLACE INTO sync_log (source, last_synced_at, server_count, status, error)
-     VALUES (?, ?, ?, ?, ?)`,
-  ).run(source, new Date().toISOString(), serverCount, status, error ?? null);
+    `INSERT INTO sync_log (
+       source, last_synced_at, last_successful_at, server_count, status, error
+     ) VALUES (?, ?, CASE WHEN ? = 'ok' THEN ? ELSE NULL END, ?, ?, ?)
+     ON CONFLICT(source) DO UPDATE SET
+       last_synced_at = excluded.last_synced_at,
+       last_successful_at = CASE
+         WHEN excluded.status = 'ok' THEN excluded.last_synced_at
+         ELSE sync_log.last_successful_at
+       END,
+       server_count = excluded.server_count,
+       status = excluded.status,
+       error = excluded.error`,
+  ).run(source, attemptedAt, status, attemptedAt, serverCount, status, error ?? null);
 }
