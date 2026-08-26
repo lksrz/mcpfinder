@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
-import { getSnapshotManifest, getSnapshotData } from './endpoints/snapshot';
+import { getSnapshotManifest, getSnapshotData, getSnapshotBrotliData } from './endpoints/snapshot';
 import { Bindings } from './types';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -20,6 +20,7 @@ const apiV1 = new Hono<{ Bindings: Bindings }>();
 
 apiV1.get('/snapshot/manifest.json', getSnapshotManifest);
 apiV1.get('/snapshot/data.sqlite.gz', getSnapshotData);
+apiV1.get('/snapshot/data.sqlite.br', getSnapshotBrotliData);
 
 const deprecatedMcpHandler = (c: any) => {
   return c.json({
@@ -99,8 +100,10 @@ app.get('/api', (c) => {
     
     <div class="api-examples">
       <code>GET /api/v1/snapshot/manifest.json</code>
-      <code>GET /api/v1/snapshot/data.sqlite.gz</code>
+      <code>GET /api/v1/snapshot/data.sqlite.gz?sha=&lt;manifest sha256&gt;</code>
+      <code>GET /api/v1/snapshot/data.sqlite.br?sha=&lt;manifest brotli.sha256&gt;</code>
     </div>
+    <p>Take both <code>sha</code> values from the manifest; <code>data.sqlite.br</code> requires one, and is only published when the manifest carries a <code>brotli</code> block.</p>
     
     <p>For full documentation and examples, visit our main website.</p>
     

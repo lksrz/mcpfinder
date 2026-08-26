@@ -6,8 +6,15 @@
  * ~11 min cold-start sync with a single download on first run.
  *
  * Protocol (served by api-worker):
- *   GET <base>/manifest.json   → { publishedAt, serverCount, sha256, sizeBytes, url }
- *   GET <base>/data.sqlite.gz?sha=<sha256> → immutable gzipped SQLite file
+ *   GET <base>/manifest.json   → { publishedAt, serverCount, sha256, sizeBytes, url, brotli? }
+ *   GET <base>/data.sqlite.gz?sha=<sha256>   → immutable gzipped SQLite file
+ *   GET <base>/data.sqlite.br?sha=<brSha256> → the same DB, brotli (~21% smaller)
+ *
+ * The brotli artifact is preferred when the manifest announces one, but it is
+ * strictly an optimisation: any failure on that path — 404, transport error,
+ * corrupt stream, wrong digest — falls back to the gz artifact rather than
+ * failing the bootstrap. A brotli object that turns out to be broken in
+ * production therefore costs bandwidth, not availability.
  *
  * Nothing is ever overwritten: the verified download becomes `data-<sha16>.db`
  * and a pointer file switches over to it (see snapshot-state.ts for why). Peer
@@ -23,8 +30,8 @@ import { createWriteStream } from 'node:fs';
 import { link, mkdir, rename, stat, unlink } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
-import { createGunzip } from 'node:zlib';
-import { Readable } from 'node:stream';
+import { createBrotliDecompress, createGunzip } from 'node:zlib';
+import { Readable, Transform } from 'node:stream';
 import { getDataDir } from './db.js';
 import {
   downloadTempPath,
@@ -50,14 +57,38 @@ export const DEFAULT_MANIFEST_TIMEOUT_MS = 10_000;
  */
 export const DEFAULT_STALL_TIMEOUT_MS = 60_000;
 
+/** A downloadable compression of the snapshot database. */
+export interface SnapshotArtifactRef {
+  /** Relative or absolute URL of the compressed DB file. */
+  url: string;
+  /** Lowercase hex sha256 of *this* artifact's bytes. */
+  sha256: string;
+  sizeBytes: number;
+}
+
 export interface SnapshotManifest {
   publishedAt: string;
   serverCount: number;
-  /** Required, lowercase hex sha256 of the gzipped file. */
+  /**
+   * Required, lowercase hex sha256 of the gzipped file — and the identity of
+   * the snapshot itself: it is what the local pointer records and what every
+   * freshness check compares against, whichever artifact was downloaded.
+   */
   sha256: string;
   sizeBytes: number;
+  /**
+   * Uncompressed size of the database, when the builder recorded one. It is
+   * what bounds how much either artifact is allowed to expand to on disk.
+   */
+  rawSizeBytes?: number;
   /** Relative or absolute URL of the gzipped DB file. */
   url: string;
+  /**
+   * Optional brotli encoding of the same database, with its own digest and
+   * size. Absent in manifests published before 1.3.0; dropped here when
+   * malformed, so a bad block degrades to the gz path instead of failing.
+   */
+  brotli?: SnapshotArtifactRef;
   /** Builder version / git SHA, for diagnostics. */
   builder?: string;
 }
@@ -67,6 +98,7 @@ export interface BootstrapResult {
   reason?: string;
   servers?: number;
   publishedAt?: string;
+  /** Compressed bytes pulled over the wire, abandoned attempts included. */
   bytesDownloaded?: number;
   durationMs?: number;
   /** Manifest of the snapshot that was checked, when one was fetched. */
@@ -100,7 +132,11 @@ export interface BootstrapOptions {
   stallTimeoutMs?: number;
   /** Grace period before superseded DB files are swept. */
   retainHours?: number;
-  /** Progress callback for the DB download. `total` comes from the manifest. */
+  /**
+   * Progress callback for the DB download. Both figures are cumulative over
+   * every attempt — a fallback adds to them rather than restarting — so
+   * `total` is the sum of the attempted artifacts' manifest sizes.
+   */
   onProgress?: (bytesDownloaded: number, total: number) => void;
   /**
    * Awaited after the new file is verified and in place, with its path — the
@@ -165,10 +201,32 @@ export async function fetchSnapshotManifest(
     const manifest = (await res.json()) as SnapshotManifest;
     if (!manifest || typeof manifest.url !== 'string') return null;
     if (!isValidSha256(manifest.sha256)) return null;
-    return { ...manifest, sha256: manifest.sha256.toLowerCase() };
+    const brotli = normalizeArtifactRef(manifest.brotli);
+    const normalized: SnapshotManifest = { ...manifest, sha256: manifest.sha256.toLowerCase() };
+    // Optional by construction: a manifest without a usable brotli block is a
+    // perfectly good manifest, so drop the key rather than reject the snapshot.
+    if (brotli) normalized.brotli = brotli;
+    else delete normalized.brotli;
+    return normalized;
   } catch {
     return null;
   }
+}
+
+/** Accept an optional artifact block only when every field can be relied on. */
+function normalizeArtifactRef(ref: unknown): SnapshotArtifactRef | null {
+  if (!ref || typeof ref !== 'object') return null;
+  const candidate = ref as Partial<SnapshotArtifactRef>;
+  if (typeof candidate.url !== 'string' || candidate.url.length === 0) return null;
+  if (!isValidSha256(candidate.sha256)) return null;
+  if (!Number.isSafeInteger(candidate.sizeBytes) || (candidate.sizeBytes as number) <= 0) {
+    return null;
+  }
+  return {
+    url: candidate.url,
+    sha256: (candidate.sha256 as string).toLowerCase(),
+    sizeBytes: candidate.sizeBytes as number,
+  };
 }
 
 interface DownloadOutcome {
@@ -178,10 +236,50 @@ interface DownloadOutcome {
   etag?: string;
 }
 
+/** One concrete thing to download, resolved to an absolute URL. */
+interface DownloadPlan {
+  /** Which compression — decides the decompressor and the pointer's etag. */
+  encoding: 'gzip' | 'brotli';
+  url: string;
+  /** Digest of *these* bytes, which is what the download is checked against. */
+  sha256: string;
+  sizeBytes: number;
+  /** Hard ceiling on the decompressed bytes this artifact may write to disk. */
+  maxOutputBytes: number;
+  /** Bytes already transferred by earlier attempts, so progress never rewinds. */
+  progressBase: number;
+}
+
+function decompressorFor(encoding: DownloadPlan['encoding']): NodeJS.ReadWriteStream {
+  return encoding === 'brotli' ? createBrotliDecompress() : createGunzip();
+}
+
+/**
+ * Bound what a decompressor may write, because the bytes land on disk *before*
+ * the digest can be checked — a manifest and object an attacker controls would
+ * otherwise be a disk-fill primitive, and brotli's expansion ceiling at LGWIN
+ * 24 is orders of magnitude above gzip's ~1032:1.
+ *
+ * zlib's own `maxOutputLength` does not do this: on a stream it caps a single
+ * output buffer, not the total, so a counter is the only thing that holds.
+ */
+function outputLimiter(maxBytes: number): Transform {
+  let written = 0;
+  return new Transform({
+    transform(chunk: Buffer, _enc, callback) {
+      written += chunk.length;
+      if (written > maxBytes) {
+        callback(new Error(`decompressed-size-limit-exceeded (max ${maxBytes} bytes)`));
+        return;
+      }
+      callback(null, chunk);
+    },
+  });
+}
+
 async function downloadToTemp(
-  dataUrl: string,
+  plan: DownloadPlan,
   tmpPath: string,
-  manifest: SnapshotManifest,
   opts: BootstrapOptions,
   ifNoneMatch?: string,
 ): Promise<DownloadOutcome> {
@@ -203,7 +301,7 @@ async function downloadToTemp(
   let bytesIn = 0;
   try {
     armStall();
-    const res = await doFetch(dataUrl, {
+    const res = await doFetch(plan.url, {
       signal: combineSignals([opts.signal, stallController.signal]),
       headers: ifNoneMatch ? { 'if-none-match': ifNoneMatch } : undefined,
     });
@@ -215,13 +313,15 @@ async function downloadToTemp(
     }
 
     const hash = createHash('sha256');
-    const gzStream = Readable.fromWeb(res.body as never);
-    gzStream.on('data', (chunk: Buffer) => {
+    const compressed = Readable.fromWeb(res.body as never);
+    compressed.on('data', (chunk: Buffer) => {
       hash.update(chunk);
       bytesIn += chunk.length;
       armStall();
       try {
-        opts.onProgress?.(bytesIn, manifest.sizeBytes ?? 0);
+        // Cumulative across attempts, against a total that already includes
+        // them: a fallback must not make the counter run backwards.
+        opts.onProgress?.(plan.progressBase + bytesIn, plan.progressBase + (plan.sizeBytes ?? 0));
       } catch {
         // A caller's progress callback must not become an uncaught exception
         // out of a stream handler — that would kill the process the whole
@@ -230,7 +330,12 @@ async function downloadToTemp(
     });
 
     try {
-      await pipeline(gzStream, createGunzip(), createWriteStream(tmpPath));
+      await pipeline(
+        compressed,
+        decompressorFor(plan.encoding),
+        outputLimiter(plan.maxOutputBytes),
+        createWriteStream(tmpPath),
+      );
     } catch (err) {
       await unlink(tmpPath).catch(() => {});
       const reason = stalled
@@ -239,12 +344,14 @@ async function downloadToTemp(
       return { status: 'failed', reason, bytes: bytesIn };
     }
 
+    // Checked against this artifact's own digest — the gz digest is the
+    // snapshot's identity, not a description of the brotli bytes.
     const gotSha = hash.digest('hex');
-    if (gotSha !== manifest.sha256) {
+    if (gotSha !== plan.sha256) {
       await unlink(tmpPath).catch(() => {});
       return {
         status: 'failed',
-        reason: `sha256-mismatch (expected ${manifest.sha256}, got ${gotSha})`,
+        reason: `sha256-mismatch (expected ${plan.sha256}, got ${gotSha})`,
         bytes: bytesIn,
       };
     }
@@ -367,7 +474,100 @@ async function promoteByRename(tmpPath: string, targetPath: string): Promise<Pro
 }
 
 /**
- * Download the gzipped DB file, verify sha256, install it as a new versioned
+ * Resolve an artifact URL against the configured snapshot base, refusing
+ * anything that leaves it.
+ *
+ * The digest that would catch substituted bytes comes out of the same document
+ * as the URL, so it says nothing about *where* a client should connect. The
+ * base URL — `MCPFINDER_SNAPSHOT_BASE`, or the default host — is what does, and
+ * a manifest may not widen it. Relative URLs (what every published manifest
+ * uses) keep resolving exactly as before; an absolute one is honoured only
+ * while it stays inside the base.
+ */
+function resolveArtifactUrl(url: string, baseUrl: string): string | null {
+  const base = `${baseUrl.replace(/\/+$/, '')}/`;
+  const absolute = /^[a-z][a-z0-9+.-]*:/i.test(url);
+  try {
+    const resolved = new URL(absolute ? url : url.replace(/^\/+/, ''), base);
+    const root = new URL(base);
+    if (resolved.origin !== root.origin) return null;
+    if (!resolved.pathname.startsWith(root.pathname)) return null;
+    return resolved.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** Opt-out for a client that must not use the brotli artifact at all. */
+function brotliDisabled(): boolean {
+  return process.env.MCPFINDER_SNAPSHOT_NO_BROTLI === '1';
+}
+
+/**
+ * How far a compressed artifact may expand before the download is abandoned.
+ *
+ * `rawSizeBytes` is the exact figure the builder recorded, so it only needs
+ * slack for a manifest that is a build or two ahead of these constants. A
+ * manifest without it (published before the field existed) falls back to a
+ * generous multiple of the compressed size — still bounded, unlike brotli's
+ * native expansion ceiling.
+ */
+const DECOMPRESS_RAW_MARGIN = 1.5;
+const DECOMPRESS_COMPRESSED_MARGIN = 50;
+/** Enough headroom that no plausible small snapshot trips the limit. */
+const DECOMPRESS_FLOOR_BYTES = 16 * 1024 * 1024;
+
+function maxOutputBytesFor(manifest: SnapshotManifest, sizeBytes: number): number {
+  const raw = manifest.rawSizeBytes;
+  const budget =
+    Number.isSafeInteger(raw) && (raw as number) > 0
+      ? (raw as number) * DECOMPRESS_RAW_MARGIN
+      : sizeBytes * DECOMPRESS_COMPRESSED_MARGIN;
+  return Math.max(DECOMPRESS_FLOOR_BYTES, Math.ceil(budget));
+}
+
+/**
+ * Artifacts to try, most preferred first; the gz artifact is always last.
+ *
+ * An artifact whose URL escapes the base is dropped here rather than fetched.
+ * If that removes the gz artifact there is nothing left to try, and the caller
+ * reports the manifest as unusable.
+ */
+function downloadPlans(manifest: SnapshotManifest, baseUrl: string): DownloadPlan[] {
+  const gzUrl = resolveArtifactUrl(manifest.url, baseUrl);
+  // A rejected gz URL condemns the whole manifest, brotli included: the gz
+  // artifact is the snapshot's identity, so a manifest that cannot name it is
+  // untrustworthy as a whole. Falling through to brotli would silently mask a
+  // tampered or misconfigured manifest instead of reporting it.
+  if (!gzUrl) return [];
+  const plans: DownloadPlan[] = [];
+  const brotliUrl = manifest.brotli ? resolveArtifactUrl(manifest.brotli.url, baseUrl) : null;
+  if (manifest.brotli && brotliUrl && !brotliDisabled()) {
+    plans.push({
+      encoding: 'brotli',
+      url: brotliUrl,
+      sha256: manifest.brotli.sha256,
+      sizeBytes: manifest.brotli.sizeBytes,
+      maxOutputBytes: maxOutputBytesFor(manifest, manifest.brotli.sizeBytes),
+      progressBase: 0,
+    });
+  }
+  if (gzUrl) {
+    plans.push({
+      encoding: 'gzip',
+      url: gzUrl,
+      sha256: manifest.sha256,
+      sizeBytes: manifest.sizeBytes,
+      maxOutputBytes: maxOutputBytesFor(manifest, manifest.sizeBytes),
+      progressBase: 0,
+    });
+  }
+  return plans;
+}
+
+/**
+ * Download the DB file — brotli when the manifest offers it, gzip otherwise or
+ * on any brotli failure — verify sha256, install it as a new versioned
  * file and point the data dir at it.
  *
  * Never rejects: transport, filesystem and verification failures all surface as
@@ -407,10 +607,6 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
       return { ok: false, reason: 'snapshot-up-to-date', manifest, dbPath: currentPath };
     }
 
-    const dataUrl = manifest.url.startsWith('http')
-      ? manifest.url
-      : `${baseUrl}/${manifest.url.replace(/^\/+/, '')}`;
-
     try {
       await mkdir(dirname(nominalPath), { recursive: true });
     } catch (err) {
@@ -418,16 +614,65 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
     }
     const tmpPath = downloadTempPath(nominalPath);
 
-    const outcome = await downloadToTemp(dataUrl, tmpPath, manifest, opts, previous?.etag);
+    // Brotli first when offered, gzip always last. Everything but the final
+    // candidate is best-effort: a failure there is recorded and the next
+    // artifact is tried, so a broken brotli object degrades bandwidth, never
+    // availability.
+    const plans = downloadPlans(manifest, baseUrl);
+    if (plans.length === 0) {
+      return { ok: false, reason: 'manifest-url-rejected', manifest };
+    }
+    const attempted: string[] = [];
+    let plan = plans[plans.length - 1];
+    let outcome: DownloadOutcome = { status: 'failed', reason: 'no-artifact', bytes: 0 };
+    // Every byte pulled over the wire, failed attempts included: a fallback
+    // that hides the abandoned transfer would understate the very cost this
+    // whole two-artifact scheme exists to reduce.
+    let bytesTransferred = 0;
+    for (const candidate of plans) {
+      // The pointer's ETag describes the gz object (see SnapshotState.etag), so
+      // it is only ever replayed as If-None-Match against the gz artifact.
+      const ifNoneMatch = candidate.encoding === 'gzip' ? previous?.etag : undefined;
+      const attempt = await downloadToTemp(
+        { ...candidate, progressBase: bytesTransferred },
+        tmpPath,
+        opts,
+        ifNoneMatch,
+      );
+      plan = candidate;
+      outcome = attempt;
+      bytesTransferred += attempt.bytes;
+      if (attempt.status === 'ok') break;
+      // The last candidate's outcome is the bootstrap's outcome. A cancelled
+      // run stops here too: retrying the fallback would ignore the caller.
+      if (candidate === plans[plans.length - 1] || opts.signal?.aborted) break;
+      // 'not-modified' lands here as well: we sent no validator for a
+      // non-gz artifact, so a 304 leaves us with nothing to install.
+      attempted.push(`${candidate.encoding}: ${attempt.reason ?? attempt.status}`);
+    }
+    const withAttempts = (reason: string | undefined): string | undefined =>
+      attempted.length > 0 ? `${reason ?? 'download-failed'} (after ${attempted.join('; ')})` : reason;
+
     if (outcome.status === 'not-modified') {
       // Our ETag still matches the bytes served for the manifest's sha, so the
       // durable file lags the manifest. Deliberately *not* stamping checkedAt:
       // recording a successful check here would suppress the retry for a whole
       // refresh interval over a discrepancy that resolves in minutes.
-      return { ok: false, reason: 'snapshot-not-yet-published', manifest, dbPath: currentPath };
+      return {
+        ok: false,
+        reason: withAttempts('snapshot-not-yet-published'),
+        manifest,
+        dbPath: currentPath,
+        bytesDownloaded: bytesTransferred,
+      };
     }
     if (outcome.status === 'failed') {
-      return { ok: false, reason: outcome.reason, bytesDownloaded: outcome.bytes, manifest };
+      return {
+        ok: false,
+        reason: withAttempts(outcome.reason),
+        bytesDownloaded: bytesTransferred,
+        manifest,
+      };
     }
 
     const promoted = await promoteDownload(tmpPath, versionedDbPath(nominalPath, manifest.sha256));
@@ -451,7 +696,9 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
       dbFile: basename(targetPath),
       sha256: manifest.sha256,
       publishedAt: manifest.publishedAt,
-      etag: outcome.etag,
+      // Only ever the gz object's validator: replaying a brotli ETag against
+      // the gz URL on a later refresh would be a validator for other bytes.
+      etag: plan.encoding === 'gzip' ? outcome.etag : undefined,
       serverCount: manifest.serverCount,
       sizeBytes: manifest.sizeBytes,
       installedAt: now,
@@ -466,7 +713,7 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
       return {
         ok: false,
         reason: `pointer-write-failed: ${published.reason}`,
-        bytesDownloaded: outcome.bytes,
+        bytesDownloaded: bytesTransferred,
         manifest,
         dbPath: targetPath,
       };
@@ -486,7 +733,7 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
           : undefined,
       servers: manifest.serverCount,
       publishedAt: manifest.publishedAt,
-      bytesDownloaded: outcome.bytes,
+      bytesDownloaded: bytesTransferred,
       durationMs: Date.now() - t0,
       manifest,
       dbPath: targetPath,

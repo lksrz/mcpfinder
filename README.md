@@ -183,13 +183,55 @@ all. What is left is a bounded leak after processes killed with `SIGKILL` — ho
 MCP clients usually stop stdio servers. Two limits follow: on Windows an open
 file cannot be unlinked, so stale snapshots stay until nothing holds them, and a
 journal can outlive the database it belonged to. The install is re-checked daily: one
-manifest request when nothing changed, plus one conditional (ETag) request for
-the DB when the manifest advertises a newer digest.
+manifest request when nothing changed, plus a request for the DB when the
+manifest advertises a newer digest — conditional (ETag) on the gzip endpoint,
+unconditional on the brotli one, which is content-addressed by its own digest
+and for which no ETag is ever recorded.
 
 - snapshot manifest: `/api/v1/snapshot/manifest.json`
-- snapshot database: use `manifest.url` (`data.sqlite.gz?sha=<sha256>`) as the content-addressed primary endpoint
+- snapshot database (gzip): use `manifest.url` (`data.sqlite.gz?sha=<sha256>`) as the content-addressed primary endpoint
+- snapshot database (brotli): use `manifest.brotli.url` (`data.sqlite.br?sha=<brotli sha256>`)
 - durable current fallback: `/api/v1/snapshot/data.sqlite.gz`, refreshed only after manifest publication
 - scheduled build: [`.github/workflows/snapshot.yml`](/Users/lukasz/Git/mcpfinder/.github/workflows/snapshot.yml:1)
+
+### Two compressions of one database
+
+Every build publishes the same SQLite file twice — gzip always, brotli when
+that half of the pipeline succeeds (see the publication section below). Brotli
+(quality 9, 16MB window) is about 21% smaller: measured at 36.8MB against
+46.7MB gzip for the 238MB / 84,647-server database published on 2026-08-26.
+Both figures scale with the corpus, so treat the manifest's `sizeBytes` and
+`brotli.sizeBytes` as the live numbers rather than these. Compressing the
+second artifact costs well under a minute of build time inside a 90-minute job,
+and decompression is a fraction of a second. zstd compresses a further ~2MB but
+needs Node 22.15+/23.8+, which is not worth cutting older runtimes off for.
+
+```jsonc
+{
+  "publishedAt": "…", "serverCount": 84647,
+  // gzip: the snapshot's identity — recorded in the client's pointer and
+  // compared on every freshness check. Unchanged, and always published.
+  "sha256": "<gz digest>", "sizeBytes": 46706108, "url": "data.sqlite.gz?sha=<gz digest>",
+  // brotli: optional, additive, with its own digest and size. Absent whenever
+  // the artifact could not be built, uploaded or verified.
+  "brotli": { "url": "data.sqlite.br?sha=<br digest>", "sha256": "<br digest>", "sizeBytes": 36760000 }
+}
+```
+
+Clients from the next release prefer brotli when the manifest announces it and fall back
+to gzip on *any* brotli-side failure — 404, transport error, corrupt stream,
+digest mismatch — so a bad brotli object costs bandwidth, never a working
+bootstrap. Both URLs are resolved against the configured snapshot base and one
+that points outside it is refused rather than fetched: the digest lives in the
+same manifest as the URL, so it cannot vouch for the origin of the bytes.
+Decompression is size-bounded against the manifest's `rawSizeBytes`, because
+the bytes reach disk before the digest can be checked. Each artifact is
+verified against its own digest, and the ETag
+recorded in `data.db.snapshot.json` always describes the object that was
+actually downloaded (a brotli install stores none, since that field is the gz
+object's validator). Set `MCPFINDER_SNAPSHOT_NO_BROTLI=1` to stay on gzip.
+Published clients 1.1.0 and 1.2.0 read only `sha256`/`sizeBytes`/`url` and are
+unaffected by the extra fields.
 
 Snapshot publishing is last-known-good: all requested registries must finish
 with an `ok` sync status, and the merged total plus each per-source count may
@@ -199,15 +241,33 @@ leaves the published R2 objects untouched. Only a confirmed missing manifest
 malformed, or structurally incomplete baselines are retried and then fail
 closed; source health is always required.
 
-Publication uses a content-addressed handoff. The compressed database is first
-uploaded as `snapshots/<sha256>.sqlite.gz`; only then is `manifest.json`
-replaced with a pointer URL such as `data.sqlite.gz?sha=<sha256>`. Cached older
-manifests therefore continue to resolve to their exact immutable database.
+Publication uses a content-addressed handoff. The compressed databases are
+uploaded first — `snapshots/<sha256>.sqlite.gz` and
+`snapshots/<brotli sha256>.sqlite.br`, each keyed by its own digest; only then
+is `manifest.json` replaced with a pointer URL such as
+`data.sqlite.gz?sha=<sha256>`. The pointer therefore never announces an object
+that is not already durable. Cached older
+manifests continue to resolve to their exact immutable database.
 Legacy manifests without `sha` keep using the existing `data.sqlite.gz` key.
-Before advancing the manifest, CI downloads the new object through the public
-Worker endpoint and verifies both its SHA-256 and the Worker's acknowledged
-content address. This prevents publication while an older Worker still ignores
-the `sha` query or while the new R2 object is not publicly readable. The
+Before advancing the manifest, CI downloads both new objects through the public
+Worker endpoint and verifies each one's SHA-256 and the Worker's acknowledged
+content address.
+
+Only the gz half of that is a publication gate. **Brotli is best-effort through
+the whole pipeline**, on purpose: by the time the brotli steps run, the gz
+object is already durable in R2 and fit to publish, and a bandwidth
+optimisation must never be able to withhold a working snapshot. A failed brotli
+compression, upload, or preflight all end the same way — the `brotli` block is
+dropped from `manifest.json` before the pointer is published, and the build
+warns in the job log and the step summary. The published manifest thus never
+advertises an artifact that is not in R2, and clients that see no block simply
+download gzip. This also means the Worker deploy order is a non-event: until
+`/api/v1/snapshot/data.sqlite.br` is live the preflight 404s on brotli, the
+block is dropped, and every build still publishes.
+
+The gzip preflight, by contrast, stays fatal: it prevents publication while an
+older Worker still ignores the `sha` query or while the new R2 object is not
+publicly readable. The
 preflight is bounded to four attempts with 0.5/1.5/4.5-second backoff and a
 per-attempt timeout covering both response headers and the complete body;
 deterministic SHA/header/size mismatches fail immediately.
@@ -217,7 +277,11 @@ Immutable objects under `snapshots/` expire after 30 days; neither
 Incomplete multipart uploads retain the existing 7-day abort policy.
 After the manifest pointer is published, CI refreshes non-expiring
 `data.sqlite.gz` with the same database and then publishes
-`data.sqlite.gz.sha256` as the final commit marker. If the current immutable
+`data.sqlite.gz.sha256` as the final commit marker. There is deliberately **no**
+brotli twin of that durable pair: it exists to rescue a client whose manifest
+digest has aged out of the 30-day immutable window, and a brotli client already
+has that escape hatch — it falls back to the gz artifact, which does have one.
+A second mutable key would add a divergence risk and no availability. If the current immutable
 object later expires, the Worker serves this durable copy only when the
 requested SHA, current manifest SHA, and marker SHA all match. A failed DB or
 marker upload therefore cannot label stale bytes as a new snapshot. Older

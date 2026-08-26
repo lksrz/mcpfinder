@@ -15,6 +15,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
+import { runSnapshotBrotliChecks } from './snapshot-brotli-checks.mjs';
 import { runSnapshotJournalChecks } from './snapshot-journal-checks.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'mcpf-snapshot-bootstrap-'));
@@ -923,6 +924,7 @@ async function gatedOrigin() {
 }
 
 await runSnapshotJournalChecks(dir);
+await runSnapshotBrotliChecks(dir);
 
 rmSync(dir, { recursive: true, force: true });
 console.log('snapshot bootstrap checks passed');

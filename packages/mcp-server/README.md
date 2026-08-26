@@ -15,10 +15,16 @@ manual browsing required.
 ## Quick install
 
 Add the snippet below to your client's MCP config file. First run downloads a
-pre-built gzipped snapshot from `https://mcpfinder.dev/api/v1/snapshot`, so
-bootstrap is a single download instead of a 10-minute live sync. Its size
-tracks the size of the indexed corpus and grows with it — the current figure is
-the `sizeBytes` field of the snapshot manifest at
+pre-built compressed snapshot from `https://mcpfinder.dev/api/v1/snapshot`, so
+bootstrap is normally a single download instead of a 10-minute live sync. The
+server prefers the brotli artifact — about 21% smaller than the gzip one — and
+falls back to gzip if it cannot be fetched, decompressed or verified, which
+makes that case two downloads. A brotli failure alone therefore never fails the
+bootstrap; if *both* artifacts fail, the download has failed, and the server
+falls back to a live sync rather than to nothing. Set
+`MCPFINDER_SNAPSHOT_NO_BROTLI=1` to stay on gzip. Both sizes track the indexed
+corpus and grow with it — the current figures are the `sizeBytes` and
+`brotli.sizeBytes` fields of the snapshot manifest at
 `https://mcpfinder.dev/api/v1/snapshot/manifest.json`.
 
 The download does **not** block start-up: the server answers `initialize`
@@ -72,8 +78,12 @@ Afterwards the installed snapshot is re-checked once a day (the staleness
 threshold is polled four times per period, so a check landing marginally early
 cannot push the refresh out to the next period). A check that finds nothing new
 costs a **single** manifest request. When the manifest advertises a different
-digest, a **second**, conditional (`If-None-Match`) request follows for the DB,
-which either transfers it or answers 304 — the manifest request itself is
+digest, a request for the DB follows: against the gzip endpoint it is
+conditional (`If-None-Match`, using the ETag the pointer recorded), and either
+transfers the file or answers 304; against the brotli endpoint it is
+unconditional, because that artifact is content-addressed by its own digest and
+no brotli ETag is ever stored. A brotli attempt that fails costs one further
+request for the gzip artifact. The manifest request itself is always
 unconditional. Deleting the pointer costs one extra download and sends the
 process back to the nominal `data.db` name — safely: if that name has been swept
 and only a peer's journal is left at it, `resolveCurrentDbPath` opens a variant
@@ -174,6 +184,7 @@ Four canonical tools, optimized for AI consumption (typed `outputSchema` +
 | --- | --- | --- |
 | `MCPFINDER_DATA_DIR` | `~/.mcpfinder/` | Where the local SQLite DB lives. |
 | `MCPFINDER_DISABLE_SNAPSHOT` | unset | Set to `1` to skip snapshot bootstrap and do a live sync instead. |
+| `MCPFINDER_SNAPSHOT_NO_BROTLI` | unset | Set to `1` to ignore the manifest's brotli artifact and always download gzip. |
 | `MCPFINDER_SNAPSHOT_BASE` | `https://mcpfinder.dev/api/v1/snapshot` | Override the snapshot host for mirrors / testing. |
 | `MCPFINDER_SNAPSHOT_REFRESH_HOURS` | `24` | How old an installed snapshot may get before it is re-checked against the manifest. `0` disables *periodic* re-checks only — an install with no snapshot yet always bootstraps. |
 | `MCPFINDER_SNAPSHOT_RETAIN_HOURS` | `48` | Grace period before a superseded snapshot file is deleted. Raise it if you keep long-lived mcpfinder processes around. |

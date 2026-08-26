@@ -4,9 +4,11 @@
  *
  * Output:
  *   dist/snapshot/data.sqlite         (uncompressed)
- *   dist/snapshot/data.sqlite.gz      (gzip, what clients download)
+ *   dist/snapshot/data.sqlite.gz      (gzip, the compatibility artifact)
+ *   dist/snapshot/data.sqlite.br      (brotli, ~21% smaller, preferred by new clients;
+ *                                      best-effort — omitted from the manifest if it fails)
  *   dist/snapshot/data.sqlite.gz.sha256 (durable fallback commit marker)
- *   dist/snapshot/manifest.json       (metadata + sha256 of the gz file)
+ *   dist/snapshot/manifest.json       (metadata + a sha256 per artifact)
  *
  * Usage (from repo root):
  *   node scripts/build-snapshot.mjs [--out=<dir>] [--no-glama] [--no-smithery]
@@ -19,7 +21,10 @@
  * Upload step (done separately, e.g. in CI):
  *   wrangler r2 object put mcp-finder-db-snapshots/snapshots/<sha256>.sqlite.gz \
  *     --file=dist/snapshot/data.sqlite.gz
- *   # Publish this mutable pointer only after the immutable DB upload succeeds.
+ *   wrangler r2 object put mcp-finder-db-snapshots/snapshots/<brSha256>.sqlite.br \
+ *     --file=dist/snapshot/data.sqlite.br
+ *   # Publish this mutable pointer only after the gz upload succeeds, and only
+ *   # with a `brotli` block if that artifact is uploaded and verified too.
  *   wrangler r2 object put mcp-finder-db-snapshots/manifest.json \
  *     --file=dist/snapshot/manifest.json
  */
@@ -27,7 +32,7 @@ import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { pipeline } from 'node:stream/promises';
-import { createGzip, gunzipSync } from 'node:zlib';
+import { constants as zlibConstants, createBrotliCompress, createGzip, gunzipSync } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -35,7 +40,7 @@ import {
   evaluateSnapshotQuality,
   fetchPreviousManifest,
 } from './snapshot-quality.mjs';
-import { snapshotManifestUrl } from '../shared/snapshot-artifacts.js';
+import { snapshotBrotliManifestUrl, snapshotManifestUrl } from '../shared/snapshot-artifacts.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
@@ -271,28 +276,82 @@ db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
 db.exec('VACUUM');
 db.close();
 
-// Gzip the DB file
+const rawSize = await stat(dbPath).then((s) => s.size);
+
+async function sha256File(path) {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(path)) hash.update(chunk);
+  return hash.digest('hex');
+}
+
+// Gzip the DB file. This artifact is the snapshot identity and the only one
+// published clients before 1.3.0 know about — it never goes away.
 const gzPath = `${dbPath}.gz`;
 await pipeline(createReadStream(dbPath), createGzip({ level: 9 }), createWriteStream(gzPath));
 
-// Hash the gz file (clients verify this)
-const hash = createHash('sha256');
-for await (const chunk of createReadStream(gzPath)) hash.update(chunk);
-const sha256 = hash.digest('hex');
+// Brotli the same DB file. Quality 9 with a 16MB window compresses ~21% better
+// than gzip in about 20s; q11 costs orders of magnitude more time for a
+// marginal gain, so it is deliberately not used.
+//
+// Best-effort throughout: a brotli failure here leaves the manifest without a
+// `brotli` block and the build publishes gzip alone. The manifest must never
+// announce an artifact that does not exist, and a bandwidth optimisation must
+// never be the reason a good snapshot goes unpublished.
+const brPath = `${dbPath}.br`;
+let brotli = null;
+try {
+  await pipeline(
+    createReadStream(dbPath),
+    createBrotliCompress({
+      params: {
+        [zlibConstants.BROTLI_PARAM_QUALITY]: 9,
+        [zlibConstants.BROTLI_PARAM_LGWIN]: 24,
+        [zlibConstants.BROTLI_PARAM_SIZE_HINT]: rawSize,
+      },
+    }),
+    createWriteStream(brPath),
+  );
+  brotli = {
+    sha256: await sha256File(brPath),
+    sizeBytes: await stat(brPath).then((s) => s.size),
+  };
+} catch (error) {
+  console.warn(
+    '::warning::[build-snapshot] brotli compression failed, publishing gzip only: ' +
+      error.message,
+  );
+  // Cleanup is best-effort too: failing to remove a partial .br must not take
+  // down a build whose gz artifact is already fit to publish.
+  await rm(brPath, { force: true }).catch(() => {});
+}
+
+// Each artifact carries its own digest and size: clients verify the bytes they
+// actually downloaded, never the other artifact's.
+const sha256 = await sha256File(gzPath);
 await writeFile(join(outDir, 'data.sqlite.gz.sha256'), `${sha256}\n`);
 
-const [rawSize, gzSize] = await Promise.all([
-  stat(dbPath).then((s) => s.size),
-  stat(gzPath).then((s) => s.size),
-]);
+const gzSize = await stat(gzPath).then((s) => s.size);
 
 const manifest = {
   publishedAt: new Date().toISOString(),
   serverCount,
+  // `sha256`/`sizeBytes`/`url` describe the gz artifact and are the snapshot's
+  // stable identity — clients record the sha in their pointer and compare it on
+  // every freshness check, so it must not become the brotli digest.
   sha256,
   sizeBytes: gzSize,
   rawSizeBytes: rawSize,
   url: snapshotManifestUrl(sha256),
+  // Optional and additive — omitted entirely when the artifact is not there.
+  ...(brotli
+    ? {
+        brotli: {
+          url: snapshotBrotliManifestUrl(brotli.sha256),
+          sha256: brotli.sha256,
+          sizeBytes: brotli.sizeBytes,
+        },
+      }
+    : {}),
   builder: process.env.GITHUB_SHA || 'local',
   counts,
   carriedOver,
@@ -304,4 +363,7 @@ await writeFile(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2)
 
 console.log('[build-snapshot] manifest:');
 console.log(JSON.stringify(manifest, null, 2));
-console.log(`[build-snapshot] raw=${(rawSize / 1e6).toFixed(1)}MB gz=${(gzSize / 1e6).toFixed(1)}MB`);
+console.log(
+  `[build-snapshot] raw=${(rawSize / 1e6).toFixed(1)}MB gz=${(gzSize / 1e6).toFixed(1)}MB ` +
+    `br=${brotli ? `${(brotli.sizeBytes / 1e6).toFixed(1)}MB` : 'unavailable'}`,
+);

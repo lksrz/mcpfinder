@@ -3,13 +3,19 @@
  *
  * A CI job (scripts/build-snapshot.mjs) produces:
  *   - snapshots/<sha>.sqlite.gz (immutable SQLite DB, gzipped)
- *   - manifest.json    (publishedAt, sha256, serverCount, sizeBytes, url)
+ *   - snapshots/<brSha>.sqlite.br (the same DB, brotli — ~21% smaller)
+ *   - manifest.json    (publishedAt, sha256, serverCount, sizeBytes, url, brotli)
  *
- * and uploads the immutable DB before the manifest pointer. Clients hit these
- * endpoints on first run to skip the ~11 min live sync.
+ * and uploads both immutable objects before the manifest pointer. Clients hit
+ * these endpoints on first run to skip the ~11 min live sync.
+ *
+ * The brotli object is served only from its content-addressed key: it has no
+ * durable mutable twin, because a client that cannot get it falls back to the
+ * gz artifact, which does.
  */
 import type { AppContext } from '../types';
 import {
+  snapshotBrotliDataKey,
   snapshotDataKey,
 } from '../../../shared/snapshot-artifacts.js';
 import {
@@ -56,40 +62,50 @@ export async function getSnapshotManifest(c: AppContext) {
   });
 }
 
-export async function getSnapshotData(c: AppContext) {
+/**
+ * Everything the two data endpoints share: the storage guard, `sha` validation,
+ * the miss response, conditional revalidation and the response headers. Only
+ * the key resolution, the miss handling and the cache lifetime differ, so they
+ * are the parameters — a 304 or header fix has one place to land.
+ */
+async function serveSnapshotObject(
+  c: AppContext,
+  {
+    resolveKey,
+    onMiss,
+    cacheControl,
+    // The legacy mutable key is not content-addressed, so it must not claim a
+    // content address it was not asked for.
+    announcesSha = (object) => object.immutable,
+  }: {
+    resolveKey: (sha: string | undefined) => { key: string; immutable: boolean };
+    onMiss?: (args: {
+      bucket: R2Bucket;
+      requestedSha: string | undefined;
+      object: { key: string; immutable: boolean };
+    }) => Promise<{ object?: R2ObjectBody | null; storageUnavailable?: boolean }>;
+    cacheControl: (object: { key: string; immutable: boolean }) => string;
+    announcesSha?: (object: { key: string; immutable: boolean }) => boolean;
+  },
+) {
   const bucket = r2(c);
   if (!bucket) return c.json({ error: 'snapshot-not-configured' }, 503);
 
   const requestedSha = c.req.query('sha');
   let object;
   try {
-    object = snapshotDataKey(requestedSha);
+    object = resolveKey(requestedSha);
   } catch (error) {
     return c.json({ error: 'invalid-snapshot-sha', message: (error as Error).message }, 400);
   }
 
-  const ifNoneMatch = c.req.header('if-none-match');
   let obj = await bucket.get(object.key);
-  if (!obj && object.immutable) {
-    // Immutable history expires after 30 days. The durable legacy key may
-    // serve only the exact current SHA proven by the small current manifest;
-    // mismatched/cached historical requests remain a 404.
-    const fallback = await resolveVerifiedCurrentFallback({
-      requestedSha,
-      proofCache: currentProofCache,
-      loadProof: () =>
-        loadCurrentSnapshotSha((key) => bucket.get(key), {
-          manifestKey: MANIFEST_KEY,
-          markerKey: CURRENT_PROOF_KEY,
-          maxManifestBytes: MAX_MANIFEST_BYTES,
-          maxMarkerBytes: MAX_PROOF_BYTES,
-        }),
-      getLegacy: () => bucket.get('data.sqlite.gz'),
-    });
+  if (!obj && onMiss) {
+    const fallback = await onMiss({ bucket, requestedSha, object });
     if (fallback.storageUnavailable) {
       return c.json({ error: 'snapshot-storage-unavailable' }, 503);
     }
-    obj = fallback.object;
+    obj = fallback.object ?? null;
   }
   if (!obj) {
     return c.json(
@@ -99,6 +115,7 @@ export async function getSnapshotData(c: AppContext) {
     );
   }
 
+  const ifNoneMatch = c.req.header('if-none-match');
   if (ifNoneMatch && ifNoneMatch === obj.etag) {
     return new Response(null, { status: 304, headers: { etag: obj.etag } });
   }
@@ -107,14 +124,55 @@ export async function getSnapshotData(c: AppContext) {
     status: 200,
     headers: {
       'content-type': 'application/octet-stream',
+      // The body is a compressed *file*, not a compressed response: declaring
+      // an encoding would invite an intermediary to decode it and break the
+      // client's digest check.
       'content-encoding': 'identity',
       'content-length': String(obj.size),
-      'cache-control': object.immutable
-        ? `public, max-age=${IMMUTABLE_GZ_CACHE_SECONDS}, immutable`
-        : `public, max-age=${LEGACY_GZ_CACHE_SECONDS}`,
+      'cache-control': cacheControl(object),
       etag: obj.etag,
       'x-snapshot-uploaded': obj.uploaded.toISOString(),
-      ...(object.immutable ? { 'x-snapshot-sha': requestedSha! } : {}),
+      ...(announcesSha(object) ? { 'x-snapshot-sha': requestedSha! } : {}),
     },
+  });
+}
+
+/**
+ * Brotli artifact: immutable, content-addressed, no legacy fallback path.
+ * `sha` is mandatory and is the digest of the brotli bytes themselves.
+ */
+export async function getSnapshotBrotliData(c: AppContext) {
+  return serveSnapshotObject(c, {
+    resolveKey: snapshotBrotliDataKey,
+    cacheControl: () => `public, max-age=${IMMUTABLE_GZ_CACHE_SECONDS}, immutable`,
+  });
+}
+
+export async function getSnapshotData(c: AppContext) {
+  return serveSnapshotObject(c, {
+    resolveKey: snapshotDataKey,
+    onMiss: async ({ bucket, requestedSha, object }) => {
+      if (!object.immutable) return {};
+      // Immutable history expires after 30 days. The durable legacy key may
+      // serve only the exact current SHA proven by the small current manifest;
+      // mismatched/cached historical requests remain a 404.
+      const fallback = await resolveVerifiedCurrentFallback({
+        requestedSha,
+        proofCache: currentProofCache,
+        loadProof: () =>
+          loadCurrentSnapshotSha((key) => bucket.get(key), {
+            manifestKey: MANIFEST_KEY,
+            markerKey: CURRENT_PROOF_KEY,
+            maxManifestBytes: MAX_MANIFEST_BYTES,
+            maxMarkerBytes: MAX_PROOF_BYTES,
+          }),
+        getLegacy: () => bucket.get('data.sqlite.gz'),
+      });
+      return { object: fallback.object, storageUnavailable: fallback.storageUnavailable };
+    },
+    cacheControl: (object) =>
+      object.immutable
+        ? `public, max-age=${IMMUTABLE_GZ_CACHE_SECONDS}, immutable`
+        : `public, max-age=${LEGACY_GZ_CACHE_SECONDS}`,
   });
 }

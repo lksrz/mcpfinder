@@ -74,9 +74,57 @@ failures all come back as `{ ok: false, reason }`, so a caller running before an
 MCP handshake cannot be killed by an unhandled rejection. The manifest request
 uses a short absolute timeout; the DB download uses an *inactivity* budget
 instead, aborting only after a stretch with no bytes received, so a slow but
-healthy link is not cut off. `onProgress(bytes, total)` reports transfer
-progress (`total` is the manifest's `sizeBytes`); a throw from it is swallowed,
-never escaping the stream handler.
+healthy link is not cut off — identically for both compressions. `onProgress(bytes, total)`
+reports transfer progress (`total` is the selected artifact's size); a throw
+from it is swallowed, never escaping the stream handler.
+
+### Two artifacts, one identity
+
+The manifest publishes the same database gzipped and brotli-compressed:
+
+```jsonc
+{
+  "sha256": "<gz digest>",     // the snapshot's identity
+  "sizeBytes": 46706108,
+  "url": "data.sqlite.gz?sha=<gz digest>",
+  "brotli": { "url": "data.sqlite.br?sha=<br digest>", "sha256": "<br digest>", "sizeBytes": … }
+}
+```
+
+Brotli is roughly 21% smaller — 36.8MB against 46.7MB gzip for the 238MB
+database published on 2026-08-26 — and both sizes track the corpus, so read
+them from the manifest rather than from any figure quoted here.
+Behaviour:
+
+- **`sha256` is the snapshot identity, always the gz digest.** It is what the
+  pointer records and what every freshness check compares, whichever artifact
+  was downloaded. `manifest.brotli.sha256` verifies downloaded bytes and
+  nothing else.
+- **`brotli` is optional both ways.** A manifest without it (anything published
+  before brotli support) uses gzip; a malformed `brotli` block — bad digest, non-positive
+  size, missing URL — is dropped by `fetchSnapshotManifest` rather than
+  rejecting the manifest.
+- **Brotli is preferred but never load-bearing.** A 404, transport error,
+  corrupt stream or digest mismatch falls back to gzip and the bootstrap still
+  succeeds; only the reason string of a total failure mentions both attempts.
+  `MCPFINDER_SNAPSHOT_NO_BROTLI=1` opts out entirely.
+- **The pointer's `etag` describes the gz object**, so it is replayed as
+  `If-None-Match` only against the gz artifact, and a brotli install records no
+  ETag rather than a validator for other bytes.
+- **Artifact URLs may not leave the configured base.** Both `url` and
+  `brotli.url` are resolved against `baseUrl` (`MCPFINDER_SNAPSHOT_BASE`) and an
+  absolute URL is honoured only while it stays inside it. The digest that would
+  catch substituted bytes comes from the same document as the URL, so it cannot
+  vouch for the origin; the base URL is what does. An out-of-base `brotli.url`
+  is skipped, an out-of-base `url` fails the bootstrap with
+  `manifest-url-rejected`.
+- **Decompression is size-bounded.** The bytes land on disk before the digest
+  can be checked, so each artifact is capped at 1.5× the manifest's
+  `rawSizeBytes` (or 50× the compressed size when a pre-`rawSizeBytes` manifest
+  omits it), never below 16MB. Exceeding it aborts the attempt exactly like a
+  corrupt stream — a fallback for brotli, a failed bootstrap for gzip. zlib's
+  own `maxOutputLength` is not used: on a stream it caps a single output buffer,
+  not the total.
 
 The manifest's `sha256` is **mandatory** and must be a 64-character hex digest.
 A manifest without one is rejected outright (`manifest-fetch-failed`) and the DB
@@ -249,12 +297,22 @@ the usual clock. Closing it properly would need a lock file, whose failure mode
 Pass `refresh: true` to re-check an install. When the manifest's `sha256`
 matches the pointer's, the call returns
 `{ ok: false, reason: 'snapshot-up-to-date' }` after a **single** manifest
-request — the DB endpoint is not touched. When it differs, a **second**,
-conditional (`If-None-Match`) request is made for the DB. If that answers 304 —
-the documented window where the durable gz lags manifest publication — the call
-returns `snapshot-not-yet-published` and deliberately does *not* stamp
-`checkedAt`, so the next check retries instead of being suppressed for a whole
-refresh interval. `force: true` re-downloads unconditionally.
+request — the DB endpoint is not touched. When it differs, a **second** request
+is made for the DB. Whether it is conditional depends on the artifact: the gz
+request replays the pointer's ETag as `If-None-Match`, while a brotli request
+never does — the pointer holds no brotli ETag, since that field describes the gz
+object. A brotli install therefore stores no ETag at all, and its later
+refreshes are unconditional until a gz download records one. If the conditional
+gz request answers 304 — the documented window where the durable gz lags
+manifest publication — the call returns `snapshot-not-yet-published` and
+deliberately does *not* stamp `checkedAt`, so the next check retries instead of
+being suppressed for a whole refresh interval. `force: true` re-downloads
+unconditionally.
+
+A failed brotli attempt makes the refresh two DB requests rather than one; both
+count towards `bytesDownloaded`, which reports every compressed byte pulled over
+the wire, abandoned attempts included, and `onProgress` reports the same running
+total so the counter never rewinds when a fallback starts.
 
 After installing a snapshot, call `markSnapshotInstalled(db, serverCount)`. It
 records the install in `sync_log` under the `snapshot` source, which
@@ -270,6 +328,7 @@ once it lapses, normal staleness detection resumes.
 | `MCPFINDER_SNAPSHOT_RETAIN_HOURS` | `48` | Grace period before a superseded snapshot file may be swept. |
 | `MCPFINDER_SNAPSHOT_DOWNLOAD_STALE_HOURS` | `6` | Grace period before an abandoned partial download may be swept. |
 | `MCPFINDER_SNAPSHOT_FRESH_MINUTES` | `360` | How long an installed snapshot counts as a fresh sync in `isSyncNeeded`. |
+| `MCPFINDER_SNAPSHOT_NO_BROTLI` | unset | Set to `1` to ignore the manifest's brotli artifact and always download gzip. |
 
 Published snapshots use last-known-good semantics. The scheduled builder
 requires every *required* registry — Official and Smithery — to have an `ok` row
@@ -378,9 +437,17 @@ attempt remains a full sync.
 
 The previous manifest is optional only when its endpoint returns 404. Network,
 5xx, JSON, or missing/zero count failures are retried and then fail closed.
-Successful publication first uploads `snapshots/<sha256>.sqlite.gz`, then
-verifies that object through the public Worker endpoint, and only then
-atomically advances `manifest.json` to `data.sqlite.gz?sha=<sha256>`. Immutable
+Successful publication first uploads `snapshots/<sha256>.sqlite.gz` and
+`snapshots/<brotli sha256>.sqlite.br`, then verifies both objects through the
+public Worker endpoint, and only then atomically advances `manifest.json` to
+`data.sqlite.gz?sha=<sha256>` plus the matching `brotli` block. Only the gz half
+of that is a gate. Brotli is best-effort end to end: a failed compression, a
+failed upload, or a failed verification drops the `brotli` block from the
+manifest before the pointer is published and warns in the job log and summary,
+so the published manifest never announces an object that is not in R2 and a
+bandwidth optimisation can never withhold a working snapshot. The brotli
+object is immutable-only: it has no durable mutable twin, because a client that
+cannot fetch it falls back to the gz artifact, which does have one. Immutable
 snapshot objects have a 30-day prefix-scoped R2 lifecycle. After manifest
 publication, CI refreshes the non-expiring legacy key with the same current DB;
 it then publishes a `.sha256` commit marker. The Worker may use the durable key
@@ -394,7 +461,7 @@ fallback upload from presenting stale bytes as current.
 | `initDatabase(path?)` | Open (or create) the local SQLite DB with FTS5 schema. |
 | `getLastSyncTimestamp / getLastSuccessfulSyncTimestamp` | Read the latest attempt or latest incrementally safe successful sync timestamp. |
 | `syncOfficialRegistry / syncGlamaRegistry / syncSmitheryRegistry` | Live sync from upstream registries. |
-| `bootstrapFromSnapshot` | Fast cold-start via prebuilt SQLite snapshot; also refreshes an installed one. |
+| `bootstrapFromSnapshot` | Fast cold-start via prebuilt SQLite snapshot (brotli when offered, gzip otherwise or on any brotli failure); also refreshes an installed one. |
 | `readSnapshotState / writeSnapshotState / snapshotStatePath` | Pointer + provenance of the installed snapshot (`dbFile`, `sha256`, `publishedAt`, `etag`). |
 | `resolveCurrentDbPath / versionedDbPath` | Map the nominal `data.db` path to the file actually in use, and to a digest's file name. |
 | `publishSnapshotState` | Move the pointer to a new snapshot — forward only, and reports a failed write. |
