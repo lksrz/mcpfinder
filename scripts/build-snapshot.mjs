@@ -55,14 +55,19 @@ const argVal = (name) => {
 const outDir = resolve(repoRoot, argVal('--out') ?? 'dist/snapshot');
 const allowQualityRegression =
   flag('--allow-quality-regression') || process.env.MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE === '1';
+// All three registries are required: an incomplete snapshot never replaces a
+// complete one. A failed build simply leaves `manifest.json` untouched, so
+// clients keep bootstrapping from the previous, complete snapshot — stale by a
+// day at worst, and the staleness is visible in `publishedAt`. Missing servers
+// would not be.
 const requiredSources = ['official'];
+if (!flag('--no-glama')) requiredSources.push('glama');
 if (!flag('--no-smithery')) requiredSources.push('smithery');
-// Glama is best-effort: it requires GLAMA_API_KEY since 2026-08-26 and has
-// repeatedly overrun its crawl budget. A missing or degraded Glama warns and
-// still publishes; counts.glama stays in the manifest (0 when absent) so the
-// gap remains visible to monitoring.
+// No source is best-effort today. The mechanism stays wired up (and tested, see
+// scripts/snapshot-quality.mjs) so a registry that closes permanently can be
+// demoted by moving one name here, rather than by rebuilding the gate under
+// pressure.
 const optionalSources = [];
-if (!flag('--no-glama')) optionalSources.push('glama');
 
 console.log(`[build-snapshot] out=${outDir}`);
 

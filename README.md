@@ -298,51 +298,66 @@ For an intentional corpus reset, manually dispatch the snapshot workflow with
 `MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE=1`). The override permits count drops but
 never permits an errored or incomplete required source.
 
-### Glama is a best-effort source
+### Every registry is required
 
-Official MCP Registry and Smithery are *required* sources: an errored, missing,
-or degraded sync blocks snapshot publication. **Glama is best-effort.** On
-2026-08-26 Glama closed its public API — `GET /api/mcp/v1/servers` now answers
-`401 unauthorized` without a key — after a week in which required-source
-handling of Glama had already blocked every scheduled build (issue #8). A Glama
-failure, skip, or budget overrun now produces a warning
-(`[build-snapshot] quality warning: best-effort source glama is ...`) and the
-snapshot publishes from Official + Smithery alone. `counts.glama` stays in
-`manifest.json` — `0` when Glama is absent — so the gap remains visible to
-monitoring.
+Official MCP Registry, Glama, and Smithery are all *required* sources: an
+errored, missing, skipped, or degraded sync of any one of them blocks snapshot
+publication. **An incomplete snapshot never replaces a complete one.**
 
-A missing Glama legitimately shrinks the corpus, and the baseline cannot be
-corrected for it: `serverCount` in `manifest.json` is a *deduplicated* row count
-while `counts.<source>` are *raw* per-registry record counts that overlap across
-registries (they sum to more than `serverCount`). Subtracting one from the other
-compares incomparable units. So when any best-effort source is unhealthy —
-errored, skipped, or degraded — the aggregate `serverCount` regression check is
-**skipped entirely**, with a warning naming the source:
+The reason this is affordable is the shape of the publication handoff.
+`manifest.json` is a pointer swapped as the very last step, and the database it
+points at lives outside the 30-day `snapshots/` expiry prefix, so a build that
+fails the gate simply does not touch it — clients keep bootstrapping from the
+previous, complete snapshot. A failed build therefore means *staleness*, not
+*unavailability*, and a complete snapshot from yesterday beats a fresh one with
+a registry missing. Staleness is visible to everyone in the manifest's
+`publishedAt`; a silently absent third of the corpus is visible to no one.
+
+The gate is parameterised rather than hardcoded: `scripts/snapshot-quality.mjs`
+still implements best-effort (`optionalSources`) handling, and it is still
+tested. Nothing is listed there today. If a registry closes permanently, moving
+its name from `requiredSources` to `optionalSources` in
+`scripts/build-snapshot.mjs` demotes it — with the aggregate-count consequences
+described below — instead of the gate having to be rebuilt under pressure.
+`--no-glama` / `--no-smithery` drop a registry from a local build entirely; they
+are for local runs, not for CI.
+
+`counts` in `manifest.json` always carries all three sources, so a per-registry
+regression stays visible to monitoring even though it now also fails the build.
+
+When a source *is* demoted to best-effort, its absence legitimately shrinks the
+corpus and the baseline cannot be corrected for it: `serverCount` in
+`manifest.json` is a *deduplicated* row count while `counts.<source>` are *raw*
+per-registry record counts that overlap across registries (they sum to more than
+`serverCount`). Subtracting one from the other compares incomparable units. So
+when a best-effort source is unhealthy the aggregate `serverCount` regression
+check is **skipped entirely**, with a warning naming the source:
 
 ```
 [build-snapshot] quality warning: serverCount regression check skipped:
-best-effort source glama is unavailable and its contribution to the
+best-effort source <name> is unavailable and its contribution to the
 deduplicated baseline cannot be isolated
 ```
 
-The per-source regression checks for the *required* sources still run (raw
-against raw), so an Official or Smithery collapse fails the gate even in this
-degraded mode. When every best-effort source is healthy the aggregate check runs
-normally against the undoctored previous `serverCount`, and a drop beyond the 5%
-threshold blocks publication regardless of which source caused it — a real
-corpus collapse must stop the build. A per-source shrink of a best-effort
-registry only ever warns. All of this is automatic; the manual
-`MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE` escape hatch remains the only way to
-publish through a deliberate aggregate reset.
+The per-source regression checks for the required sources still run (raw against
+raw). With every source required — the current policy — the aggregate check runs
+on every build against the undoctored previous `serverCount`, and a drop beyond
+the 5% threshold blocks publication regardless of which source caused it. The
+manual `MCPFINDER_SNAPSHOT_QUALITY_OVERRIDE` escape hatch remains the only way
+to publish through a deliberate aggregate reset.
 
-Set `GLAMA_API_KEY` (create one at <https://glama.ai/settings/api-keys>) to sync
-Glama again. It is sent as `Authorization: Bearer <key>` and is never logged,
-stored in `raw_data`, or written to the manifest. Without it the sync is skipped
-before any request, recording `status=skipped` in `sync_log` with
-`Glama API requires GLAMA_API_KEY; skipping Glama sync`. A rejected key (401/403)
-is reported as a credential error and is never retried — it is not a transient
-failure. In CI the key comes from the optional repo secret `GLAMA_API_KEY`; an
-unset secret simply takes the skip path.
+Glama requires `GLAMA_API_KEY` (create one at
+<https://glama.ai/settings/api-keys>) since it closed its public API on
+2026-08-26 — `GET /api/mcp/v1/servers` answers `401 unauthorized` without a key.
+The key is sent as `Authorization: Bearer <key>` and is never logged, stored in
+`raw_data`, or written to the manifest. Without it the sync is skipped before
+any request, recording `status=skipped` in `sync_log` with
+`Glama API requires GLAMA_API_KEY; skipping Glama sync` — which now fails the
+publication gate, because a snapshot without Glama is not a complete snapshot. A
+rejected key (401/403) is reported as a credential error and is never retried —
+it is not a transient failure. In CI the key comes from the repo secret
+`GLAMA_API_KEY`; an unset secret takes the skip path and no snapshot is
+published.
 
 > **Licensing:** Glama's API Data License requires *visible attribution to
 > Glama on every page that displays this data*

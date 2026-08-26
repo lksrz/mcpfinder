@@ -55,9 +55,9 @@ const PAGE_LIMIT = 100;
  * snapshot build into its 90-minute CI ceiling. Official overrun fails the
  * build (a snapshot missing Official servers is worse than no new snapshot);
  * Glama/Smithery overrun discards the current staged crawl, leaves the local
- * last-known-good data unchanged, and records a degraded sync_log status.
- * Smithery is a required source, so its degradation blocks publication; Glama
- * is best-effort and only produces a warning (see scripts/snapshot-quality.mjs).
+ * last-known-good data unchanged, and records a degraded sync_log status. All
+ * three are required sources, so any degradation blocks snapshot publication
+ * (see scripts/snapshot-quality.mjs).
  */
 const OFFICIAL_SYNC_BUDGET_MS = 8 * 60_000;
 const DEFAULT_GLAMA_SYNC_BUDGET_MINUTES = 12;
@@ -366,8 +366,8 @@ export async function syncGlamaRegistry(
   const authHeaders = glamaAuthHeaders();
   if (!authHeaders) {
     // Not a transient failure and not worth a request that can only 401.
-    // Glama is a best-effort source, so snapshot publication treats this
-    // 'skipped' status as a warning rather than a gate failure.
+    // Glama is a required source, so snapshot publication treats this
+    // 'skipped' status as a gate failure; a local run can pass --no-glama.
     process.stderr.write(`[mcpfinder] ${GLAMA_MISSING_KEY_MESSAGE}\n`);
     updateSyncLog(db, 'glama', 0, 'skipped', GLAMA_MISSING_KEY_MESSAGE);
     return 0;

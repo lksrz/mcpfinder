@@ -208,8 +208,9 @@ assert.match(
 );
 assert.match(durableCommand, /mcp-finder-db-snapshots\/data\.sqlite\.gz/);
 assert.match(markerCommand, /mcp-finder-db-snapshots\/data\.sqlite\.gz\.sha256/);
-// Glama needs a key since 2026-08-26 and stays best-effort: the secret must be
-// wired through, and its crawl budget must stay at the deliberate 30 minutes.
+// Glama needs a key since 2026-08-26 and is a required source, so the secret
+// must be wired through — without it every scheduled build fails the quality
+// gate — and its crawl budget must stay at the deliberate 30 minutes.
 const buildStep = parsedWorkflow.jobs.build.steps.find((step) => step.name === 'Build snapshot');
 assert.equal(buildStep?.env?.GLAMA_API_KEY, '${{ secrets.GLAMA_API_KEY }}');
 assert.equal(buildStep.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES, '30');

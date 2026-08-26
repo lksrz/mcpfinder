@@ -331,16 +331,24 @@ once it lapses, normal staleness detection resumes.
 | `MCPFINDER_SNAPSHOT_NO_BROTLI` | unset | Set to `1` to ignore the manifest's brotli artifact and always download gzip. |
 
 Published snapshots use last-known-good semantics. The scheduled builder
-requires every *required* registry — Official and Smithery — to have an `ok` row
-in `sync_log`, and rejects total or per-source count drops above 5% relative to
-the published manifest. Glama is **best-effort**: since it closed its public API
-on 2026-08-26 an errored, skipped, or budget-exceeded Glama only warns, and the
-snapshot still publishes with `counts.glama = 0`. Because `counts.*` are raw
-upstream record counts while `serverCount` is a deduplicated row count, an absent
-Glama cannot be subtracted from the baseline; instead the aggregate `serverCount`
-regression check is **skipped** for that run with an explicit warning, and the
-per-source raw-vs-raw checks on Official and Smithery keep the gate honest. An
-Official regression still fails the build.
+requires every registry — Official, Glama, and Smithery — to have an `ok` row in
+`sync_log`, and rejects total or per-source count drops above 5% relative to the
+published manifest. An incomplete snapshot never replaces a complete one: an
+errored, skipped, or budget-exceeded registry fails the gate, `manifest.json` is
+left untouched, and clients keep bootstrapping from the previous, complete
+snapshot. A failed build therefore costs freshness, not availability — and
+staleness is visible in the manifest's `publishedAt`, whereas a missing registry
+would not be. `counts` still carries all three sources so a per-registry shortfall
+stays visible to monitoring.
+
+The gate itself keeps a parameterised best-effort mode
+(`optionalSources` in `scripts/snapshot-quality.mjs`, tested but empty today) for
+a registry that closes permanently: a best-effort source only warns, and because
+`counts.*` are raw upstream record counts while `serverCount` is a deduplicated
+row count, its absence cannot be subtracted from the baseline — the aggregate
+`serverCount` regression check is **skipped** for that run with an explicit
+warning while the per-source raw-vs-raw checks on the required sources keep the
+gate honest.
 Official, Glama, and Smithery stage each complete crawl (spilled to a TEMP
 SQLite table, so staging memory stays bounded regardless of corpus size) and
 atomically apply only a fully validated terminal result. Upstream, structural, budget, or apply
@@ -352,7 +360,8 @@ only the count-regression check with `--allow-quality-regression` or
 `GLAMA_API_KEY` (from <https://glama.ai/settings/api-keys>) enables the Glama
 sync; it is sent as `Authorization: Bearer <key>` and never logged, persisted in
 `raw_data`, or written to the manifest. Without it `syncGlamaRegistry` skips
-before issuing a request and records `status=skipped`; a 401/403 is treated as a
+before issuing a request and records `status=skipped` — which fails the snapshot
+publication gate, since Glama is a required source; a 401/403 is treated as a
 credential error and is never retried. Glama's API Data License requires visible
 Glama attribution on every page displaying this data
 (<https://glama.ai/policies/terms-of-service>).

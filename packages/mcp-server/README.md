@@ -192,7 +192,7 @@ Four canonical tools, optimized for AI consumption (typed `outputSchema` +
 | `MCPFINDER_SNAPSHOT_MANIFEST_TIMEOUT_MS` | `10000` | Timeout for the small manifest request. |
 | `MCPFINDER_SNAPSHOT_STALL_TIMEOUT_MS` | `60000` | Inactivity budget for the DB download — aborted only after this long with no bytes received, so a slow-but-healthy link is never cut off. |
 | `MCPFINDER_SNAPSHOT_FRESH_MINUTES` | `360` | How long a freshly installed snapshot counts as a fresh sync before live registry refreshes resume. |
-| `GLAMA_API_KEY` | unset | API key for Glama's registry ([create one](https://glama.ai/settings/api-keys)). Without it a live refresh skips Glama entirely — the sync is Official → Smithery, logged as `skipped`. Published snapshots normally carry Glama data, but a snapshot built while Glama was unavailable ships with `counts.glama = 0` (check `counts` in the manifest). |
+| `GLAMA_API_KEY` | unset | API key for Glama's registry ([create one](https://glama.ai/settings/api-keys)). Without it a live refresh skips Glama entirely — the sync is Official → Smithery, logged as `skipped`. Published snapshots always carry Glama data: every registry is required for publication, so a build that could not sync Glama publishes nothing and clients keep the previous, complete snapshot (check `publishedAt` and `counts` in the manifest). |
 
 Glama's API Data License requires visible Glama attribution on every page
 displaying data obtained through its API

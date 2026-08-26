@@ -7,13 +7,12 @@ name: build-snapshot
 # Required repo secrets:
 #   CLOUDFLARE_API_TOKEN    — token with R2 edit permission
 #   CLOUDFLARE_ACCOUNT_ID   — Cloudflare account ID
-#
-# Optional repo secrets:
 #   GLAMA_API_KEY           — https://glama.ai/settings/api-keys. Glama closed
 #                             its public API on 2026-08-26. Without the key the
-#                             Glama sync is skipped; it is a best-effort source,
-#                             so the snapshot still publishes from Official +
-#                             Smithery with counts.glama = 0.
+#                             Glama sync is skipped, and since all three
+#                             registries are required the quality gate fails and
+#                             nothing is published: an incomplete snapshot never
+#                             replaces the complete one already being served.
 
 on:
   schedule:
@@ -64,10 +63,11 @@ jobs:
           # Glama has repeatedly needed more than the 12-minute local budget.
           # Thirty minutes leaves headroom inside the 90-minute job ceiling.
           MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES: '30'
-          # Glama requires an API key since 2026-08-26. An unset/empty secret is
-          # fine: the Glama sync then records a 'skipped' status and the build
-          # publishes without it. Note that Glama's API Data License requires
-          # visible Glama attribution wherever this data is displayed.
+          # Glama requires an API key since 2026-08-26. An unset/empty secret
+          # makes the Glama sync record a 'skipped' status, which fails the
+          # quality gate — the previous complete snapshot keeps serving. Note
+          # that Glama's API Data License requires visible Glama attribution
+          # wherever this data is displayed.
           GLAMA_API_KEY: ${{ secrets.GLAMA_API_KEY }}
           # Powers the Smithery repo-probe and archived-repo enrichment. The
           # Actions-provided GITHUB_TOKEN is capped at ~1000 REST req/hr, so the

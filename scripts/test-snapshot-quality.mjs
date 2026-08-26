@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -822,8 +822,11 @@ try {
     assert.equal(result.ok, false, 'override must not bypass errored/missing source health');
   }
 
-  // ── Glama as a best-effort source (issue #8) ─────────────────────────────
-  // Its failure must warn, never block, while Official still gates the build.
+  // ── The best-effort mechanism ────────────────────────────────────────────
+  // No source is best-effort under the current policy (see the source-policy
+  // block below); these cases exercise the parameterised `optionalSources`
+  // mechanism itself, kept ready for a registry that closes permanently. A
+  // best-effort source must warn, never block, while required sources gate.
   const glamaDownLog = [
     { source: 'official', status: 'ok', error: null },
     { source: 'glama', status: 'error', error: 'Glama API rejected GLAMA_API_KEY: HTTP 401' },
@@ -881,7 +884,8 @@ try {
   assert.equal(glamaSkipped.ok, true);
   assert.match(glamaSkipped.warnings.join('\n'), /best-effort source glama is skipped/);
 
-  // counts.glama = 0 passes both gates now that glama is not required.
+  // A zero count for a best-effort source passes both gates, since only the
+  // required sources are checked for a positive count.
   assert.deepEqual(currentSnapshotErrors(
     { serverCount: 60, counts: { official: 60, glama: 0 } },
     bestEffortRequired,
@@ -898,7 +902,7 @@ try {
   // A previous manifest with a healthy counts.glama is still a valid baseline.
   assert.deepEqual(baselineManifestErrors(healthyManifest(), bestEffortRequired), []);
 
-  // Official failing still blocks, even with glama demoted.
+  // A required source failing still blocks, even with another one demoted.
   const officialDown = evaluateSnapshotQuality({
     syncLog: [
       { source: 'official', status: 'error', error: 'upstream failed' },
@@ -951,6 +955,99 @@ try {
   assert.equal(glamaShrank.ok, true);
   assert.equal(glamaShrank.errors.length, 0);
   assert.match(glamaShrank.warnings.join('\n'), /best-effort counts\.glama dropped/);
+
+  // ── Source policy: all three registries are required ─────────────────────
+  //
+  // An incomplete snapshot never replaces a complete one. `manifest.json` is
+  // the pointer swapped as the last publication step, so a failed gate leaves
+  // the previous, complete snapshot serving: a failed build costs freshness
+  // (visible in `publishedAt`), while a missing registry would silently cost
+  // data. The builder must therefore list every registry as required and leave
+  // the best-effort list empty.
+  const builderSource = readFileSync(new URL('./build-snapshot.mjs', import.meta.url), 'utf8');
+  const sourcePolicy = builderSource.slice(
+    builderSource.indexOf('const requiredSources'),
+    builderSource.indexOf('console.log(`[build-snapshot] out='),
+  );
+  assert.match(sourcePolicy, /const requiredSources = \['official'\];/);
+  assert.match(sourcePolicy, /if \(!flag\('--no-glama'\)\) requiredSources\.push\('glama'\);/);
+  assert.match(sourcePolicy, /if \(!flag\('--no-smithery'\)\) requiredSources\.push\('smithery'\);/);
+  assert.match(sourcePolicy, /const optionalSources = \[\];/);
+  assert.doesNotMatch(
+    sourcePolicy,
+    /optionalSources\.push/,
+    'no registry may be demoted to best-effort in the shipped build policy',
+  );
+
+  const allRequired = ['official', 'glama', 'smithery'];
+  const allHealthyLog = allRequired.map((source) => ({ source, status: 'ok', error: null }));
+  const fullCounts = { official: 60, glama: 40, smithery: 30 };
+  const fullCurrent = { serverCount: 100, counts: fullCounts };
+  const fullPrevious = healthyManifest({ serverCount: 100, counts: fullCounts });
+
+  const allHealthy = evaluateSnapshotQuality({
+    syncLog: allHealthyLog,
+    requiredSources: allRequired,
+    optionalSources: [],
+    current: fullCurrent,
+    previous: fullPrevious,
+  });
+  assert.equal(allHealthy.ok, true);
+  assert.equal(allHealthy.warnings.length, 0);
+
+  // A failure of any one of the three blocks publication, and the count
+  // override never buys a way past it.
+  for (const [source, status, error] of [
+    ['official', 'error', 'upstream failed'],
+    ['glama', 'skipped', 'Glama API requires GLAMA_API_KEY; skipping Glama sync'],
+    ['smithery', 'degraded', 'sync budget exceeded'],
+  ]) {
+    const degradedLog = allHealthyLog.map((entry) =>
+      entry.source === source ? { source, status, error } : entry,
+    );
+    const result = evaluateSnapshotQuality({
+      syncLog: degradedLog,
+      requiredSources: allRequired,
+      optionalSources: [],
+      current: fullCurrent,
+      previous: fullPrevious,
+      allowRegression: true,
+    });
+    assert.equal(result.ok, false, `an unhealthy ${source} must block publication`);
+    assert.match(result.errors.join('\n'), new RegExp(`required source ${source} is ${status}`));
+    assert.doesNotMatch(result.warnings.join('\n'), /best-effort/);
+  }
+
+  // A registry that never reported at all blocks too — same for all three.
+  for (const source of allRequired) {
+    const result = evaluateCurrentSnapshotQuality({
+      syncLog: allHealthyLog.filter((entry) => entry.source !== source),
+      requiredSources: allRequired,
+      optionalSources: [],
+      current: fullCurrent,
+    });
+    assert.equal(result.ok, false, `a missing ${source} sync_log row must block publication`);
+    assert.match(
+      result.errors.join('\n'),
+      new RegExp(`required source ${source} has no sync_log entry`),
+    );
+  }
+
+  // And an `ok` sync that committed nothing blocks: counts.<source> = 0 is no
+  // longer a publishable state for any registry.
+  for (const source of allRequired) {
+    const result = evaluateCurrentSnapshotQuality({
+      syncLog: allHealthyLog,
+      requiredSources: allRequired,
+      optionalSources: [],
+      current: { serverCount: 100, counts: { ...fullCounts, [source]: 0 } },
+    });
+    assert.equal(result.ok, false, `counts.${source} = 0 must block publication`);
+    assert.match(
+      result.errors.join('\n'),
+      new RegExp(`current counts\\.${source} must be a positive number`),
+    );
+  }
 
   // ── GLAMA_API_KEY plumbing ───────────────────────────────────────────────
   const savedKey = process.env.GLAMA_API_KEY;
