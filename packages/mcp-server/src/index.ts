@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
   initDatabase,
+  getCatalogDbPath,
   syncOfficialRegistry,
   syncGlamaRegistry,
   syncSmitheryRegistry,
@@ -21,9 +22,9 @@ import {
   getServerDetails,
   listCategories,
   getServersByCategory,
-  bootstrapFromSnapshot,
   buildEnvPlaceholders,
 } from '@mcpfinder/core';
+import { createCatalog } from './catalog.js';
 import { reportSyncResults } from './sync-report.js';
 import { settleSequentially } from './sync-orchestration.js';
 
@@ -31,28 +32,32 @@ const pkg = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8'),
 ) as { version: string };
 
-// Bootstrap from hosted snapshot on first run (much faster than live sync).
-// Disable with MCPFINDER_DISABLE_SNAPSHOT=1; override URL with MCPFINDER_SNAPSHOT_BASE.
-async function maybeBootstrap(): Promise<void> {
-  if (process.env.MCPFINDER_DISABLE_SNAPSHOT) return;
-  const result = await bootstrapFromSnapshot({
-    baseUrl: process.env.MCPFINDER_SNAPSHOT_BASE,
-  });
-  if (result.ok) {
-    process.stderr.write(
-      `[mcpfinder] Bootstrapped from snapshot: ${result.servers} servers, ` +
-        `${((result.bytesDownloaded ?? 0) / 1e6).toFixed(1)}MB in ${result.durationMs}ms ` +
-        `(published ${result.publishedAt})\n`,
-    );
-  } else if (result.reason !== 'db-already-exists') {
-    process.stderr.write(`[mcpfinder] Snapshot bootstrap skipped: ${result.reason}\n`);
-  }
-}
+// Bootstrap from the hosted snapshot in the background. Downloading tens of
+// megabytes before `server.connect` would blow past the client's handshake
+// timeout, so the server starts on whatever DB it has and swaps in the snapshot
+// when it lands. Disable with MCPFINDER_DISABLE_SNAPSHOT=1; override the URL
+// with MCPFINDER_SNAPSHOT_BASE.
+// `nominalDbPath` names the family of snapshot files in the data dir; the
+// pointer beside it selects the one this install currently serves from.
+const nominalDbPath = getCatalogDbPath();
+const catalog = createCatalog({
+  dbPath: nominalDbPath,
+  openDb: (path) => initDatabase(path),
+  getDb: () => db,
+  setDb: (next) => {
+    db = next;
+  },
+  // Never switch handles out from under a running registry sync.
+  quiesce: async () => {
+    if (inFlightSync) await inFlightSync.catch(() => {});
+  },
+});
 
-await maybeBootstrap();
-
-// Initialize database
-const db = initDatabase();
+// Initialize database (created empty on a cold start; a snapshot supersedes it).
+// The path comes from the catalog, which resolved the pointer once — resolving
+// it a second time here could open a different file than the one it tracks.
+let db = initDatabase(catalog.currentDbPath);
+catalog.start();
 
 // Create MCP server
 const server = new McpServer({
@@ -174,6 +179,10 @@ let inFlightSync: Promise<void> | null = null;
 
 function runSync(): Promise<void> {
   if (inFlightSync) return inFlightSync;
+  // A snapshot is downloading or being switched in: skip this round. The fresh
+  // snapshot makes the crawl unnecessary, and running one now would either be
+  // discarded by the switch or force it to wait for a full sequential sync.
+  if (catalog.isBusy()) return Promise.resolve();
   inFlightSync = (async () => {
     const results = await settleSequentially([
       () => syncOfficialRegistry(db),
@@ -190,31 +199,58 @@ function runSync(): Promise<void> {
   return inFlightSync;
 }
 
-// Block only when the DB is empty (first run, snapshot disabled). When data
-// exists but is stale, refresh in the background so tool calls return
-// immediately with last-known-good results — tens of thousands of registry
-// records take longer than the SDK's default 60s tool-call timeout.
-async function ensureSync(): Promise<void> {
+// Gate every tool call on a usable DB, then keep the data reasonably fresh.
+//
+// Returns a notice when the snapshot download is still running and there is
+// nothing to serve — a bounded, readable answer beats hanging until the client
+// times out. Blocks on a live sync only when the DB is empty and no snapshot is
+// coming (first run with snapshots disabled). When data exists but is stale,
+// the refresh runs in the background so tool calls return immediately with
+// last-known-good results — tens of thousands of registry records take longer
+// than the SDK's default 60s tool-call timeout.
+async function ensureSync(): Promise<string | null> {
+  const notice = await catalog.waitUntilUsable();
+  if (notice) return notice;
+
   const count = getServerCount(db);
   if (count === 0) {
     await runSync();
-    return;
+    return null;
   }
   if (isSyncNeeded(db)) void runSync();
+  return null;
 }
 
 // ─── Output schemas (permissive — let record-shaped nested data through) ────
 
 const nextActionsSchema = z.array(z.string());
 
+// Every tool can answer "not ready yet". That state must stay distinguishable
+// from a definitive negative: a structured-output consumer reading `found:
+// false` concludes the server does not exist, when in truth the catalog is
+// still downloading. So the preparing answer omits `found` entirely and says
+// so in `status`, with a retry hint a caller can act on.
+const statusSchema = z.enum(['ready', 'preparing']).optional();
+const retryAfterSchema = z.number().optional();
+
+/** Structured payload for a call that arrived before the catalog was usable. */
+function preparingContent(fields: Record<string, unknown>): Record<string, unknown> {
+  return { ...fields, status: 'preparing', retry_after_seconds: 5 };
+}
+
 const searchOutputSchema = {
   query: z.string(),
   results: z.array(z.record(z.string(), z.unknown())),
+  status: statusSchema,
+  retry_after_seconds: retryAfterSchema,
   next_actions: nextActionsSchema,
 };
 
 const detailsOutputSchema = {
-  found: z.boolean(),
+  // Optional: absent means "no answer yet" (see `status`), not "not found".
+  found: z.boolean().optional(),
+  status: statusSchema,
+  retry_after_seconds: retryAfterSchema,
   server: z.record(z.string(), z.unknown()).optional(),
   name: z.string().optional(),
   next_actions: nextActionsSchema,
@@ -223,7 +259,10 @@ const detailsOutputSchema = {
 const installOutputSchema = {
   // `name` is returned in the not-found path so the client knows which lookup failed.
   name: z.string().optional(),
-  found: z.boolean(),
+  // Optional: absent means "no answer yet" (see `status`), not "not found".
+  found: z.boolean().optional(),
+  status: statusSchema,
+  retry_after_seconds: retryAfterSchema,
   autoInstallable: z.boolean().optional(),
   server: z.string().optional(),
   platform: z.string().optional(),
@@ -239,6 +278,8 @@ const installOutputSchema = {
 
 const browseOutputSchema = {
   category: z.string().optional(),
+  status: statusSchema,
+  retry_after_seconds: retryAfterSchema,
   categories: z
     .array(z.object({ name: z.string(), count: z.number() }))
     .optional(),
@@ -276,7 +317,17 @@ server.registerTool(
     outputSchema: searchOutputSchema,
   },
   async ({ query, limit, transportType, registryType, registrySource }) => {
-    await ensureSync();
+    const preparing = await ensureSync();
+    if (preparing) {
+      return makeTextResponse(
+        preparing,
+        preparingContent({
+          query,
+          results: [],
+          next_actions: [`search_mcp_servers(query="${query}")`],
+        }),
+      );
+    }
 
     const results = searchServers(db, query, limit, {
       transportType: transportType === 'any' ? undefined : transportType,
@@ -348,7 +399,16 @@ server.registerTool(
     outputSchema: detailsOutputSchema,
   },
   async ({ name }) => {
-    await ensureSync();
+    const preparing = await ensureSync();
+    if (preparing) {
+      return makeTextResponse(
+        preparing,
+        preparingContent({
+          name,
+          next_actions: [`get_server_details(name="${name}")`],
+        }),
+      );
+    }
 
     const detail = getServerDetails(db, name);
     if (!detail) {
@@ -469,7 +529,16 @@ server.registerTool(
 // ─── Tool: get_install_config ───────────────────────────────────────────────
 
 async function buildInstallConfigResponse(name: string, platform: Platform) {
-  await ensureSync();
+  const preparing = await ensureSync();
+  if (preparing) {
+    return makeTextResponse(
+      preparing,
+      preparingContent({
+        name,
+        next_actions: [`get_install_config(name="${name}", platform="${platform}")`],
+      }),
+    );
+  }
 
   const detail = getServerDetails(db, name);
   if (!detail) {
@@ -629,7 +698,17 @@ server.registerTool(
     outputSchema: browseOutputSchema,
   },
   async ({ category, limit }) => {
-    await ensureSync();
+    const preparing = await ensureSync();
+    if (preparing) {
+      return makeTextResponse(
+        preparing,
+        preparingContent({
+          category,
+          results: [],
+          next_actions: ['browse_categories()'],
+        }),
+      );
+    }
 
     if (!category) {
       const categories = listCategories(db);

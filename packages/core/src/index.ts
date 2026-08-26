@@ -26,18 +26,58 @@ export type {
 // Database
 export {
   initDatabase,
+  closeDatabase,
+  checkpointWal,
   getDataDir,
+  getCatalogDbPath,
   getLastSyncTimestamp,
   getLastSuccessfulSyncTimestamp,
+  getSnapshotInstalledAt,
+  markSnapshotInstalled,
   updateSyncLog,
+  SNAPSHOT_SOURCE,
 } from './db.js';
 
 // Sync
-export { syncOfficialRegistry, syncGlamaRegistry, syncSmitheryRegistry, isSyncNeeded, getServerCount } from './sync.js';
+export {
+  syncOfficialRegistry,
+  syncGlamaRegistry,
+  syncSmitheryRegistry,
+  isSyncNeeded,
+  getServerCount,
+  DEFAULT_SNAPSHOT_FRESH_MINUTES,
+} from './sync.js';
 
 // Snapshot bootstrap (fast cold-start)
-export { bootstrapFromSnapshot, fetchSnapshotManifest, DEFAULT_SNAPSHOT_BASE } from './snapshot.js';
-export type { SnapshotManifest, BootstrapResult, BootstrapOptions } from './snapshot.js';
+export {
+  bootstrapFromSnapshot,
+  fetchSnapshotManifest,
+  DEFAULT_SNAPSHOT_BASE,
+  DEFAULT_MANIFEST_TIMEOUT_MS,
+  DEFAULT_STALL_TIMEOUT_MS,
+} from './snapshot.js';
+export type {
+  SnapshotManifest,
+  BootstrapResult,
+  BootstrapOptions,
+  PromoteOutcome,
+} from './snapshot.js';
+export {
+  readSnapshotState,
+  readSnapshotStateSync,
+  writeSnapshotState,
+  publishSnapshotState,
+  reconcileSnapshotPointer,
+  snapshotStatePath,
+  resolveCurrentDbPath,
+  versionedDbPath,
+  variantDbPath,
+  sweepSnapshotFiles,
+  isValidSha256,
+  DEFAULT_RETAIN_HOURS,
+  DEFAULT_DOWNLOAD_STALE_HOURS,
+} from './snapshot-state.js';
+export type { SnapshotState, SweepOptions, PublishOutcome } from './snapshot-state.js';
 
 // Build-time enrichment (GitHub probe, post-sync dedup pass)
 export { enrichSmitheryRepoUrls, enrichDeprecationFlags } from './enrich.js';

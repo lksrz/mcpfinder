@@ -123,10 +123,19 @@ export function getDataDir(): string {
 }
 
 /**
+ * Nominal catalog DB path. It names the family of snapshot files in the data
+ * dir rather than necessarily the file in use — `resolveCurrentDbPath` turns it
+ * into the file this install is actually serving from.
+ */
+export function getCatalogDbPath(): string {
+  return join(getDataDir(), 'data.db');
+}
+
+/**
  * Initialize and return a SQLite database with FTS5 schema.
  */
 export function initDatabase(dbPath?: string): DatabaseSync {
-  const path = dbPath || join(getDataDir(), 'data.db');
+  const path = dbPath || getCatalogDbPath();
   const db = new DatabaseSync(path);
 
   // Enable WAL mode for better concurrent read performance
@@ -140,6 +149,40 @@ export function initDatabase(dbPath?: string): DatabaseSync {
   migrateSchema(db);
 
   return db;
+}
+
+/**
+ * Fold the write-ahead log back into the database and truncate it to zero.
+ *
+ * A registry crawl is applied as a *single* transaction, deliberately — see
+ * sync.ts — so the WAL grows to the size of the entire write and stays that
+ * big afterwards. Measured on a real install: a 323MB database beside a 40MB
+ * `-wal` and a 1MB `-shm`. Truncating after the fact changes nothing about the
+ * transaction's atomicity; it only stops the journal from occupying that space
+ * until the next clean close.
+ *
+ * Best effort: a concurrent reader can hold the checkpoint off, and that is not
+ * worth reporting — the next successful sync tries again.
+ */
+export function checkpointWal(db: DatabaseSync): void {
+  try {
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  } catch {
+    /* busy, read-only, or already closed — the journal simply stays as it is */
+  }
+}
+
+/**
+ * Close a catalog handle the way SQLite wants: checkpoint first, then close.
+ *
+ * A clean close is what removes the `-wal`/`-shm` altogether. Explicit by
+ * design — this library never registers process-wide shutdown hooks, so the
+ * caller that knows it is done with a handle (catalog.ts, when it retires the
+ * previous one) is the one that calls this. Throws whatever `close()` throws.
+ */
+export function closeDatabase(db: DatabaseSync): void {
+  checkpointWal(db);
+  db.close();
 }
 
 /**
@@ -232,4 +275,21 @@ export function updateSyncLog(
        status = excluded.status,
        error = excluded.error`,
   ).run(source, attemptedAt, status, attemptedAt, serverCount, status, error ?? null);
+}
+
+/**
+ * `sync_log` source under which a hosted-snapshot install is recorded. It is
+ * not a registry: the row means "this DB was replaced wholesale by a published
+ * snapshot at this time", which `isSyncNeeded` reads as freshness.
+ */
+export const SNAPSHOT_SOURCE = 'snapshot';
+
+/** Stamp the DB as freshly populated from a hosted snapshot. */
+export function markSnapshotInstalled(db: DatabaseSync, serverCount: number): void {
+  updateSyncLog(db, SNAPSHOT_SOURCE, serverCount);
+}
+
+/** ISO timestamp of the last hosted-snapshot install, or null. */
+export function getSnapshotInstalledAt(db: DatabaseSync): string | null {
+  return getLastSyncTimestamp(db, SNAPSHOT_SOURCE);
 }

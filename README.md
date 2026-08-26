@@ -158,6 +158,34 @@ sequential Official → Glama → Smithery cold crawl is a fallback for an empty
 only when snapshot bootstrap is disabled or fails, preserving deterministic
 cross-registry deduplication.
 
+The download runs in the background: the MCP server answers `initialize`
+immediately, tool calls arriving before the catalog exists — during the download
+and during the handle switch alike — get a "still preparing" notice with progress
+(`status: "preparing"`, distinct from a not-found result), and the verified file
+is switched in without a restart. A
+freshly installed snapshot counts as a fresh sync, so it does not immediately
+trigger the live crawl it was meant to replace.
+
+Each snapshot is stored as its own immutable file, `data-<sha16>.db`, selected
+by a pointer at `data.db.snapshot.json`. Nothing is replaced in place, so the
+several MCP clients that each run their own mcpfinder process against
+`~/.mcpfinder` never pull a database out from under one another; superseded
+files are swept only after `MCPFINDER_SNAPSHOT_RETAIN_HOURS` (default 48) of
+being un-pointed-to and untouched, and the sweep unlinks the database file
+alone — never its `-wal`/`-shm`, which a peer that still has the file open looks
+up by name. That rule is unconditional: an orphaned journal, one whose database
+is already gone, is left alone too, because nothing distinguishes it from the
+journal of a peer that outlived its own file, and deleting the latter is
+corruption. What keeps the residue small is that every successful sync ends with
+`PRAGMA wal_checkpoint(TRUNCATE)`; the 40MB `-wal` measured beside a 323MB
+database came from a single-transaction crawl whose journal was never trimmed at
+all. What is left is a bounded leak after processes killed with `SIGKILL` — how
+MCP clients usually stop stdio servers. Two limits follow: on Windows an open
+file cannot be unlinked, so stale snapshots stay until nothing holds them, and a
+journal can outlive the database it belonged to. The install is re-checked daily: one
+manifest request when nothing changed, plus one conditional (ETag) request for
+the DB when the manifest advertises a newer digest.
+
 - snapshot manifest: `/api/v1/snapshot/manifest.json`
 - snapshot database: use `manifest.url` (`data.sqlite.gz?sha=<sha256>`) as the content-addressed primary endpoint
 - durable current fallback: `/api/v1/snapshot/data.sqlite.gz`, refreshed only after manifest publication

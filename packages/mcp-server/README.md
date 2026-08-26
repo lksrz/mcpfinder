@@ -20,6 +20,64 @@ bootstrap is a single download instead of a 10-minute live sync. Its size
 tracks the size of the indexed corpus and grows with it — the current figure is
 the `sizeBytes` field of the snapshot manifest at
 `https://mcpfinder.dev/api/v1/snapshot/manifest.json`.
+
+The download does **not** block start-up: the server answers `initialize`
+immediately and pulls the snapshot in the background, so a client's handshake
+timeout can never kill it mid-download. A tool call that arrives while the
+catalog is still empty — while the snapshot downloads *and* during the handle
+switch that installs it — returns a short "still preparing" notice with progress
+instead of hanging or answering "nothing found" — reported as `status:
+"preparing"` with
+`retry_after_seconds`, never as `found: false`, so a structured-output consumer
+cannot mistake "not ready" for "does not exist". Once the file lands it is
+verified (sha256) and switched in without a restart. A network failure at any
+point is logged and degrades to a live sync — it never takes the server down.
+
+### Several clients, one data dir
+
+Claude Desktop, Cursor and Claude Code each start their own mcpfinder process
+against `~/.mcpfinder`, so nothing is ever replaced in place. Each snapshot is
+its own immutable file, `data-<sha16>.db`, and a pointer
+(`<data-dir>/data.db.snapshot.json`) records which one is current; a process
+only ever adds a file, and a peer serving an older one is left undisturbed.
+Retention later deletes the superseded database file and, for a long time, only
+that file: on POSIX a peer that still has it open keeps working against its
+inode, while its `-wal`/`-shm` — the part whose loss actually corrupts — are
+left alone. That holds even once the database is gone: an orphaned journal is
+indistinguishable from one a still-running peer needs, so it is never collected.
+They are not free — a crawl commits as one transaction, and a measured install
+carried a 40MB `-wal` and a 1MB `-shm` beside a 323MB database — but the server
+trims the WAL after every successful sync and closes a retired handle cleanly,
+so a journal no longer sits inflated to the size of a whole crawl.
+`SIGKILL`, which is how MCP clients usually stop stdio servers, cannot be
+intercepted, so what accumulated since the last checkpoint is a known leak. See
+[`@mcpfinder/core`](../core/README.md#retention) for the two things that follow:
+on Windows an open file cannot be unlinked, so stale snapshots linger there, and
+sidecars can outlive the database they belong to.
+In-process the switch opens the new file *before* retiring the old handle, so
+there is never a moment without a usable database and no tool call ever waits on
+the swap. Installs from earlier versions keep running from their existing
+`data.db` — it is never renamed or deleted — until the first newer snapshot
+gives the pointer a versioned file to move to.
+
+Superseded files are reclaimed only once they are both un-pointed-to and
+untouched for `MCPFINDER_SNAPSHOT_RETAIN_HOURS` (default 48); the current file is
+never removed, at any age. The
+deliberate trade-off: if one process switches to a newer snapshot while another
+is mid live-sync, that other process's sync results are dropped when it switches
+too. The published snapshot is the catalog's source of truth, so this costs at
+most one later re-sync.
+
+Afterwards the installed snapshot is re-checked once a day (the staleness
+threshold is polled four times per period, so a check landing marginally early
+cannot push the refresh out to the next period). A check that finds nothing new
+costs a **single** manifest request. When the manifest advertises a different
+digest, a **second**, conditional (`If-None-Match`) request follows for the DB,
+which either transfers it or answers 304 — the manifest request itself is
+unconditional. Deleting the pointer costs one extra download and sends the
+process back to the nominal `data.db` name — safely: if that name has been swept
+and only a peer's journal is left at it, `resolveCurrentDbPath` opens a variant
+name rather than adopting the stranded journal.
 When a live refresh is needed, registries run sequentially as Official → Glama
 → Smithery so each later dedup index sees earlier inserts. A failed source is
 reported but does not prevent attempts for the remaining sources.
@@ -117,6 +175,12 @@ Four canonical tools, optimized for AI consumption (typed `outputSchema` +
 | `MCPFINDER_DATA_DIR` | `~/.mcpfinder/` | Where the local SQLite DB lives. |
 | `MCPFINDER_DISABLE_SNAPSHOT` | unset | Set to `1` to skip snapshot bootstrap and do a live sync instead. |
 | `MCPFINDER_SNAPSHOT_BASE` | `https://mcpfinder.dev/api/v1/snapshot` | Override the snapshot host for mirrors / testing. |
+| `MCPFINDER_SNAPSHOT_REFRESH_HOURS` | `24` | How old an installed snapshot may get before it is re-checked against the manifest. `0` disables *periodic* re-checks only — an install with no snapshot yet always bootstraps. |
+| `MCPFINDER_SNAPSHOT_RETAIN_HOURS` | `48` | Grace period before a superseded snapshot file is deleted. Raise it if you keep long-lived mcpfinder processes around. |
+| `MCPFINDER_SNAPSHOT_DOWNLOAD_STALE_HOURS` | `6` | Grace period before an abandoned partial download is deleted. |
+| `MCPFINDER_SNAPSHOT_MANIFEST_TIMEOUT_MS` | `10000` | Timeout for the small manifest request. |
+| `MCPFINDER_SNAPSHOT_STALL_TIMEOUT_MS` | `60000` | Inactivity budget for the DB download — aborted only after this long with no bytes received, so a slow-but-healthy link is never cut off. |
+| `MCPFINDER_SNAPSHOT_FRESH_MINUTES` | `360` | How long a freshly installed snapshot counts as a fresh sync before live registry refreshes resume. |
 | `GLAMA_API_KEY` | unset | API key for Glama's registry ([create one](https://glama.ai/settings/api-keys)). Without it a live refresh skips Glama entirely — the sync is Official → Smithery, logged as `skipped`. Published snapshots normally carry Glama data, but a snapshot built while Glama was unavailable ships with `counts.glama = 0` (check `counts` in the manifest). |
 
 Glama's API Data License requires visible Glama attribution on every page

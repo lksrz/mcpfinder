@@ -17,8 +17,10 @@ import type {
 import {
   getLastSuccessfulSyncTimestamp,
   getLastSyncTimestamp,
+  getSnapshotInstalledAt,
   updateSyncLog,
   transaction,
+  checkpointWal,
 } from './db.js';
 import { extractKeywords } from './categories.js';
 import { envVarsFromJsonSchema } from './env-vars.js';
@@ -268,6 +270,9 @@ export async function syncOfficialRegistry(
     applyCompletedCrawl(staging.read());
     totalUpserted = staging.size;
     updateSyncLog(db, 'official', totalUpserted);
+    // The whole crawl landed in one transaction, so the WAL is now as big as
+    // the write was. Trim it while the database is quiet.
+    checkpointWal(db);
     return totalUpserted;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -511,6 +516,8 @@ export async function syncGlamaRegistry(
       degradation ? 'error' : 'ok',
       degradation ?? undefined,
     );
+    // One transaction per crawl means one WAL the size of the whole write.
+    if (!degradation) checkpointWal(db);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     updateSyncLog(db, 'glama', totalUpserted, 'error', msg);
@@ -739,6 +746,8 @@ export async function syncSmitheryRegistry(
       degradation ? 'error' : 'ok',
       degradation ?? undefined,
     );
+    // One transaction per crawl means one WAL the size of the whole write.
+    if (!degradation) checkpointWal(db);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     updateSyncLog(db, 'smithery', totalUpserted, 'error', msg);
@@ -753,17 +762,47 @@ export async function syncSmitheryRegistry(
 // ─── Utility Functions ──────────────────────────────────────────────────────
 
 /**
- * Check if sync is needed (no data or stale data).
+ * Default freshness window for a DB installed from a hosted snapshot.
+ * Override with MCPFINDER_SNAPSHOT_FRESH_MINUTES.
  */
-export function isSyncNeeded(db: DatabaseSync, maxAgeMinutes: number = 15): boolean {
-  const lastSync = getLastSyncTimestamp(db, 'official');
-  if (!lastSync) return true;
+export const DEFAULT_SNAPSHOT_FRESH_MINUTES = 360;
 
-  const lastSyncDate = new Date(lastSync);
-  const now = new Date();
-  const diffMinutes = (now.getTime() - lastSyncDate.getTime()) / (1000 * 60);
+function minutesSince(iso: string | null): number | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return null;
+  return (Date.now() - then) / (1000 * 60);
+}
 
-  return diffMinutes >= maxAgeMinutes;
+function snapshotFreshMinutes(): number {
+  const raw = process.env.MCPFINDER_SNAPSHOT_FRESH_MINUTES;
+  if (!raw) return DEFAULT_SNAPSHOT_FRESH_MINUTES;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_SNAPSHOT_FRESH_MINUTES;
+}
+
+/**
+ * Check if sync is needed (no data or stale data).
+ *
+ * A DB installed from a hosted snapshot carries a `sync_log` written by the CI
+ * builder, so its `official` timestamp is always older than `maxAgeMinutes` —
+ * taken literally that would fire a full live sync seconds after a multi-MB
+ * download. The install marker (source `snapshot`) therefore counts as a fresh
+ * sync for its own, much longer window; once that expires the normal staleness
+ * rule takes over again.
+ */
+export function isSyncNeeded(
+  db: DatabaseSync,
+  maxAgeMinutes: number = 15,
+  snapshotMaxAgeMinutes: number = snapshotFreshMinutes(),
+): boolean {
+  const sinceSnapshot = minutesSince(getSnapshotInstalledAt(db));
+  if (sinceSnapshot !== null && sinceSnapshot < snapshotMaxAgeMinutes) return false;
+
+  const sinceSync = minutesSince(getLastSyncTimestamp(db, 'official'));
+  if (sinceSync === null) return true;
+
+  return sinceSync >= maxAgeMinutes;
 }
 
 /**

@@ -69,6 +69,208 @@ import { bootstrapFromSnapshot } from '@mcpfinder/core';
 await bootstrapFromSnapshot(); // downloads from https://mcpfinder.dev/api/v1/snapshot
 ```
 
+`bootstrapFromSnapshot` never rejects — transport, filesystem, and verification
+failures all come back as `{ ok: false, reason }`, so a caller running before an
+MCP handshake cannot be killed by an unhandled rejection. The manifest request
+uses a short absolute timeout; the DB download uses an *inactivity* budget
+instead, aborting only after a stretch with no bytes received, so a slow but
+healthy link is not cut off. `onProgress(bytes, total)` reports transfer
+progress (`total` is the manifest's `sizeBytes`); a throw from it is swallowed,
+never escaping the stream handler.
+
+The manifest's `sha256` is **mandatory** and must be a 64-character hex digest.
+A manifest without one is rejected outright (`manifest-fetch-failed`) and the DB
+is never fetched — unverifiable bytes are worse than no update.
+
+### Versioned files, one pointer
+
+Nothing is ever overwritten in place. A user normally runs several MCP clients
+at once and each starts its *own* mcpfinder process against the same data dir,
+so replacing `data.db` under them would unlink a peer's `-wal` without a
+checkpoint (losing its committed rows) and would simply fail on Windows. Instead:
+
+- the verified download becomes a new immutable file named after its digest,
+  `data-<sha256[0:16]>.db`, written to a temp file first and promoted only after
+  the checksum matches;
+- a small pointer file, `<db>.snapshot.json`, records which file is current
+  along with its provenance (`dbFile`, `sha256`, `publishedAt`, `etag`,
+  `installedAt`, `checkedAt`). It is updated by writing beside it and renaming —
+  atomic, and safe because nobody holds a pointer file open.
+
+`resolveCurrentDbPath(nominalDbPath)` turns the nominal `<data-dir>/data.db`
+into the file to open. Existing installs have no pointer or a pointer without
+`dbFile`: their `data.db` is treated as the current database and is never
+renamed, deleted or rewritten — it simply stays current until the first
+successful download produces a versioned file for the pointer to move to.
+
+`activate(dbPath)` is awaited after the new file is in place, with its path —
+the hook where a caller opens the new database and retires its old handle. It
+runs *before* the pointer is written, so a throw leaves the pointer on the
+previous snapshot and the caller's existing handle untouched
+(`activate-failed`).
+
+Promotion to the sha-named file uses `link` + `unlink`, not `rename`: `link`
+fails with `EEXIST` atomically instead of replacing, so two installers of the
+same digest cannot strand each other on a ghost inode — the loser discards its
+download and adopts the file already there. On filesystems without hard links
+(FAT/exFAT, some network mounts) this falls back to `rename`, which is atomic
+but *not* exclusive; there the check-then-rename window remains.
+
+The pointer only ever moves **forward**. `publishSnapshotState` re-reads the
+pointer and refuses to install over a strictly newer `publishedAt`
+(`{ status: 'superseded' }`), so a process that started downloading an older
+snapshot before a peer installed a newer one cannot roll the data dir back and
+send everyone off to re-download 45MB. That holds for a pointer **without**
+`dbFile` too — the pre-versioning shape. It stands for the legacy `data.db`, or
+for the versioned file of its own digest once one exists, and is ordered against
+whichever of those is actually on disk; skipping the comparison for it, as an
+earlier version did, let a *staler* snapshot overwrite a perfectly good pointer. Equal timestamps with different digests
+are broken by digest, so every peer picks the same winner. The comparison is
+read-compare-write and therefore narrows the race rather than closing it — the
+events it orders are minutes to hours apart while the window is milliseconds,
+and the loser keeps serving valid data until its next refresh. A pointer write
+that *fails* is reported (`pointer-write-failed`), never swallowed: activation
+has already happened, so the caller must know the data dir still selects the old
+file.
+
+**What is and is not guaranteed.** A reader never observes a half-written or
+vanished database: it opens a file that is complete before it is named. A file
+another process is serving may well be *deleted* under it, and that is fine —
+on POSIX an open file keeps working against its inode. What would not be fine
+is losing its `-wal`/`-shm`, which SQLite reaches for by name, so those are
+never removed while the database is there — and, once it is gone, only after
+weeks (see [Retention](#retention)). The accepted trade-off is on the
+write side — when process A switches to a newer snapshot, process B keeps
+writing live sync results into the older file, and those writes are dropped when
+B switches too. The published snapshot is the source of truth for the catalog,
+so a dropped incremental crawl only costs a later re-sync.
+
+### Retention
+
+Superseded files are ~230MB unpacked, so `sweepSnapshotFiles(nominalDbPath)`
+reclaims them. Two rules for what may go, and one absolute prohibition:
+
+1. the pointer must not select it — the current database is never a candidate,
+   at any age;
+2. it must have been untouched for the full grace period
+   (`MCPFINDER_SNAPSHOT_RETAIN_HOURS`, default 48). Sidecar mtimes count
+   towards that, so a peer that is actively writing keeps its file young;
+3. **a `-wal`/`-shm` is never unlinked.** Not alongside its database, not once
+   the database is gone, not at any age. A peer that still has the database
+   open is unaffected by losing the *name* — it holds the inode — but it looks
+   its `-wal`/`-shm` up by name every time, so pulling those out from under it
+   is precisely the corruption this layout exists to prevent.
+
+Rule 3 used to be justified by the claim that sidecars are "kilobytes against
+the ~230MB the database costs". That claim was wrong, and is retracted. A
+registry crawl is applied as a **single transaction** — deliberately, so a
+partial crawl can never land — which means the WAL grows to the size of the
+entire write and stays that big until something checkpoints or closes the
+database. Measured on a real install, before anything trimmed it:
+
+```
+~/.mcpfinder/data.db      323 MB
+~/.mcpfinder/data.db-wal   40 MB
+~/.mcpfinder/data.db-shm    1 MB
+```
+
+**Orphaned journals are not collected.** A `-wal`/`-shm` whose database file is
+already gone looks exactly like the journal of a peer that is still running
+against a file swept from under it, and unlinking the second one is corruption.
+There is no age at which that ambiguity resolves — a peer that last wrote three
+weeks ago may still be alive — so the sweep simply never touches a sidecar, and
+the leak is documented rather than papered over.
+
+What makes that acceptable is that the residue is now far smaller than the
+numbers above. Every **successful** registry sync ends with
+`PRAGMA wal_checkpoint(TRUNCATE)` (`checkpointWal`), which folds the journal back
+into the database and truncates it to zero; the 40MB was measured precisely
+because nothing ever trimmed it. This does not change the crawl's atomicity —
+the truncation happens after the commit. A caller that knows it is finished with
+a handle closes it explicitly through `closeDatabase` (checkpoint, then close),
+which removes the journal outright; `catalog.ts` does that when it retires a
+superseded handle. The library installs no `exit`/`SIGINT`/`SIGTERM` hooks of its
+own — a library has no business changing a host application's signal
+disposition — so what survives a process killed with `SIGKILL`, which is how MCP
+clients usually stop stdio servers, is whatever accumulated since the last
+checkpoint. That is the remaining, bounded leak.
+
+Abandoned partial downloads are reclaimed on a shorter clock
+(`MCPFINDER_SNAPSHOT_DOWNLOAD_STALE_HOURS`, default 6), which is what keeps a
+peer's in-flight download safe. A superseded legacy `data.db` is eligible under
+the same rules.
+
+Two consequences worth knowing:
+
+- **On Windows an open file cannot be unlinked**, so superseded snapshots
+  accumulate there for as long as some process holds them, and are reclaimed on
+  a later sweep once nothing does. Failure to remove a file is an ordinary
+  outcome, never an error.
+- **Sidecars can outlive their database.** A `data-<sha16>.db-wal` with no
+  `data-<sha16>.db` beside it is the expected footprint of a swept file whose
+  holder is still running. It is left alone for the whole orphan window above
+  and only then reclaimed.
+
+That second one has a sharp edge, because names come from digests and therefore
+recur: a snapshot swept months ago can be published again under the same name.
+Installing onto it would mean opening somebody else's journal as our own, and
+deleting that journal is not an option either. So `promoteDownload` checks for
+stranded sidecars at the target name and, when it finds them, installs to a
+**variant name** — `data-<sha16>-<rand6>.db` — returning the name it actually
+used so the pointer records the right one. Variant files are ordinary snapshot
+files: the sweep reclaims them under the same rules. The pre-existing behaviour
+is unchanged where the *database* is already there — the loser of a race adopts
+the winner's file rather than overwriting it.
+
+**The nominal `data.db` needs the same guard**, and gets it. Once a superseded
+legacy `data.db` has been swept, its journal stays behind for its owner, and
+anything that reopens *that* name — a client running an older release, or the
+current code falling back to it after the pointer is deleted — would create a
+fresh database beside a journal belonging to somebody else. (Verified locally:
+SQLite maps the stale `-shm` by name and unlinks the abandoned `-wal` on close.)
+So `resolveCurrentDbPath` refuses the nominal name when there is no database at
+it but a journal is sitting there, and resolves to a variant — `data-<rand6>.db`,
+the same mechanism `promoteDownload` uses — instead. The choice is made once per
+process and remembered, so whoever opens the database and the sweep that decides
+what is current cannot disagree. It costs one small, sweepable empty database
+per process in that state, until a successful download writes a pointer that
+names a file again.
+
+The sidecar probe in `promoteDownload` is still check-then-act. The canonical
+name is re-checked immediately before committing to a variant, so a peer that
+installs it inside the window is normally adopted rather than duplicated; the
+remaining gap is the few syscalls before `link`, and losing it costs a second
+full copy of identical bytes under a variant name, which the sweep reclaims on
+the usual clock. Closing it properly would need a lock file, whose failure mode
+(a stuck lock from a killed process) is worse than the one it removes.
+
+### Refresh
+
+Pass `refresh: true` to re-check an install. When the manifest's `sha256`
+matches the pointer's, the call returns
+`{ ok: false, reason: 'snapshot-up-to-date' }` after a **single** manifest
+request — the DB endpoint is not touched. When it differs, a **second**,
+conditional (`If-None-Match`) request is made for the DB. If that answers 304 —
+the documented window where the durable gz lags manifest publication — the call
+returns `snapshot-not-yet-published` and deliberately does *not* stamp
+`checkedAt`, so the next check retries instead of being suppressed for a whole
+refresh interval. `force: true` re-downloads unconditionally.
+
+After installing a snapshot, call `markSnapshotInstalled(db, serverCount)`. It
+records the install in `sync_log` under the `snapshot` source, which
+`isSyncNeeded` treats as a fresh sync — otherwise the CI-built `sync_log` inside
+the snapshot looks hours old and a full live sync fires seconds after the
+download. That grace period is `MCPFINDER_SNAPSHOT_FRESH_MINUTES` (default 360);
+once it lapses, normal staleness detection resumes.
+
+| Env var | Default | Effect |
+| --- | --- | --- |
+| `MCPFINDER_SNAPSHOT_MANIFEST_TIMEOUT_MS` | `10000` | Timeout for the manifest request. |
+| `MCPFINDER_SNAPSHOT_STALL_TIMEOUT_MS` | `60000` | Inactivity budget for the DB download. |
+| `MCPFINDER_SNAPSHOT_RETAIN_HOURS` | `48` | Grace period before a superseded snapshot file may be swept. |
+| `MCPFINDER_SNAPSHOT_DOWNLOAD_STALE_HOURS` | `6` | Grace period before an abandoned partial download may be swept. |
+| `MCPFINDER_SNAPSHOT_FRESH_MINUTES` | `360` | How long an installed snapshot counts as a fresh sync in `isSyncNeeded`. |
+
 Published snapshots use last-known-good semantics. The scheduled builder
 requires every *required* registry — Official and Smithery — to have an `ok` row
 in `sync_log`, and rejects total or per-source count drops above 5% relative to
@@ -192,7 +394,15 @@ fallback upload from presenting stale bytes as current.
 | `initDatabase(path?)` | Open (or create) the local SQLite DB with FTS5 schema. |
 | `getLastSyncTimestamp / getLastSuccessfulSyncTimestamp` | Read the latest attempt or latest incrementally safe successful sync timestamp. |
 | `syncOfficialRegistry / syncGlamaRegistry / syncSmitheryRegistry` | Live sync from upstream registries. |
-| `bootstrapFromSnapshot` | Fast cold-start via prebuilt SQLite snapshot. |
+| `bootstrapFromSnapshot` | Fast cold-start via prebuilt SQLite snapshot; also refreshes an installed one. |
+| `readSnapshotState / writeSnapshotState / snapshotStatePath` | Pointer + provenance of the installed snapshot (`dbFile`, `sha256`, `publishedAt`, `etag`). |
+| `resolveCurrentDbPath / versionedDbPath` | Map the nominal `data.db` path to the file actually in use, and to a digest's file name. |
+| `publishSnapshotState` | Move the pointer to a new snapshot — forward only, and reports a failed write. |
+| `sweepSnapshotFiles` | Reclaim superseded snapshot files and abandoned downloads, age-gated; a `-wal`/`-shm` is never removed, at any age. |
+| `closeDatabase / checkpointWal` | Close a handle cleanly (checkpoint, then close) when the caller knows it is done with it, and truncate the WAL a single-transaction crawl left behind. |
+| `reconcileSnapshotPointer` | Stamp `checkedAt` on the pointer *in force*, without rolling a peer's newer one back. |
+| `variantDbPath` | Alternative home for a digest whose canonical name still has a peer's journal at it. |
+| `markSnapshotInstalled / getSnapshotInstalledAt` | Record and read when a snapshot was installed, for `isSyncNeeded`. |
 | `searchServers` | Ranked full-text search + filters. |
 | `getServerDetails` | Full metadata for one server (env vars, tools, trust signals). |
 | `listCategories / getServersByCategory` | Category browsing. |
