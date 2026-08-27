@@ -39,10 +39,16 @@ export const CHECKS_PER_REFRESH_PERIOD = 4;
 export const MIN_CHECK_INTERVAL_HOURS = 0.25;
 /** How long the retired handle is kept open after a switch. */
 export const DEFAULT_LINGER_MS = 5_000;
-/** How many times a retired handle's `close()` is retried before giving up. */
+/** How many times a retired handle's `close()` is retried fast before backing off. */
 export const RETIRE_CLOSE_ATTEMPTS = 3;
 /** Floor on the delay between those retries, so `lingerMs: 0` cannot spin. */
 export const RETIRE_RETRY_MIN_MS = 50;
+/**
+ * Interval of the slow retry the fast attempts hand over to. Long enough that
+ * a handle wedged for the life of the process costs a tick a minute, short
+ * enough that a handle freed by a finishing statement is reclaimed promptly.
+ */
+export const RETIRE_SLOW_RETRY_MS = 60_000;
 
 export interface CatalogDeps {
   /** Opens a handle on a specific catalog DB file (schema-migrating). */
@@ -64,6 +70,8 @@ export interface CatalogDeps {
   retainHours?: number;
   /** How long the retired handle is kept open after a switch. */
   lingerMs?: number;
+  /** Interval of the slow close retry that follows the fast attempts. */
+  retireSlowRetryMs?: number;
 }
 
 export interface Catalog {
@@ -120,6 +128,7 @@ export function createCatalog(deps: CatalogDeps): Catalog {
   const baseUrl = deps.baseUrl ?? process.env.MCPFINDER_SNAPSHOT_BASE;
   const refreshHours = refreshIntervalHours(deps.refreshHours);
   const lingerMs = deps.lingerMs ?? DEFAULT_LINGER_MS;
+  const retireSlowRetryMs = deps.retireSlowRetryMs ?? RETIRE_SLOW_RETRY_MS;
   const log = deps.log ?? ((message: string) => process.stderr.write(message));
 
   let downloading = false;
@@ -137,27 +146,58 @@ export function createCatalog(deps: CatalogDeps): Catalog {
    * A peer sweeping the retired file out from under this handle is not a
    * hazard: the sweep unlinks the database and never its journal, and an open
    * database survives its own unlink.
+   *
+   * A close that keeps failing is never given up on. A stdio server lives as
+   * long as the client that spawned it — days — and abandoning the handle would
+   * park a file descriptor and a WAL lock on a superseded file for all of it,
+   * on every refresh. So the fast attempts hand over to a slow ticker that
+   * keeps trying indefinitely; whatever was holding the handle (a statement
+   * still stepping) eventually finishes and the close lands. Every timer is
+   * unref'd, so a handle that never closes cannot by itself keep the process
+   * alive.
    */
   function retire(previous: DatabaseSync): void {
     let attempts = 0;
-    const attempt = (): void => {
+    let lastError: Error | null = null;
+
+    /** True once the handle is actually gone. */
+    const tryClose = (): boolean => {
       attempts += 1;
       try {
         // Checkpoints before closing, so the retired file does not keep a
         // journal the size of the last crawl parked beside it.
         closeDatabase(previous);
+        return true;
       } catch (err) {
-        if (attempts < RETIRE_CLOSE_ATTEMPTS) {
-          const retry = setTimeout(attempt, Math.max(lingerMs, RETIRE_RETRY_MIN_MS));
-          retry.unref?.();
-          return;
-        }
-        log(
-          `[mcpfinder] Could not close the retired catalog handle after ${attempts} attempts: ` +
-            `${(err as Error).message}\n`,
-        );
+        lastError = err as Error;
+        return false;
       }
     };
+
+    const attempt = (): void => {
+      if (tryClose()) return;
+      if (attempts < RETIRE_CLOSE_ATTEMPTS) {
+        const retry = setTimeout(attempt, Math.max(lingerMs, RETIRE_RETRY_MIN_MS));
+        retry.unref?.();
+        return;
+      }
+      // Said once, at the hand-over. The ticker itself stays silent: a minute's
+      // interval over a multi-day session is thousands of identical lines on
+      // the one stream an MCP client shows the user.
+      log(
+        `[mcpfinder] Could not close the retired catalog handle after ${attempts} attempts: ` +
+          `${lastError?.message}. Retrying every ${Math.round(retireSlowRetryMs / 1000)}s.\n`,
+      );
+      const slow = setInterval(() => {
+        if (!tryClose()) return;
+        clearInterval(slow);
+        // Worth a line only because the warning above was: it closes out a
+        // problem the user was already told about.
+        log(`[mcpfinder] Retired catalog handle closed after ${attempts} attempts.\n`);
+      }, retireSlowRetryMs);
+      slow.unref?.();
+    };
+
     const timer = setTimeout(attempt, lingerMs);
     timer.unref?.();
   }

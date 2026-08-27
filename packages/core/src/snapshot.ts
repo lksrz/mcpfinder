@@ -19,7 +19,9 @@
  * Nothing is ever overwritten: the verified download becomes `data-<sha16>.db`
  * and a pointer file switches over to it (see snapshot-state.ts for why). Peer
  * processes on the same data dir keep running against whichever file they
- * opened.
+ * opened. Everything between "the bytes are good" and "the caller can open
+ * them" — taking a name, adopting a peer's file, proving it is really this
+ * snapshot — lives in snapshot-install.ts.
  *
  * Failure policy: every path returns `{ ok: false, reason }`. Nothing here ever
  * rejects — the caller runs before the MCP handshake, where an unhandled
@@ -27,12 +29,19 @@
  */
 import { createHash } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
-import { link, mkdir, rename, stat, unlink } from 'node:fs/promises';
+import { mkdir, unlink } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { createBrotliDecompress, createGunzip } from 'node:zlib';
 import { Readable, Transform } from 'node:stream';
 import { getDataDir } from './db.js';
+import {
+  discardStandIn,
+  fileExistsNonEmpty,
+  fileIdentity,
+  promoteDownload,
+  promoteTo,
+} from './snapshot-install.js';
 import {
   downloadTempPath,
   isValidSha256,
@@ -147,15 +156,6 @@ export interface BootstrapOptions {
   activate?: (dbPath: string) => void | Promise<void>;
   /** Injectable fetch, for tests. */
   fetchImpl?: typeof fetch;
-}
-
-async function fileExistsNonEmpty(path: string): Promise<boolean> {
-  try {
-    const s = await stat(path);
-    return s.isFile() && s.size > 0;
-  } catch {
-    return false;
-  }
 }
 
 function envInt(name: string, fallback: number): number {
@@ -368,111 +368,6 @@ async function downloadToTemp(
   }
 }
 
-/** Errors from `link` that mean "this filesystem has no hard links". */
-const NO_HARDLINK_CODES = new Set(['EPERM', 'EOPNOTSUPP', 'ENOTSUP', 'ENOSYS', 'EXDEV', 'EMLINK']);
-
-/** Where a verified download ended up, or why it could not be installed. */
-export type PromoteOutcome =
-  | { status: 'ok'; path: string }
-  | { status: 'failed'; reason: string };
-
-/** Discard our copy and run with the one already there. */
-async function adopt(tmpPath: string, targetPath: string): Promise<PromoteOutcome> {
-  await unlink(tmpPath).catch(() => {});
-  return { status: 'ok', path: targetPath };
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * True when the name has a journal but no database — the footprint of a file
- * the sweep reclaimed while a peer still had it open.
- */
-async function hasStrandedSidecars(targetPath: string): Promise<boolean> {
-  return (await pathExists(`${targetPath}-wal`)) || (await pathExists(`${targetPath}-shm`));
-}
-
-/**
- * Promote a verified download to its sha-named home, without ever overwriting.
- *
- * `rename` would happily replace the target, and two installers of the same
- * digest genuinely race here: both see no target, both promote, and the second
- * one strands the first on a ghost inode whose `-wal` no longer belongs to it.
- * `link` cannot do that — it fails with `EEXIST` atomically — so it, not the
- * existence check, is what makes this safe; the check ahead of it only saves a
- * pointless syscall in the common case.
- *
- * Whoever loses adopts the winner's file: same digest, same name, same bytes.
- *
- * Names recur, though: the sweep unlinks a superseded database but deliberately
- * leaves its `-wal`/`-shm` to whichever peer still has that file open, so a
- * digest published again months later can find a journal already sitting at its
- * name. Taking that name would mean opening somebody else's journal as our own.
- * Neither is deleting it an option — it is still in use. So the install goes to
- * a variant name and both databases end up with a journal of their own; the
- * caller is told which name it actually got. The canonical name is re-checked
- * immediately before that decision, because a peer landing there in the gap
- * would otherwise cost a second full copy of identical bytes.
- *
- * Filesystems without hard links (FAT/exFAT volumes, some network mounts) fall
- * back to `rename`, which is atomic but *not* exclusive. There the original
- * race window remains, narrowed to the gap between the check and the rename.
- */
-export async function promoteDownload(
-  tmpPath: string,
-  targetPath: string,
-): Promise<PromoteOutcome> {
-  if (await fileExistsNonEmpty(targetPath)) return adopt(tmpPath, targetPath);
-  if (!(await hasStrandedSidecars(targetPath))) return promoteTo(tmpPath, targetPath);
-  const target = variantDbPath(targetPath);
-  // Re-check the canonical name before committing to a variant: the sidecar
-  // probe is check-then-act, and a peer that installed the canonical file
-  // inside that window would otherwise leave us writing a *second* full
-  // ~230MB copy of identical bytes and pointing the data dir at it. Cheap to
-  // narrow; the remaining gap is the few syscalls before `link`.
-  if (await fileExistsNonEmpty(targetPath)) return adopt(tmpPath, targetPath);
-  return promoteTo(tmpPath, target);
-}
-
-async function promoteTo(tmpPath: string, targetPath: string): Promise<PromoteOutcome> {
-  try {
-    await link(tmpPath, targetPath);
-    // The target now owns the content; the temp name is just a second link.
-    await unlink(tmpPath).catch(() => {});
-    return { status: 'ok', path: targetPath };
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === 'EEXIST') {
-      // A peer got there first — provided what landed is actually usable.
-      if (await fileExistsNonEmpty(targetPath)) return adopt(tmpPath, targetPath);
-      return { status: 'failed', reason: `target exists but is not a usable file: ${targetPath}` };
-    }
-    if (code && NO_HARDLINK_CODES.has(code)) {
-      return promoteByRename(tmpPath, targetPath);
-    }
-    if (await fileExistsNonEmpty(targetPath)) return adopt(tmpPath, targetPath);
-    return { status: 'failed', reason: errorMessage(err) };
-  }
-}
-
-async function promoteByRename(tmpPath: string, targetPath: string): Promise<PromoteOutcome> {
-  if (await fileExistsNonEmpty(targetPath)) return adopt(tmpPath, targetPath);
-  try {
-    await rename(tmpPath, targetPath);
-    return { status: 'ok', path: targetPath };
-  } catch (err) {
-    if (await fileExistsNonEmpty(targetPath)) return adopt(tmpPath, targetPath);
-    return { status: 'failed', reason: errorMessage(err) };
-  }
-}
-
 /**
  * Resolve an artifact URL against the configured snapshot base, refusing
  * anything that leaves it.
@@ -566,6 +461,16 @@ function downloadPlans(manifest: SnapshotManifest, baseUrl: string): DownloadPla
 }
 
 /**
+ * How many times the handle switch may re-install before giving up.
+ *
+ * See the loop in `bootstrapFromSnapshot`: each pass past the first needs a
+ * fresh random variant name to collide with a peer's, so the cap is never
+ * reached in practice. It exists so the loop cannot spin on a filesystem
+ * behaving in a way this code did not anticipate.
+ */
+const MAX_SWITCH_PASSES = 4;
+
+/**
  * Download the DB file — brotli when the manifest offers it, gzip otherwise or
  * on any brotli failure — verify sha256, install it as a new versioned
  * file and point the data dir at it.
@@ -596,10 +501,24 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
     }
 
     const now = new Date().toISOString();
+    // A pointer whose own file is gone is *not* up to date, whatever digest it
+    // records. `resolveCurrentDbPath` has silently fallen back to the nominal
+    // name, which is at best an older database and at worst the empty one
+    // `initDatabase` created there on the way past. Accepting the digest match
+    // then wedges the data dir: every later check matches too, so the empty file
+    // is served until a new digest is published. Re-installing costs one
+    // download and repairs it, which is also what makes the pointer races below
+    // self-healing rather than terminal.
+    const pointerIntact =
+      !previous?.dbFile || currentPath === join(dirname(nominalPath), basename(previous.dbFile));
+    // Whether the pointer's provenance still describes a file we actually hold.
+    // Everything the pointer records — its digest, its ETag — is a claim about
+    // that file, and every use of those below is conditional on this.
+    const holdsPointerFile = exists && pointerIntact;
     // Already running the published snapshot — including a pre-versioning
     // install still serving it out of the legacy `data.db`, which stays put
     // until a genuinely newer snapshot gives us a versioned file to switch to.
-    if (previous && previous.sha256 === manifest.sha256 && exists) {
+    if (previous && previous.sha256 === manifest.sha256 && holdsPointerFile) {
       // Re-reads the pointer rather than writing back the copy read above: this
       // runs on every routine freshness check, and a peer may have moved the
       // data dir on to a newer snapshot in the meantime.
@@ -631,8 +550,16 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
     let bytesTransferred = 0;
     for (const candidate of plans) {
       // The pointer's ETag describes the gz object (see SnapshotState.etag), so
-      // it is only ever replayed as If-None-Match against the gz artifact.
-      const ifNoneMatch = candidate.encoding === 'gzip' ? previous?.etag : undefined;
+      // it is only ever replayed as If-None-Match against the gz artifact — and
+      // only while we still hold the file it validates. A validator is a
+      // statement about bytes we have; sending one when we have none invites a
+      // truthful 304 that leaves nothing to install. That is not academic: it
+      // is exactly the repair path `pointerIntact` opens above, so replaying
+      // the ETag there would wedge the data dir on an empty fallback until a
+      // new digest is published — the failure that guard exists to end, and the
+      // "the next refresh reinstalls" promise the pointer races rest on.
+      const ifNoneMatch =
+        candidate.encoding === 'gzip' && holdsPointerFile ? previous?.etag : undefined;
       const attempt = await downloadToTemp(
         { ...candidate, progressBase: bytesTransferred },
         tmpPath,
@@ -653,6 +580,19 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
     const withAttempts = (reason: string | undefined): string | undefined =>
       attempted.length > 0 ? `${reason ?? 'download-failed'} (after ${attempted.join('; ')})` : reason;
 
+    if (outcome.status === 'not-modified' && !holdsPointerFile) {
+      // Nothing went out for this to be an answer to — no validator is sent
+      // while the pointer's file is missing. An origin or proxy that answers
+      // 304 anyway leaves us with no bytes and no local copy, which is a failed
+      // download and must be reported as one: `snapshot-not-yet-published`
+      // asserts we already hold these bytes, and here we hold nothing.
+      return {
+        ok: false,
+        reason: withAttempts('download-failed-304'),
+        manifest,
+        bytesDownloaded: bytesTransferred,
+      };
+    }
     if (outcome.status === 'not-modified') {
       // Our ETag still matches the bytes served for the manifest's sha, so the
       // durable file lags the manifest. Deliberately *not* stamping checkedAt:
@@ -675,21 +615,87 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
       };
     }
 
-    const promoted = await promoteDownload(tmpPath, versionedDbPath(nominalPath, manifest.sha256));
+    const canonicalPath = versionedDbPath(nominalPath, manifest.sha256);
+    const promoted = await promoteDownload(tmpPath, canonicalPath);
     if (promoted.status === 'failed') {
       await unlink(tmpPath).catch(() => {});
       return { ok: false, reason: `install-failed: ${promoted.reason}`, manifest };
     }
     // Not necessarily the canonical name for this digest — see promoteDownload.
-    const targetPath = promoted.path;
+    let targetPath = promoted.path;
+    // Set only while `targetPath` is a file a peer installed rather than one we
+    // created: the verified bytes stay in hand until that file is proved real.
+    let spare = promoted.temp;
+
+    /** Hand `targetPath` to the caller; the reason it refused, or null. */
+    const activateNow = async (): Promise<string | null> => {
+      try {
+        if (opts.activate) await opts.activate(targetPath);
+        return null;
+      } catch (err) {
+        // The caller could not take up the new file; leave the pointer where it
+        // is (their old handle is still open and valid) and let the sweep
+        // reclaim the orphan once its grace period lapses.
+        return `activate-failed: ${errorMessage(err)}`;
+      }
+    };
 
     try {
-      if (opts.activate) await opts.activate(targetPath);
-    } catch (err) {
-      // The caller could not take up the new file; leave the pointer where it
-      // is (their old handle is still open and valid) and let the sweep reclaim
-      // the orphan once its grace period lapses.
-      return { ok: false, reason: `activate-failed: ${errorMessage(err)}`, manifest };
+      // Normally one pass, two when a repair is needed. A pass can only repeat
+      // when the fresh variant name it drew was *already* taken by a file
+      // `adopt` accepts as this very snapshot — a random six-character suffix
+      // colliding with a peer's copy — so repetition is a lottery win, not a
+      // loop condition. The cap makes termination a fact, not a probability.
+      for (let pass = 0; ; pass += 1) {
+        if (!spare) {
+          const failure = await activateNow();
+          if (failure) return { ok: false, reason: failure, manifest };
+          break;
+        }
+        // A file somebody else installed can be unlinked out from under this
+        // switch by a sweep pass that read its mtime before we claimed it, and
+        // `initDatabase` does not fail on a name with no file at it: it creates
+        // a brand-new empty database there, on top of the `-wal` the sweep
+        // deliberately left behind. Presence therefore proves nothing *after*
+        // the fact — the name is occupied either way — so what is compared is
+        // identity. Same inode before and after means the caller opened the
+        // snapshot; anything else means it opened a stand-in, and the verified
+        // copy we are still holding is what repairs it.
+        const adopted = await fileIdentity(targetPath);
+        if (adopted !== null) {
+          const failure = await activateNow();
+          if (failure) return { ok: false, reason: failure, manifest };
+          if ((await fileIdentity(targetPath)) === adopted) break;
+          // The stand-in is unlinked as well as replaced. `adopt` refuses to
+          // trust it, so leaving it would be survivable — but it wears a
+          // verified digest in its name, every peer scanning for variants meets
+          // it, and nothing else will ever remove it while peers keep touching
+          // it. Both halves are wanted: the guard covers the crash between
+          // these two lines, this covers the steady state.
+          await discardStandIn(targetPath, spare);
+        }
+        if (pass + 1 >= MAX_SWITCH_PASSES) {
+          return {
+            ok: false,
+            reason: `install-failed: adopted file kept changing under the switch (${targetPath})`,
+            manifest,
+          };
+        }
+        const reinstalled = await promoteTo(spare, variantDbPath(canonicalPath));
+        if (reinstalled.status === 'failed') {
+          return { ok: false, reason: `install-failed: ${reinstalled.reason}`, manifest };
+        }
+        targetPath = reinstalled.path;
+        // Undefined when we created the file — the ordinary outcome, and the
+        // one that ends the loop. Set only when the fresh name turned out to be
+        // occupied by this very snapshot, in which case the verified bytes are
+        // still ours to release and the new name is checked like any other.
+        spare = reinstalled.temp;
+      }
+    } finally {
+      // Released only here: past this point the caller holds the file open, and
+      // on POSIX an open database survives its own unlink.
+      if (spare) await unlink(spare).catch(() => {});
     }
 
     const state: SnapshotState = {
@@ -729,7 +735,11 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
       ok: true,
       reason:
         published.status === 'superseded'
-          ? `pointer-retained-newer-snapshot (${published.by.sha256.slice(0, 16)})`
+          ? published.by.sha256 === state.sha256
+            ? // Not a rollback and not a loss: a peer installed these very bytes
+              // first, so the pointer already selects a file with this digest.
+              `pointer-retained-same-digest (${published.by.dbFile})`
+            : `pointer-retained-newer-snapshot (${published.by.sha256.slice(0, 16)})`
           : undefined,
       servers: manifest.serverCount,
       publishedAt: manifest.publishedAt,

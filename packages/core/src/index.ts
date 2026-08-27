@@ -56,12 +56,8 @@ export {
   DEFAULT_MANIFEST_TIMEOUT_MS,
   DEFAULT_STALL_TIMEOUT_MS,
 } from './snapshot.js';
-export type {
-  SnapshotManifest,
-  BootstrapResult,
-  BootstrapOptions,
-  PromoteOutcome,
-} from './snapshot.js';
+export type { SnapshotManifest, BootstrapResult, BootstrapOptions } from './snapshot.js';
+export type { PromoteOutcome } from './snapshot-install.js';
 export {
   readSnapshotState,
   readSnapshotStateSync,

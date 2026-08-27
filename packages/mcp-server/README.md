@@ -54,7 +54,11 @@ indistinguishable from one a still-running peer needs, so it is never collected.
 They are not free — a crawl commits as one transaction, and a measured install
 carried a 40MB `-wal` and a 1MB `-shm` beside a 323MB database — but the server
 trims the WAL after every successful sync and closes a retired handle cleanly,
-so a journal no longer sits inflated to the size of a whole crawl.
+so a journal no longer sits inflated to the size of a whole crawl. A close that
+fails is retried — three times quickly, then once a minute indefinitely on an
+unref'd ticker — rather than abandoned: a stdio server lives as long as the
+client that spawned it, so giving up would park a descriptor and a WAL lock on a
+superseded file for days.
 `SIGKILL`, which is how MCP clients usually stop stdio servers, cannot be
 intercepted, so what accumulated since the last checkpoint is a known leak. See
 [`@mcpfinder/core`](../core/README.md#retention) for the two things that follow:
@@ -79,7 +83,9 @@ threshold is polled four times per period, so a check landing marginally early
 cannot push the refresh out to the next period). A check that finds nothing new
 costs a **single** manifest request. When the manifest advertises a different
 digest, a request for the DB follows: against the gzip endpoint it is
-conditional (`If-None-Match`, using the ETag the pointer recorded), and either
+conditional (`If-None-Match`, using the ETag the pointer recorded — but only
+while the file that ETag describes is still on disk, since a repair that
+revalidates would get a 304 and install nothing), and either
 transfers the file or answers 304; against the brotli endpoint it is
 unconditional, because that artifact is content-addressed by its own digest and
 no brotli ETag is ever stored. A brotli attempt that fails costs one further

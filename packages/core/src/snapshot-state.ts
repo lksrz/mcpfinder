@@ -115,6 +115,39 @@ export function variantDbPath(versionedPath: string): string {
   return join(dirname(versionedPath), `${stem}-${suffix}${ext}`);
 }
 
+/**
+ * Variant files already installed for the digest a versioned path stands for.
+ *
+ * This is a name match and nothing more, and the caller must treat it as one.
+ * A variant name is only ever *created* by `promoteDownload` out of a verified
+ * download, but it does not stay that way: the sweep can unlink the file while
+ * a peer still has it open, and `initDatabase` recreates any name it is handed
+ * as an empty schema-only database — leaving a ~53KB stand-in wearing a
+ * verified digest in its name. So the digest prefix here is a *candidate*, not
+ * evidence; `adopt` is what decides, by matching the file's length against the
+ * verified download the caller is holding.
+ *
+ * Sorted, so two peers scanning the same directory in the same instant settle
+ * on the same variant instead of each adopting the other's.
+ */
+export async function listDigestVariants(versionedPath: string): Promise<string[]> {
+  const dir = dirname(versionedPath);
+  const ext = extname(versionedPath);
+  const stem = basename(versionedPath, ext);
+  const pattern = new RegExp(
+    `^${escapeRegExp(stem)}-[0-9a-z]{${VARIANT_SUFFIX_LEN}}${escapeRegExp(ext)}$`,
+  );
+  try {
+    const entries = await readdir(dir);
+    return entries
+      .filter((entry) => pattern.test(entry))
+      .sort()
+      .map((entry) => join(dir, entry));
+  } catch {
+    return [];
+  }
+}
+
 /** Temp path for an in-flight download. Unique per process *and* per attempt. */
 export function downloadTempPath(nominalDbPath: string): string {
   const suffix = Math.random().toString(36).slice(2, 10);
@@ -219,22 +252,66 @@ function isAtLeastAsNew(existing: SnapshotState, candidate: SnapshotState): bool
  * loser keeps serving valid data and the next refresh re-converges. A lock file
  * would close the window at the price of a far more common failure mode: a
  * stuck lock left by a killed process, blocking every future install.
+ *
+ * Equal digests are the other way the pointer can move for nothing. Two peers
+ * promoting the same snapshot can end up with two files — a returning name
+ * with stranded sidecars sends each to its own variant — and repointing at the
+ * second one buys identical bytes while taking the file every peer is already
+ * serving from out of the sweep's protection. So a pointer that names a file
+ * that is still there wins ties outright, whatever `publishedAt` says. Only
+ * against a *different* file, though: re-stating the pointer already in force
+ * is how `checkedAt` gets stamped and must keep working.
+ *
+ * Both guards stand down in favour of a file that exists *at the moment they
+ * look*, and that is check-then-act against `sweepSnapshotFiles` in another
+ * process: a pass that read the file's mtime before this pointer came to name it
+ * can unlink it afterwards, however many times we check. So the decision is
+ * taken twice, pointer re-read included — which catches a peer that has moved on
+ * and the common case of a sweep that has already finished — and the residual
+ * window is stated rather than closed: the pointer can end up naming a file that
+ * is gone while this caller's identical copy went unselected. That is not
+ * terminal. The caller is running its own verified file, and the next refresh
+ * refuses to call a pointer with no file at it up to date, so it installs again
+ * and repairs the pointer — and, holding no file, it sends no `If-None-Match`
+ * that could turn that reinstall into a 304 (see `bootstrapFromSnapshot`).
+ * That reinstall is what this window's survivability rests on, so it has to be
+ * a download and not a revalidation.
  */
 export async function publishSnapshotState(
   nominalDbPath: string,
   state: SnapshotState,
 ): Promise<PublishOutcome> {
-  const existing = await readSnapshotState(nominalDbPath);
-  if (
-    existing &&
-    existing.sha256 !== state.sha256 &&
-    isNonEmptyFile(pointerTarget(nominalDbPath, existing)) &&
-    isAtLeastAsNew(existing, state)
-  ) {
-    return { status: 'superseded', by: existing };
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const defer = deferralTarget(nominalDbPath, await readSnapshotState(nominalDbPath), state);
+    if (!defer) break;
+    if (attempt === 2) return { status: 'superseded', by: defer };
   }
   const reason = await tryWriteSnapshotState(nominalDbPath, state);
   return reason ? { status: 'failed', reason } : { status: 'written' };
+}
+
+/**
+ * The pointer this candidate must stand down for, or null to publish.
+ *
+ * A pointer that names no surviving file defends nothing — it is exactly the
+ * dangling pointer a lost race leaves behind, and publishing over it is the
+ * repair.
+ */
+function deferralTarget(
+  nominalDbPath: string,
+  existing: SnapshotState | null,
+  state: SnapshotState,
+): SnapshotState | null {
+  if (!existing) return null;
+  if (!isNonEmptyFile(pointerTarget(nominalDbPath, existing))) return null;
+  // `dbFile` specifically, not `pointerTarget`: a pointer predating versioned
+  // files has no file of its own to defend, and publishing over it is how it
+  // acquires one.
+  if (existing.dbFile && existing.sha256 === state.sha256 && existing.dbFile !== state.dbFile) {
+    return existing;
+  }
+  if (existing.sha256 !== state.sha256 && isAtLeastAsNew(existing, state)) return existing;
+  return null;
 }
 
 /**

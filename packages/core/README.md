@@ -110,7 +110,10 @@ Behaviour:
   `MCPFINDER_SNAPSHOT_NO_BROTLI=1` opts out entirely.
 - **The pointer's `etag` describes the gz object**, so it is replayed as
   `If-None-Match` only against the gz artifact, and a brotli install records no
-  ETag rather than a validator for other bytes.
+  ETag rather than a validator for other bytes. It is also replayed only while
+  the file it validates is still on disk: a validator claims "I already hold
+  these bytes", and sending one on the repair path below — where we hold
+  nothing — invites a truthful 304 that leaves nothing to install.
 - **Artifact URLs may not leave the configured base.** Both `url` and
   `brotli.url` are resolved against `baseUrl` (`MCPFINDER_SNAPSHOT_BASE`) and an
   absolute URL is honoured only while it stays inside it. The digest that would
@@ -155,31 +158,62 @@ successful download produces a versioned file for the pointer to move to.
 the hook where a caller opens the new database and retires its old handle. It
 runs *before* the pointer is written, so a throw leaves the pointer on the
 previous snapshot and the caller's existing handle untouched
-(`activate-failed`).
+(`activate-failed`). It is called again, with a different path, in one case
+only: the install adopted a file a peer had put there and that file turned out
+to have been swept out from under the switch (see [Retention](#retention)) — so
+a caller must be able to take up a new path more than once per install. Nearly
+always that means twice; a repair whose fresh variant name collides with a
+peer's copy repeats the check on the new name, up to a small fixed cap.
 
 Promotion to the sha-named file uses `link` + `unlink`, not `rename`: `link`
 fails with `EEXIST` atomically instead of replacing, so two installers of the
-same digest cannot strand each other on a ghost inode — the loser discards its
-download and adopts the file already there. On filesystems without hard links
-(FAT/exFAT, some network mounts) this falls back to `rename`, which is atomic
-but *not* exclusive; there the check-then-rename window remains.
+same digest cannot strand each other on a ghost inode — the loser adopts the
+file already there, once that file has proved it really is this snapshot, and
+keeps its own download in hand until the caller has opened it (see
+[Retention](#retention)). On filesystems without hard links (FAT/exFAT, some
+network mounts) this falls back to `rename`, which is atomic but *not*
+exclusive; there the check-then-rename window remains.
 
-The pointer only ever moves **forward**. `publishSnapshotState` re-reads the
-pointer and refuses to install over a strictly newer `publishedAt`
-(`{ status: 'superseded' }`), so a process that started downloading an older
-snapshot before a peer installed a newer one cannot roll the data dir back and
-send everyone off to re-download 45MB. That holds for a pointer **without**
-`dbFile` too — the pre-versioning shape. It stands for the legacy `data.db`, or
-for the versioned file of its own digest once one exists, and is ordered against
-whichever of those is actually on disk; skipping the comparison for it, as an
-earlier version did, let a *staler* snapshot overwrite a perfectly good pointer. Equal timestamps with different digests
-are broken by digest, so every peer picks the same winner. The comparison is
-read-compare-write and therefore narrows the race rather than closing it — the
-events it orders are minutes to hours apart while the window is milliseconds,
-and the loser keeps serving valid data until its next refresh. A pointer write
-that *fails* is reported (`pointer-write-failed`), never swallowed: activation
-has already happened, so the caller must know the data dir still selects the old
-file.
+`publishSnapshotState` stands down for the pointer already in force in two
+cases, both reported as `{ status: 'superseded' }`:
+
+- **A newer snapshot.** A strictly newer `publishedAt` is never overwritten, so
+  a process that started downloading an older snapshot before a peer installed a
+  newer one cannot roll the data dir back and send everyone off to re-download
+  45MB. That holds for a pointer **without** `dbFile` too — the pre-versioning
+  shape. It stands for the legacy `data.db`, or for the versioned file of its own
+  digest once one exists, and is ordered against whichever of those is actually
+  on disk; skipping the comparison for it, as an earlier version did, let a
+  *staler* snapshot overwrite a perfectly good pointer. Equal timestamps with
+  different digests are broken by digest, so every peer picks the same winner.
+- **The same digest in a different file.** Here `publishedAt` does *not* decide:
+  a pointer naming a surviving file wins outright, however new the candidate
+  claims to be. Repointing between two copies of one digest buys identical bytes
+  while taking the file every peer is already serving from out of the sweep's
+  protection. Re-stating the pointer already in force is not this case and keeps
+  working — it is how `checkedAt` gets stamped.
+
+So the pointer does not only move forward: on equal digests it prefers *staying
+put*. What it never does is move to older data.
+
+Both guards defer to a file that exists at the moment they look, which is
+check-then-act against a `sweepSnapshotFiles` pass in another process. The
+decision is therefore taken twice, pointer re-read included — enough to catch a
+peer that has moved on, and a sweep that has already finished — but the window is
+narrowed, not closed: a pass that read a file's mtime before the pointer came to
+name it can unlink it afterwards, however many times we look. The residual
+outcome is a pointer naming a file that is gone while an identical copy sat
+unselected, and it is not terminal: the caller runs its own verified file, and
+the next refresh refuses to call a pointer with no file at it up to date, so it
+installs again and repairs the pointer — holding no file, it also sends no
+`If-None-Match`, so that repair is a download and not a revalidation that could
+answer 304 and install nothing. Losing the ordering race is likewise
+cheap — the events being ordered are minutes to hours apart while the window is
+milliseconds, and the loser keeps serving valid data until its next refresh.
+
+A pointer write that *fails* is reported (`pointer-write-failed`), never
+swallowed: activation has already happened, so the caller must know the data dir
+still selects the old file.
 
 **What is and is not guaranteed.** A reader never observes a half-written or
 vanished database: it opens a file that is complete before it is named. A file
@@ -284,29 +318,126 @@ what is current cannot disagree. It costs one small, sweepable empty database
 per process in that state, until a successful download writes a pointer that
 names a file again.
 
-The sidecar probe in `promoteDownload` is still check-then-act. The canonical
-name is re-checked immediately before committing to a variant, so a peer that
-installs it inside the window is normally adopted rather than duplicated; the
-remaining gap is the few syscalls before `link`, and losing it costs a second
-full copy of identical bytes under a variant name, which the sweep reclaims on
-the usual clock. Closing it properly would need a lock file, whose failure mode
-(a stuck lock from a killed process) is worse than the one it removes.
+Because the suffix is random, a variant name is not something a second peer can
+guess. `promoteDownload` therefore scans the directory for a variant already
+carrying the same digest and adopts a usable one before drawing a suffix of its
+own — otherwise every peer meeting the same stranded journal writes an
+independent full copy (`data-<sha>-p4kpz3.db` beside `data-<sha>-yk9r6t.db`).
+Once a candidate has proved itself (below), adoption also touches its mtime,
+because the sweep decides by mtime and the file being taken up is exactly the
+one it would otherwise consider a leftover — in that order, so a candidate that
+is refused is not also made unsweepable. `publishSnapshotState` backs this up: on equal digests a pointer
+naming a file that is still there wins the tie outright, so the data dir is not
+repointed from one copy of a digest to another while both are present — but two
+publishers can still both read the same predecessor and rename their pointers in
+sequence, so that is a strong preference, not an exclusion.
+
+**A name is a candidate; the bytes behind it are the claim.** Adoption is what
+lets a peer skip a second full download, and it used to rest entirely on the
+file name: the digest prefix in `data-<sha16>.db` or `data-<sha16>-<rand6>.db`
+was taken as evidence of what was inside. It is not. The sweep can unlink a file
+while a peer still has it open, and `initDatabase` recreates any name it is
+handed as an empty schema-only database — so a ~53KB stand-in ends up wearing a
+verified digest in its name, and the next peer to adopt it activates a 0-server
+catalogue whose pointer and digest both look perfectly healthy, right down to
+its next refresh answering `snapshot-up-to-date`.
+
+So every adoption site now asks the candidate to match the verified download the
+installer is still holding: the same length, and the same bytes across windows
+sampled at the start, the middle and the end (a file smaller than one window is
+compared in full). Re-hashing 230MB would be proof; this is not, and does not
+claim to be — it is the cheapest check that rules out everything that could
+plausibly be sitting at one of these names, a stand-in database, a truncated
+copy, a half-written one. The verified download is the reference rather than the
+manifest's `sizeBytes`, which describes the *compressed* artifact; nothing has
+to be passed in.
+
+**That comparison has three answers, not two.** A `stat` that fails for a reason
+other than "there is nothing there", a file that will not open, a read that
+comes back short of what `stat` promised — an `EMFILE` under load, an `EIO`, a
+network mount that blinked mid-read of a ~230MB file — none of those are
+evidence about the bytes, so the comparison reports *indeterminate* rather than
+"differs", and each caller decides what that means for it. `adopt` and the
+variant claim want a positive match and get none, so they decline: the cost is
+one more download, and declining also means the variant's mtime is not touched,
+so a file we refused does not have its retention clock restarted. The unlink of
+a stand-in (below) is the one caller that *destroys* something, and it acts only
+on a positive "differs" — because the other way a name's inode can change is a
+peer re-installing genuine bytes under a name we happened to share, and that
+file is somebody's current database. An indeterminate answer leaves it alone and
+the sweep ages it out on the usual clock if it really was a stand-in: later than
+we would like, which is the safe direction.
+
+**And the download is kept until the adopted file is proved real.** The `utimes`
+above only restarts the retention clock for sweeps that read the mtime *after*
+it; a pass already walking the directory read it before and can unlink the file
+at any point up to the end of that walk — the window is the whole in-flight
+pass, not a millisecond. That used to be unrecoverable, because adoption
+discarded the verified copy. So `promoteDownload` no longer consumes the temp
+file on any path that adopts somebody else's file: it hands it back as `temp`,
+and `bootstrapFromSnapshot` releases it only after `activate` has returned.
+Before activating it checks the adopted file is there, and afterwards it
+compares the **inode** with the one it adopted — presence alone proves nothing
+after the fact, since the name is occupied either way once `initDatabase` has
+run. Anything other than the same inode means the caller opened a stand-in: the
+stand-in is unlinked (the database file only, never its journal — that may
+belong to the peer holding the old inode), and the retained copy is installed
+under a fresh variant name and activated instead. That is a name nothing else
+has ever seen, so no sweep can be part-way through removing it — and in the
+event that it *is* taken, by a suffix collision with a peer's copy of these very
+bytes, the temp is handed back again and the same check runs on the new name,
+bounded by a hard cap on passes.
+
+The two halves are deliberate. Unlinking the stand-in closes the steady state —
+otherwise it sits there wearing a verified digest, and every peer that touched
+it pushed its retention clock forward, so nothing would ever reclaim it. The
+evidence check closes the window the cleanup cannot: a process killed between
+`activate` and that unlink, or a Windows unlink that fails while something holds
+the file, leaves the stand-in behind for good, and no later peer trusts it
+anyway.
+
+What is left is a repair, not a race: the caller may momentarily open an empty
+database, and on a crash or a Windows-locked unlink one abandoned empty file may
+be left at the swept name — refused by every peer, and reclaimed by the sweep on
+the usual clock once nothing touches it.
+
+The sidecar probe in `promoteDownload` is still check-then-act, and so is the
+variant scan. The canonical name is re-checked immediately before committing to
+a variant, so a peer that installs it inside the window is normally adopted
+rather than duplicated; the remaining gap is the few syscalls before `link`, and
+losing it costs a second full copy of identical bytes under a variant name,
+which the sweep reclaims on the usual clock. Closing any of this properly would
+need a lock file, whose failure mode (a stuck lock from a killed process) is
+worse than the one it removes.
 
 ### Refresh
 
 Pass `refresh: true` to re-check an install. When the manifest's `sha256`
-matches the pointer's, the call returns
-`{ ok: false, reason: 'snapshot-up-to-date' }` after a **single** manifest
-request — the DB endpoint is not touched. When it differs, a **second** request
+matches the pointer's *and the pointer's own file is still there*, the call
+returns `{ ok: false, reason: 'snapshot-up-to-date' }` after a **single**
+manifest request — the DB endpoint is not touched. A pointer naming a file that
+has gone is deliberately **not** up to date, whatever its digest says:
+`resolveCurrentDbPath` has fallen back to the nominal `data.db`, which is at
+best an older database and at worst the empty one `initDatabase` created there
+on the way past, and accepting the digest match would wedge the data dir — every
+later check would match too, so nothing would ever install again until a new
+digest was published. Re-installing costs one download and repairs the pointer,
+which is what makes the pointer races above self-healing — and that repair
+therefore never sends a validator, because a 304 would be an answer about bytes
+it does not have and would wedge the data dir just as thoroughly.
+When it differs, a **second** request
 is made for the DB. Whether it is conditional depends on the artifact: the gz
-request replays the pointer's ETag as `If-None-Match`, while a brotli request
-never does — the pointer holds no brotli ETag, since that field describes the gz
+request replays the pointer's ETag as `If-None-Match` — provided the pointer's
+own file is still there — while a brotli request
+never does: the pointer holds no brotli ETag, since that field describes the gz
 object. A brotli install therefore stores no ETag at all, and its later
 refreshes are unconditional until a gz download records one. If the conditional
 gz request answers 304 — the documented window where the durable gz lags
 manifest publication — the call returns `snapshot-not-yet-published` and
 deliberately does *not* stamp `checkedAt`, so the next check retries instead of
-being suppressed for a whole refresh interval. `force: true` re-downloads
+being suppressed for a whole refresh interval. A 304 that answers no validator
+at all is an origin or proxy misbehaving, and is reported as the failed download
+it is (`download-failed-304`) rather than as a snapshot that merely lags. `force: true` re-downloads
 unconditionally.
 
 A failed brotli attempt makes the refresh two DB requests rather than one; both
@@ -480,7 +611,7 @@ fallback upload from presenting stale bytes as current.
 | `bootstrapFromSnapshot` | Fast cold-start via prebuilt SQLite snapshot (brotli when offered, gzip otherwise or on any brotli failure); also refreshes an installed one. |
 | `readSnapshotState / writeSnapshotState / snapshotStatePath` | Pointer + provenance of the installed snapshot (`dbFile`, `sha256`, `publishedAt`, `etag`). |
 | `resolveCurrentDbPath / versionedDbPath` | Map the nominal `data.db` path to the file actually in use, and to a digest's file name. |
-| `publishSnapshotState` | Move the pointer to a new snapshot — forward only, and reports a failed write. |
+| `publishSnapshotState` | Move the pointer to a new snapshot — standing down for older data and for a second copy of one digest *while that pointer's file is still there* on both of two looks, and reporting a failed write. |
 | `sweepSnapshotFiles` | Reclaim superseded snapshot files and abandoned downloads, age-gated; a `-wal`/`-shm` is never removed, at any age. |
 | `closeDatabase / checkpointWal` | Close a handle cleanly (checkpoint, then close) when the caller knows it is done with it, and truncate the WAL a single-transaction crawl left behind. |
 | `reconcileSnapshotPointer` | Stamp `checkedAt` on the pointer *in force*, without rolling a peer's newer one back. |

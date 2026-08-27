@@ -323,17 +323,24 @@ export async function syncOfficialRegistry(
         mergeServerSources(db, row.id, 'official');
       }
       assertBeforeDeadline(deadline, runtime, 'Registry API');
+      // The log row commits with the rows it describes. Written after the
+      // commit instead, a crash in the gap would leave a corpus that is
+      // current but logged as never synced, and the next start would spend a
+      // full crawl rebuilding data it already has.
+      updateSyncLog(db, 'official', staging.size);
     });
     applyCompletedCrawl(staging.read());
     totalUpserted = staging.size;
-    updateSyncLog(db, 'official', totalUpserted);
     // The whole crawl landed in one transaction, so the WAL is now as big as
-    // the write was. Trim it while the database is quiet.
+    // the write was. Trim it while the database is quiet — SQLite refuses to
+    // checkpoint from inside an open transaction, so this stays out here.
     checkpointWal(db);
     return totalUpserted;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     totalUpserted = 0;
+    // Outside the transaction by necessity: it has already rolled back, and a
+    // write issued into a rolled-back transaction would vanish with it.
     updateSyncLog(db, 'official', 0, 'error', message);
     process.stderr.write(`[mcpfinder] Official sync error: ${message}\n`);
     throw error;
@@ -562,21 +569,27 @@ export async function syncGlamaRegistry(
           }
         }
         assertBeforeDeadline(deadline, runtime, 'Glama API');
+        // The log row commits with the rows it describes. Written after the
+        // commit instead, a crash in the gap would leave a corpus that is
+        // current but logged as never synced, and the next start would spend a
+        // full crawl rebuilding data it already has.
+        updateSyncLog(db, 'glama', staging.size);
       });
       applyCompletedCrawl(staging.read());
       totalUpserted = staging.size;
     }
-    updateSyncLog(
-      db,
-      'glama',
-      totalUpserted,
-      degradation ? 'error' : 'ok',
-      degradation ?? undefined,
-    );
+    if (degradation) {
+      // A degraded crawl applied nothing, so there is no transaction for this
+      // row to be atomic with — only the clean 'ok' row above needs to be.
+      updateSyncLog(db, 'glama', totalUpserted, 'error', degradation);
+    }
     // One transaction per crawl means one WAL the size of the whole write.
+    // SQLite refuses to checkpoint from inside an open transaction.
     if (!degradation) checkpointWal(db);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // Outside the transaction by necessity: it has already rolled back, and a
+    // write issued into a rolled-back transaction would vanish with it.
     updateSyncLog(db, 'glama', totalUpserted, 'error', msg);
     process.stderr.write(`[mcpfinder] Glama sync error: ${msg}\n`);
   } finally {
@@ -795,21 +808,27 @@ export async function syncSmitheryRegistry(
           }
         }
         assertBeforeDeadline(deadline, runtime, 'Smithery API');
+        // The log row commits with the rows it describes. Written after the
+        // commit instead, a crash in the gap would leave a corpus that is
+        // current but logged as never synced, and the next start would spend a
+        // full crawl rebuilding data it already has.
+        updateSyncLog(db, 'smithery', staging.size);
       });
       applyCompletedCrawl(staging.read());
       totalUpserted = staging.size;
     }
-    updateSyncLog(
-      db,
-      'smithery',
-      totalUpserted,
-      degradation ? 'error' : 'ok',
-      degradation ?? undefined,
-    );
+    if (degradation) {
+      // A degraded crawl applied nothing, so there is no transaction for this
+      // row to be atomic with — only the clean 'ok' row above needs to be.
+      updateSyncLog(db, 'smithery', totalUpserted, 'error', degradation);
+    }
     // One transaction per crawl means one WAL the size of the whole write.
+    // SQLite refuses to checkpoint from inside an open transaction.
     if (!degradation) checkpointWal(db);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // Outside the transaction by necessity: it has already rolled back, and a
+    // write issued into a rolled-back transaction would vanish with it.
     updateSyncLog(db, 'smithery', totalUpserted, 'error', msg);
     process.stderr.write(`[mcpfinder] Smithery sync error: ${msg}\n`);
   } finally {

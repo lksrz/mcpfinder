@@ -1,141 +1,54 @@
 /**
- * Multi-process safety of the snapshot data dir.
+ * Multi-process safety of the snapshot data dir: promotion, the pointer, and
+ * retention.
  *
  * Every check here stands in for two mcpfinder processes (Claude Desktop,
  * Cursor, Claude Code) sharing one `~/.mcpfinder/`: exclusive promotion, the
  * pointer never moving backwards, retention taking a database out from under a
  * peer without harming it, and a tool call landing inside the handle switch.
+ * What happens when two peers meet each other's *installed* files — adoption,
+ * variants, the stand-in a sweep can leave behind — is in
+ * `test-snapshot-adoption.mjs`; the fixtures both use are in
+ * `snapshot-concurrency-harness.mjs`.
  *
  * The retention checks run against real SQLite databases with real WAL
  * sidecars, not stand-in text files — the property under test is that a peer
  * with the file *open* survives, which a synthetic sidecar cannot demonstrate.
  */
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
-  readdirSync,
   rmSync,
   statSync,
-  utimesSync,
   writeFileSync,
 } from 'node:fs';
-import { createServer } from 'node:http';
-import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
-import { gzipSync } from 'node:zlib';
-
-const dir = mkdtempSync(join(tmpdir(), 'mcpf-snapshot-concurrency-'));
-process.env.MCPFINDER_DATA_DIR = dir;
-
-const {
+import {
+  ageFile,
   bootstrapFromSnapshot,
-  initDatabase,
+  createCatalog,
+  dir,
   getServerCount,
+  initDatabase,
+  openPeerDb,
+  payload,
+  payloadSha,
+  promoteDownload,
   publishSnapshotState,
   readSnapshotState,
   reconcileSnapshotPointer,
   resolveCurrentDbPath,
+  scratch,
+  serveOk,
+  startOrigin,
+  stateFor,
   sweepSnapshotFiles,
   versionedDbPath,
+  wait,
   writeSnapshotState,
-} = await import('../packages/core/dist/index.js');
-// Not part of the public surface — reached directly so the promotion primitive
-// can be exercised without racing two real downloads.
-const { promoteDownload } = await import('../packages/core/dist/snapshot.js');
-const { createCatalog } = await import('../packages/mcp-server/dist/catalog.js');
-
-// ─── Fixtures ───────────────────────────────────────────────────────────────
-
-function buildSnapshotPayload(name, rows = 1) {
-  const srcPath = join(dir, `${name}.src.db`);
-  const db = initDatabase(srcPath);
-  for (let i = 0; i < rows; i += 1) {
-    db.prepare("INSERT INTO servers (id, slug, name, description) VALUES (?, ?, ?, '')").run(
-      `io.example/${name}-${i}`,
-      `${name}-${i}`,
-      `io.example/${name}-${i}`,
-    );
-  }
-  db.close();
-  return gzipSync(readFileSync(srcPath));
-}
-
-const payload = buildSnapshotPayload('conc');
-const payloadSha = createHash('sha256').update(payload).digest('hex');
-
-function manifestFor(overrides = {}) {
-  return JSON.stringify({
-    publishedAt: '2026-08-26T00:00:00.000Z',
-    serverCount: 1,
-    sha256: payloadSha,
-    sizeBytes: payload.length,
-    url: `data.sqlite.gz?sha=${payloadSha}`,
-    ...overrides,
-  });
-}
-
-async function startOrigin(handler) {
-  const server = createServer((req, res) => {
-    Promise.resolve(handler(req, res)).catch(() => res.destroy());
-  });
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const { port } = server.address();
-  return {
-    base: `http://127.0.0.1:${port}`,
-    close: () => new Promise((resolve) => server.close(resolve)),
-  };
-}
-
-function serveOk(req, res) {
-  if (req.url.startsWith('/manifest.json')) {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(manifestFor());
-    return;
-  }
-  res.writeHead(200, { 'content-type': 'application/octet-stream', etag: '"c1"' });
-  res.end(payload);
-}
-
-function scratch(name) {
-  const path = join(dir, name);
-  mkdirSync(path, { recursive: true });
-  return join(path, 'data.db');
-}
-
-function ageFile(path, hours) {
-  const when = new Date(Date.now() - hours * 3_600_000);
-  utimesSync(path, when, when);
-}
-
-/** An open catalog DB with `rows` servers in it — and a live `-wal`/`-shm`. */
-function openPeerDb(path, rows) {
-  const db = initDatabase(path);
-  for (let i = 0; i < rows; i += 1) {
-    db.prepare("INSERT INTO servers (id, slug, name, description) VALUES (?, ?, ?, '')").run(
-      `io.example/peer-${i}`,
-      `peer-${i}`,
-      `io.example/peer-${i}`,
-    );
-  }
-  assert.ok(existsSync(`${path}-wal`), 'the fixture must have a real WAL sidecar');
-  return db;
-}
-
-function stateFor(nominal, sha, publishedAt) {
-  return {
-    dbFile: basename(versionedDbPath(nominal, sha)),
-    sha256: sha,
-    publishedAt,
-    installedAt: publishedAt,
-    checkedAt: publishedAt,
-  };
-}
-
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+} from './snapshot-concurrency-harness.mjs';
 
 // ─── 1. Two installers of one digest: the loser adopts, never overwrites ────
 
@@ -144,8 +57,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const target = versionedDbPath(nominal, payloadSha);
   const tmpA = `${nominal}.download-111-aaaa`;
   const tmpB = `${nominal}.download-222-bbbb`;
-  writeFileSync(tmpA, 'installer A');
-  writeFileSync(tmpB, 'installer B');
+  // The same bytes, because it is the same digest — which is also why the
+  // loser may adopt at all. Two *different* payloads under one name is a
+  // different scenario, and the one `test-snapshot-adoption.mjs` covers.
+  writeFileSync(tmpA, 'verified snapshot bytes');
+  writeFileSync(tmpB, 'verified snapshot bytes');
 
   assert.deepEqual(await promoteDownload(tmpA, target), { status: 'ok', path: target });
   const winner = statSync(target);
@@ -154,15 +70,19 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   // itself refuses to replace an existing name.
   assert.deepEqual(
     await promoteDownload(tmpB, target),
-    { status: 'ok', path: target },
+    { status: 'ok', path: target, temp: tmpB },
     'the loser reports no error and lands on the same file',
   );
   const after = statSync(target);
 
   assert.equal(after.ino, winner.ino, "the winner's inode is never replaced");
-  assert.equal(readFileSync(target, 'utf8'), 'installer A');
+  assert.equal(readFileSync(target, 'utf8'), 'verified snapshot bytes');
   assert.equal(existsSync(tmpA), false, "the winner's temp file is cleaned up");
-  assert.equal(existsSync(tmpB), false, "and so is the loser's");
+  // The loser's is *not* — adopting a file somebody else installed hands the
+  // verified bytes back so the caller can fall back to them (see
+  // `test-snapshot-adoption.mjs`, block 5).
+  assert.equal(existsSync(tmpB), true, "the loser keeps its copy until the caller lets go");
+  rmSync(tmpB);
 }
 
 // ─── 2. A promotion that cannot create the target is reported, not swallowed ─
@@ -495,33 +415,66 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await origin.close();
 }
 
-// ─── 10. A retired handle that will not close is retried, then reported ─────
+// ─── 10. A retired handle that will not close is never abandoned ────────────
 
 {
+  // The old contract gave up after three attempts and kept the descriptor and
+  // the WAL lock for the life of the process — unbounded for a stdio server
+  // that lives as long as the client that spawned it. Now the fast attempts
+  // hand over to a ticker that keeps trying, on unref'd timers so a handle
+  // that never closes still cannot hold the process open.
   const nominal = scratch('close-fails');
   const origin = await startOrigin(serveOk);
+  const HANDOVER = 'Could not close the retired catalog handle';
+  // Stands in for the 60s production ticker; the property under test is that it
+  // keeps ticking, not how far apart the ticks are. Also the ticker's
+  // fingerprint below — no other timer in this block is given this delay.
+  const retireSlowRetryMs = 20;
   const logs = [];
+  /** How many closes the fast phase had tried when it gave up and backed off. */
+  let attemptsAtHandover = null;
   const state = { db: null };
-  const catalog = createCatalog({
-    dbPath: nominal,
-    baseUrl: origin.base,
-    lingerMs: 0,
-    openDb: (path) => initDatabase(path),
-    getDb: () => state.db,
-    setDb: (next) => {
-      state.db = next;
-    },
-    log: (message) => logs.push(message),
-  });
+  // Captured before the globals are instrumented, so the polling below is not
+  // mistaken for one of the catalog's own timers.
+  const realSetTimeout = globalThis.setTimeout;
+  const realSetInterval = globalThis.setInterval;
+  const waitReal = (ms) => new Promise((r) => realSetTimeout(r, ms));
 
-  const real = initDatabase(catalog.currentDbPath);
+  // The delay is recorded alongside the kind because the catalog's own
+  // periodic-refresh `setInterval` is created inside this window too, and an
+  // assertion that cannot tell it from the retirement ticker asserts nothing.
+  const timers = [];
+  const record = (kind, delayMs, timer) => {
+    const seen = { kind, delayMs, unrefd: false };
+    timers.push(seen);
+    const unref = timer.unref?.bind(timer);
+    if (unref) {
+      timer.unref = () => {
+        seen.unrefd = true;
+        return unref();
+      };
+    }
+    return timer;
+  };
+  globalThis.setTimeout = (fn, ms, ...rest) =>
+    record('timeout', ms, realSetTimeout(fn, ms, ...rest));
+  globalThis.setInterval = (fn, ms, ...rest) =>
+    record('interval', ms, realSetInterval(fn, ms, ...rest));
+
+  // Fails through the whole fast phase and the first two slow ticks, then the
+  // imaginary statement that was holding it finishes and the close lands.
+  const closesUntilFree = 6;
   let closeAttempts = 0;
+  const real = initDatabase(join(dir, 'close-fails', 'wedged.db'));
+  let closed = false;
   state.db = new Proxy(real, {
     get(target, prop, receiver) {
       if (prop === 'close') {
         return () => {
           closeAttempts += 1;
-          throw new Error('handle is wedged');
+          if (closeAttempts < closesUntilFree) throw new Error('handle is wedged');
+          closed = true;
+          target.close();
         };
       }
       const value = Reflect.get(target, prop, receiver);
@@ -529,48 +482,96 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     },
   });
 
+  const catalog = createCatalog({
+    dbPath: nominal,
+    baseUrl: origin.base,
+    lingerMs: 0,
+    retireSlowRetryMs,
+    openDb: (path) => initDatabase(path),
+    getDb: () => state.db,
+    setDb: (next) => {
+      state.db = next;
+    },
+    log: (message) => {
+      logs.push(message);
+      // Sampled *in* the hand-over, not polled after it. The warning is written
+      // synchronously between the last fast attempt and the creation of the
+      // ticker, so this is the fast phase's attempt count by construction — a
+      // poll that lands after the ticker's first tick would read one too many.
+      if (attemptsAtHandover === null && message.includes(HANDOVER)) {
+        attemptsAtHandover = closeAttempts;
+      }
+    },
+  });
+
   catalog.start();
   await catalog.settled();
-  // Retirement is deferred, and each failed close is retried on a short timer.
-  for (let i = 0; i < 60 && !logs.some((l) => l.includes('Could not close')); i += 1) {
-    await wait(50);
-  }
 
-  assert.ok(closeAttempts > 1, `a failed close is retried (attempts: ${closeAttempts})`);
-  assert.ok(
-    logs.some((line) => line.includes('Could not close the retired catalog handle')),
-    logs.join(''),
-  );
-  real.close();
-  await origin.close();
-}
-
-// ─── 11. Two bootstraps racing on one data dir install exactly one file ─────
-
-{
-  const nominal = scratch('parallel-bootstrap');
-  const origin = await startOrigin(serveOk);
-  const [a, b] = await Promise.all([
-    bootstrapFromSnapshot({ baseUrl: origin.base, dbPath: nominal, force: true }),
-    bootstrapFromSnapshot({ baseUrl: origin.base, dbPath: nominal, force: true }),
-  ]);
-
-  assert.equal(a.ok, true, a.reason);
-  assert.equal(b.ok, true, b.reason);
-  const installed = readdirSync(join(dir, 'parallel-bootstrap')).filter(
-    (f) => f.startsWith('data-') && f.endsWith('.db'),
-  );
-  assert.deepEqual(installed, [`data-${payloadSha.slice(0, 16)}.db`], 'exactly one snapshot file');
+  const handover = () => logs.find((l) => l.includes(HANDOVER));
+  for (let i = 0; i < 100 && !handover(); i += 1) await waitReal(20);
+  assert.ok(handover(), `the hand-over is announced once: ${logs.join('')}`);
   assert.equal(
-    readdirSync(join(dir, 'parallel-bootstrap')).filter((f) => f.includes('.download-')).length,
-    0,
-    'both temp files are cleaned up',
+    attemptsAtHandover,
+    3,
+    'the fast phase runs exactly RETIRE_CLOSE_ATTEMPTS times before backing off',
   );
-  const db = initDatabase(resolveCurrentDbPath(nominal));
-  assert.equal(getServerCount(db), 1, 'and it is the real snapshot');
-  db.close();
+  assert.match(handover(), /Retrying every/, 'and says the retries continue');
+
+  // The ticker takes over and keeps going past the point the old code stopped.
+  for (let i = 0; i < 200 && !closed; i += 1) await waitReal(20);
+  assert.ok(closed, `the ticker closed the handle eventually (attempts: ${closeAttempts})`);
+  assert.equal(closeAttempts, closesUntilFree, 'and stopped at the attempt that succeeded');
+
+  const success = () => logs.find((l) => l.includes('Retired catalog handle closed'));
+  for (let i = 0; i < 100 && !success(); i += 1) await waitReal(20);
+  assert.ok(success(), `the eventual close closes out the warning: ${logs.join('')}`);
+
+  // Silence after that: the ticker is cleared, so no further attempt is made
+  // and no further line is written however long we wait.
+  const settledAttempts = closeAttempts;
+  const settledLogs = logs.length;
+  await waitReal(200);
+  assert.equal(closeAttempts, settledAttempts, 'a closed handle is not retried again');
+  assert.equal(logs.length, settledLogs, 'and nothing more is logged');
+  assert.equal(
+    logs.filter((l) => l.includes(HANDOVER)).length,
+    1,
+    'the warning is said once, not once per tick',
+  );
+
+  globalThis.setTimeout = realSetTimeout;
+  globalThis.setInterval = realSetInterval;
+
+  // A handle that never closes must not be able to keep the process alive.
+  //
+  // Identified by its delay: `retireSlowRetryMs` is a value only the retirement
+  // ticker is given, so the catalog's periodic-refresh interval — created by
+  // `start()` inside the same window, and also an unref'd `setInterval` —
+  // cannot stand in for it.
+  const slowRetries = timers.filter(
+    (t) => t.kind === 'interval' && t.delayMs === retireSlowRetryMs,
+  );
+  assert.equal(
+    slowRetries.length,
+    1,
+    `the slow retry is a ticker, not a one-shot: ${JSON.stringify(timers)}`,
+  );
+
+  // Everything the retirement path schedules is sub-second here (linger 0, the
+  // fast retries, the ticker); the only other timer in flight is the refresh
+  // interval, hours away. So this really is the retirement path's own set, and
+  // it is non-empty — an empty filter would pass the `unrefd` check vacuously.
+  const retirement = timers.filter((t) => t.delayMs < 1_000);
+  assert.ok(
+    retirement.length >= 4,
+    `the retirement path schedules a linger, its fast retries and a ticker: ${JSON.stringify(timers)}`,
+  );
+  assert.deepEqual(
+    retirement.filter((t) => !t.unrefd),
+    [],
+    'every timer the retirement path creates is unref’d',
+  );
+
   await origin.close();
 }
-
-rmSync(dir, { recursive: true, force: true });
 console.log('snapshot concurrency checks passed');
