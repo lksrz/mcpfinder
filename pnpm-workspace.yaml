@@ -7,6 +7,68 @@ allowBuilds:
   sharp: true
   workerd: true
 
+# --- Supply-chain hardening -------------------------------------------------
+# These bite in two places. Obviously, when a human resolves new versions
+# (`pnpm install` on a changed manifest, `pnpm update`, `pnpm add`) — the moment
+# a poisoned release would first enter the lockfile. Less obviously, pnpm 11
+# also re-applies them to every existing lockfile entry on `--frozen-lockfile`,
+# so CI enforces the same policy on a lockfile someone else committed. A
+# violation there is a hard install failure, not a warning.
+
+# Refuse npm releases younger than 7 days (value is in minutes). Compromised
+# releases are typically yanked within hours, so the delay is what turns a
+# hijacked publish into a non-event for us.
+minimumReleaseAge: 10080
+
+# Refuse transitive deps that resolve to a git URL or a bare tarball instead of
+# a registry entry. Currently a no-op — all 238 lockfile entries resolve via the
+# registry — which is the point: it fails loudly the day one stops doing so.
+blockExoticSubdeps: true
+
+# Reject a version whose trust evidence (staged publish > trusted publisher >
+# provenance attestation) is weaker than that of any version published *earlier*
+# — the signature of an account takeover republishing without the real
+# maintainer's pipeline. Compared by publish date, not by semver, so an old
+# release line is judged against everything that came before it in wall time.
+trustPolicy: no-downgrade
+
+# One standing exemption, pinned to the exact version so any other release of
+# the same package is still checked. `undici-types` (a transitive dep of
+# `@types/node`) carried provenance at 6.13.0 in 2024-04, lost it by 6.19.3 in
+# 2024-07, and 6.21.0 — what `@types/node@22.x` pins — inherits that gap, so
+# no-downgrade rejects it and CI cannot install. Verified benign: provenance
+# flips on and off four times across this package's history while `_npmUser`
+# stays the undici maintainer throughout, and it has been continuously on since
+# 7.2.1 in 2025-01. Tooling churn upstream, not a takeover. Drop this line once
+# `@types/node` stops pinning 6.21.0.
+trustPolicyExclude:
+  - undici-types@6.21.0
+
+# The `overrides` block below is a hand-maintained list of security patches: an
+# entry lands there precisely when we need the fix *now*. Leaving those packages
+# under the 7-day floor would delay the very updates the block exists to force,
+# so they are exempt.
+#
+# The trade-off is explicit — these 14 packages get no cooldown, and they are
+# also the ones an attacker would most want to hijack. It is the right side of
+# the trade only because every entry here is a package we deliberately track and
+# bump by hand; drop a name from `overrides` and drop it from this list too.
+minimumReleaseAgeExclude:
+  - hono
+  - "@hono/node-server"
+  - express-rate-limit
+  - undici
+  - path-to-regexp
+  - fast-uri
+  - ip-address
+  - tmp
+  - sharp
+  - body-parser
+  - esbuild
+  - ajv
+  - ws
+  - qs
+
 overrides:
   hono: "^4.13.3"
   "@hono/node-server": "^1.19.17"

@@ -510,6 +510,30 @@ pnpm --filter @mcpfinder/server build
 node packages/mcp-server/dist/index.js
 ```
 
+### Dependency policy
+
+`pnpm-workspace.yaml` enforces three supply-chain rules on every resolution:
+`minimumReleaseAge: 10080` (no npm release younger than seven days),
+`blockExoticSubdeps: true` (every transitive dep must resolve from the registry,
+never a git URL or bare tarball), and `trustPolicy: no-downgrade` (reject a
+version whose trust evidence is weaker than that of any version published
+before it).
+
+pnpm 11 also re-applies all three to the existing lockfile under
+`--frozen-lockfile`, so CI enforces them on a lockfile someone else committed —
+a violation fails the install outright.
+
+Two consequences worth knowing before they surprise you:
+
+- **A freshly published version will not resolve for a week.** That is the
+  point. The packages listed under `overrides` are the exception: they are a
+  hand-maintained set of security pins, so they appear in
+  `minimumReleaseAgeExclude` and update the day a patch lands. Remove a package
+  from `overrides` and remove it from that list too.
+- **`trustPolicyExclude` carries exactly one pinned entry**, `undici-types@6.21.0`,
+  with the evidence for why it is benign recorded in the file. Pin any future
+  exemption to an exact version the same way, never to a bare package name.
+
 ## Current Limitations
 
 - The local `stdio` server is the canonical interface. Install via `npx -y @mcpfinder/server`.
