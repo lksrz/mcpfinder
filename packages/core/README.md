@@ -21,7 +21,7 @@ npm install @mcpfinder/core
 pnpm add @mcpfinder/core
 ```
 
-Node.js 22.13+ required (built-in `node:sqlite`, no native build step).
+Node.js 22.15+ required (built-in `node:sqlite`, no native build step).
 
 ## Quick start
 
@@ -211,6 +211,54 @@ answer 304 and install nothing. Losing the ordering race is likewise
 cheap — the events being ordered are minutes to hours apart while the window is
 milliseconds, and the loser keeps serving valid data until its next refresh.
 
+**A file at the pointer's name is not evidence that the pointer is good.** Both
+guards above once stood down for anything non-empty at that name, and that is
+the same mistake the byte comparison below fixed one layer down. `initDatabase`
+recreates any name it is handed as a schema-only database, so a file a sweep
+unlinked out from under a peer comes back at the same name, non-empty, wearing a
+verified digest — and this process's own `activate` is one of the things that
+puts it back, on the way to discovering the substitution. Deferring to it is
+what turns a recoverable race into a permanent wedge: the caller has already
+repaired onto a file of its own and is publishing to say so, the pointer stays
+on the stand-in, every later refresh reads a matching digest behind an existing
+file and calls it up to date, and the sweep exempts that file at any age for
+being current. The data dir serves an empty catalogue until a new digest is
+published.
+
+So the pointer is asked to show what it promises. `serverCount` comes from the
+manifest for exactly those bytes, and a file at the pointer's name with no
+servers in it at all cannot be that snapshot. The same predicate gates the
+publish guards and the refresh's "already up to date" answer — a partial fix at
+either site alone still wedges — and it is deliberately narrow:
+
+- it accuses only on **demonstrably empty**, never on "suspiciously small". A
+  genuine snapshot's rows are in its main file from the moment it is installed
+  (a hard link to a fully materialised download), so it never reads as empty —
+  including a legitimately *tiny* one, where the row is the whole difference:
+  SQLite rounds a one-server catalogue and an empty stand-in up to the very same
+  whole pages, so a length comparison could not tell them apart.
+- a file it could not open, that is not SQLite, that has no `servers` table, or
+  that was torn under the read, is **no verdict at all** and leaves the previous
+  behaviour exactly as it was. So does a pointer that never recorded a
+  `serverCount` — it promised nothing, and keeps the old treatment until an
+  install replaces it. That last case is a known, accepted gap rather than a
+  covered one: such a pointer stays wedgeable exactly as it was before this
+  check existed. No path writes one today (`bootstrapFromSnapshot` always
+  records the manifest's count), so the exposure is to pointers left by older
+  versions and shrinks to nothing as they are replaced.
+- the repair is a **repoint, never a delete**. The stand-in may be a peer's live
+  database for all this process knows; it is refused by everything and reclaimed
+  by the sweep on the ordinary clock.
+
+The probe opens the file `immutable=1`, which matters more than it sounds: a
+plain read-only open of a WAL-mode database *creates* its `-wal` and `-shm`, and
+a read-only connection cannot remove them again. Nothing here ever deletes a
+journal, so such a probe would poison the name for good — `promoteDownload`
+reads stranded sidecars as "this name is taken" and sends every future install
+of that digest to a variant. `immutable=1` takes no locks, builds no
+shared-memory index, and creates nothing; it costs one open and one `LIMIT 1` on
+a primary-key table, once per publish and once per refresh.
+
 A pointer write that *fails* is reported (`pointer-write-failed`), never
 swallowed: activation has already happened, so the caller must know the data dir
 still selects the old file.
@@ -284,10 +332,13 @@ the same rules.
 
 Two consequences worth knowing:
 
-- **On Windows an open file cannot be unlinked**, so superseded snapshots
-  accumulate there for as long as some process holds them, and are reclaimed on
-  a later sweep once nothing does. Failure to remove a file is an ordinary
-  outcome, never an error.
+- **Removal can fail, and that is an ordinary outcome, never an error.**
+  Whether unlinking a file another process holds open succeeds depends on the
+  platform, the filesystem, and the share mode every one of those holders used;
+  it is not worth predicting here, and nothing in this design depends on the
+  answer. Either the name goes away while the peer keeps reading the object it
+  already opened, or the file stays and a later sweep reclaims it once nothing
+  holds it.
 - **Sidecars can outlive their database.** A `data-<sha16>.db-wal` with no
   `data-<sha16>.db` beside it is the expected footprint of a swept file whose
   holder is still running. It is left alone for the whole orphan window above
@@ -360,13 +411,17 @@ evidence about the bytes, so the comparison reports *indeterminate* rather than
 "differs", and each caller decides what that means for it. `adopt` and the
 variant claim want a positive match and get none, so they decline: the cost is
 one more download, and declining also means the variant's mtime is not touched,
-so a file we refused does not have its retention clock restarted. The unlink of
-a stand-in (below) is the one caller that *destroys* something, and it acts only
-on a positive "differs" — because the other way a name's inode can change is a
-peer re-installing genuine bytes under a name we happened to share, and that
-file is somebody's current database. An indeterminate answer leaves it alone and
-the sweep ages it out on the usual clock if it really was a stand-in: later than
-we would like, which is the safe direction.
+so a file we refused does not have its retention clock restarted.
+
+No caller on this path spends that verdict on *destroying* anything, and there
+is no longer one that could: the function that unlinked a stand-in was removed
+once the sweep was shown to reclaim the same files on the ordinary retention
+clock (see "replaced, never destroyed" below). What is left is a distinction
+nobody currently needs, kept deliberately rather than collapsed — because it is
+what these functions can honestly report, and because flattening it is exactly
+what would make the next destructive caller easy to write and wrong. A momentary
+`EMFILE`, an `EIO`, or a network mount that blinked while reading a peer's
+genuine ~230MB snapshot must never read as proof that the file is a stand-in.
 
 **And the download is kept until the adopted file is proved real.** The `utimes`
 above only restarts the retention clock for sweeps that read the mtime *after*
@@ -376,29 +431,74 @@ pass, not a millisecond. That used to be unrecoverable, because adoption
 discarded the verified copy. So `promoteDownload` no longer consumes the temp
 file on any path that adopts somebody else's file: it hands it back as `temp`,
 and `bootstrapFromSnapshot` releases it only after `activate` has returned.
-Before activating it checks the adopted file is there, and afterwards it
-compares the **inode** with the one it adopted — presence alone proves nothing
-after the fact, since the name is occupied either way once `initDatabase` has
-run. Anything other than the same inode means the caller opened a stand-in: the
-stand-in is unlinked (the database file only, never its journal — that may
-belong to the peer holding the old inode), and the retained copy is installed
-under a fresh variant name and activated instead. That is a name nothing else
-has ever seen, so no sweep can be part-way through removing it — and in the
-event that it *is* taken, by a suffix collision with a peer's copy of these very
-bytes, the temp is handed back again and the same check runs on the new name,
-bounded by a hard cap on passes.
+Before activating it **pins the adopted file open**, and afterwards it asks the
+one question a pin can answer: **does this name still resolve to the object I
+pinned?** Presence alone proves nothing after the fact, since the name is
+occupied either way once `initDatabase` has run. Nor do the bytes, for the
+reason above — the caller's own first write can rewrite them legitimately, and a
+byte comparison here would call that a substitution and delete a live database.
+Nor does a bare inode number: ext4 allocates inode numbers from a free list and
+hands a just-freed one straight back to the next create at the same name, so an
+identity comparison that works on APFS detects nothing at all on Linux. An
+*open descriptor* is what closes that gap. POSIX frees an inode only once its
+link count is zero **and** no descriptor refers to it, so while the pin is held
+the number cannot be recycled: a sweep's `unlink` takes the name away but not
+the object, and whatever is created at that name next is necessarily a different
+file. Held open, the number is an identity — which makes the guard positive
+about replacement and deliberately blind to writes.
 
-The two halves are deliberate. Unlinking the stand-in closes the steady state —
-otherwise it sits there wearing a verified digest, and every peer that touched
-it pushed its retention clock forward, so nothing would ever reclaim it. The
-evidence check closes the window the cleanup cannot: a process killed between
-`activate` and that unlink, or a Windows unlink that fails while something holds
-the file, leaves the stand-in behind for good, and no later peer trusts it
-anyway.
+The pin is also where the bytes are established, and the order is the point.
+`promoteDownload` has already compared the candidate against the verified
+download — but it did that through the *name*, and a sweep plus a peer's
+`initDatabase` can put a different file at that name before the pin's `open`.
+Pinning something already verified therefore pins whatever is there now, and
+every later question is then answered faithfully about the stand-in: identity is
+stable across `activate`, the guard says "still the object I pinned", and the
+process serves an empty catalogue. So the comparison is taken **after** the
+descriptor is in hand and **through** that descriptor, never by re-opening the
+name, which would only move the window. Once the handle is held the object
+behind it cannot be swapped, so those three 64KB reads bind the pin to verified
+bytes for the whole life of the pin — a cost paid once per adoption, on a path
+that has just moved ~230MB.
+
+Anything short of a positive match means the caller may have opened a stand-in,
+`indeterminate`, "could not pin it at all" and "the pinned bytes are not the
+snapshot's" included — this is the one place that treats "could not tell" as a
+reason to repair, because repairing unnecessarily costs a `link` of bytes
+already on the disk while trusting wrongly leaves a live process serving an
+empty catalogue. The retained copy is then installed under a fresh variant name
+and activated instead. That is a name nothing else has ever seen, so no sweep
+can be part-way through removing it — and in the event that it *is* taken, by a
+suffix collision with a peer's copy of these very bytes, the temp is handed back
+again and the same check runs on the new name, bounded by a hard cap on passes.
+
+The stand-in left behind is replaced, never destroyed. Unlinking it looks tidier
+and is the one thing on this path that can cost a peer its database: a peer
+re-installing genuine bytes at a variant name we happened to draw is positive on
+the identity check *and* on a byte comparison — a different inode, and moved
+bytes because its own commit checkpointed its WAL into the main file — so no
+number of positive answers tells it apart from a stand-in. Leaving it is bounded
+instead: `adopt` and `claimVariant` both refuse it, `claimVariant` refuses it
+*before* its `utimes` so nothing refreshes its retention clock, and
+`sweepSnapshotFiles` reclaims it on the ordinary grace. That ordering is what
+made the deletion unnecessary; before it, every passing peer touched a stand-in
+it had just refused and the sweep could never age it out.
+
+The guard does not assume a platform where unlinking an open file fails. Treat
+the substitution as possible everywhere and the guard still answers, because
+what it rests on is narrower than unlink semantics: an open handle keeps
+the MFT record referenced, so the file ID cannot be recycled and a new file at
+that name necessarily reports a different one. A filesystem reporting no
+meaningful `dev`/`ino` reports the same meaningless pair twice, degrading the
+check to "the name still resolves to a regular file". What the pin is blind to,
+plainly: any change to the *contents* of the file it holds after the pin is
+taken. Nothing on this path writes to a peer's database except the peer and the
+caller we handed it to, so that blindness is the intended trade — but it is a
+trade, and a corrupting writer at the same inode would go unnoticed here.
 
 What is left is a repair, not a race: the caller may momentarily open an empty
-database, and on a crash or a Windows-locked unlink one abandoned empty file may
-be left at the swept name — refused by every peer, and reclaimed by the sweep on
+database, and on a crash or an unlink the filesystem refused one abandoned empty
+file may be left at the swept name — refused by every peer, and reclaimed by the sweep on
 the usual clock once nothing touches it.
 
 The sidecar probe in `promoteDownload` is still check-then-act, and so is the
@@ -413,10 +513,13 @@ worse than the one it removes.
 ### Refresh
 
 Pass `refresh: true` to re-check an install. When the manifest's `sha256`
-matches the pointer's *and the pointer's own file is still there*, the call
+matches the pointer's *and the pointer's own file is still there and still holds
+the catalogue it promises*, the call
 returns `{ ok: false, reason: 'snapshot-up-to-date' }` after a **single**
 manifest request — the DB endpoint is not touched. A pointer naming a file that
-has gone is deliberately **not** up to date, whatever its digest says:
+has gone — or one that came back as a schema-only stand-in, which is the same
+event seen a moment later — is deliberately **not** up to date, whatever its
+digest says:
 `resolveCurrentDbPath` has fallen back to the nominal `data.db`, which is at
 best an older database and at worst the empty one `initDatabase` created there
 on the way past, and accepting the digest match would wedge the data dir — every
@@ -611,7 +714,8 @@ fallback upload from presenting stale bytes as current.
 | `bootstrapFromSnapshot` | Fast cold-start via prebuilt SQLite snapshot (brotli when offered, gzip otherwise or on any brotli failure); also refreshes an installed one. |
 | `readSnapshotState / writeSnapshotState / snapshotStatePath` | Pointer + provenance of the installed snapshot (`dbFile`, `sha256`, `publishedAt`, `etag`). |
 | `resolveCurrentDbPath / versionedDbPath` | Map the nominal `data.db` path to the file actually in use, and to a digest's file name. |
-| `publishSnapshotState` | Move the pointer to a new snapshot — standing down for older data and for a second copy of one digest *while that pointer's file is still there* on both of two looks, and reporting a failed write. |
+| `publishSnapshotState` | Move the pointer to a new snapshot — standing down for older data and for a second copy of one digest *while that pointer's file is still there, and still holds a catalogue,* on both of two looks, and reporting a failed write. |
+| `pointerNamesStandIn` | Positive evidence that the file a pointer names holds no catalogue and so cannot be the snapshot it claims. |
 | `sweepSnapshotFiles` | Reclaim superseded snapshot files and abandoned downloads, age-gated; a `-wal`/`-shm` is never removed, at any age. |
 | `closeDatabase / checkpointWal` | Close a handle cleanly (checkpoint, then close) when the caller knows it is done with it, and truncate the WAL a single-transaction crawl left behind. |
 | `reconcileSnapshotPointer` | Stamp `checkedAt` on the pointer *in force*, without rolling a peer's newer one back. |

@@ -591,7 +591,7 @@ assert.match(workerAppTypes, /Bindings = Cloudflare\.Env/);
 // over the file cannot tell a working 304 from a comment mentioning one, and it
 // breaks the moment two functions swap places.
 // Importing the .ts source directly relies on Node's type stripping, which is
-// only on by default from 22.18/23.6. The packages declare engines >=22.13.0,
+// only on by default from 22.18/23.6. The packages declare engines >=22.15.0,
 // so on an older-but-supported Node this must skip rather than crash the suite.
 let getSnapshotBrotliData, getSnapshotData;
 try {

@@ -44,6 +44,8 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { pathToFileURL } from 'node:url';
 
 /** How long a superseded DB file is kept before it may be swept. */
 export const DEFAULT_RETAIN_HOURS = 48;
@@ -296,6 +298,20 @@ export async function publishSnapshotState(
  * A pointer that names no surviving file defends nothing — it is exactly the
  * dangling pointer a lost race leaves behind, and publishing over it is the
  * repair.
+ *
+ * Neither does a pointer whose file is *there* but is not the snapshot it
+ * claims, and that is the same repair rather than a second one. The two states
+ * are one event seen at two moments: a sweep pass that read a file's mtime
+ * before this pointer came to name it unlinks it, and the next `initDatabase`
+ * at that name — this process's own `activate`, on the way to discovering the
+ * substitution — puts a schema-only database back. Look before that and the
+ * name is empty; look after and it is occupied by something that is not the
+ * snapshot. Standing down for the second is what makes the wedge permanent:
+ * the caller has already repaired onto a file of its own and is publishing to
+ * say so, and deferring here leaves the pointer on the stand-in, which every
+ * later refresh then reads as up to date and the sweep exempts at any age
+ * because it is current. So both guards below are gated on the pointer's file
+ * being the snapshot, not merely being.
  */
 function deferralTarget(
   nominalDbPath: string,
@@ -303,7 +319,9 @@ function deferralTarget(
   state: SnapshotState,
 ): SnapshotState | null {
   if (!existing) return null;
-  if (!isNonEmptyFile(pointerTarget(nominalDbPath, existing))) return null;
+  const target = pointerTarget(nominalDbPath, existing);
+  if (!isNonEmptyFile(target)) return null;
+  if (isStandInFor(target, existing)) return null;
   // `dbFile` specifically, not `pointerTarget`: a pointer predating versioned
   // files has no file of its own to defend, and publishing over it is how it
   // acquires one.
@@ -338,6 +356,128 @@ function isNonEmptyFile(path: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** What could actually be established about the catalogue behind a name. */
+type CatalogVerdict =
+  /** It opened, and there is at least one server in it. */
+  | 'populated'
+  /** It opened, and the `servers` table is demonstrably empty. */
+  | 'empty'
+  /** It would not open, or would not answer — no conclusion either way. */
+  | 'unknown';
+
+/**
+ * Does the file at `path` hold a catalogue, or only the shape of one?
+ *
+ * Opened `immutable=1` rather than merely read-only, and that is not a
+ * micro-optimisation. A plain read-only open of a database whose header says
+ * WAL *creates* its `-wal` and `-shm` — verified on this Node build against a
+ * cleanly closed file with neither sidecar beside it — and a read-only
+ * connection cannot remove them again on close. This module never deletes a
+ * journal (see `sweepSnapshotFiles`), so a probe that left one behind would
+ * poison the name for good: `promoteDownload` reads stranded sidecars as "this
+ * name is taken" and sends every future install of that digest to a variant.
+ * A diagnostic that changes the thing it diagnoses is not one. `immutable=1`
+ * takes no locks, builds no shared-memory index, and creates nothing.
+ *
+ * What it gives up is the `-wal`: rows a peer has written but not yet
+ * checkpointed are invisible here. That costs nothing for the one question
+ * being asked, because an installed snapshot's rows arrive in the main file —
+ * it is a hard link to a fully materialised download — so a genuine snapshot
+ * reads as `populated` on its very first page. Only a database that never had
+ * rows in its main file can read as `empty`.
+ *
+ * Everything else is `unknown`: a file that will not open, that is not SQLite
+ * at all, that has no `servers` table, or that was torn mid-checkpoint under
+ * the read. None of those are evidence, and each is a thing a healthy data dir
+ * does — so, exactly as with `MatchVerdict` in snapshot-install.ts, "could not
+ * tell" must never be spent as a positive answer.
+ *
+ * Cost: one open and one `LIMIT 1` on a primary-key table — O(1), not a count.
+ */
+function catalogVerdict(path: string): CatalogVerdict {
+  let db: DatabaseSync | undefined;
+  try {
+    const location = pathToFileURL(path);
+    location.searchParams.set('immutable', '1');
+    db = new DatabaseSync(location, { readOnly: true });
+    return db.prepare('SELECT 1 FROM servers LIMIT 1').get() ? 'populated' : 'empty';
+  } catch {
+    return 'unknown';
+  } finally {
+    try {
+      db?.close();
+    } catch {
+      /* already closed, or never opened */
+    }
+  }
+}
+
+/**
+ * Positive evidence that the file at `path` is *not* the snapshot `state`
+ * describes — the stand-in check.
+ *
+ * Existence is not evidence. `initDatabase` recreates any name it is handed as
+ * a schema-only database, so a file the sweep unlinked out from under a peer
+ * comes back at the same name, non-empty, wearing a verified digest — and every
+ * check that asked only "is there a file there?" says yes to it. That is the
+ * mistake the byte comparison in `snapshot-install.ts` fixed one layer down;
+ * this is the same mistake one layer up, at the pointer.
+ *
+ * The pointer already records what its file should contain. `serverCount` comes
+ * from the manifest for exactly these bytes, so a file at that name holding no
+ * servers at all, while the pointer promises some, cannot be the snapshot.
+ *
+ * The threshold is "demonstrably empty", not "suspiciously small", and it is
+ * chosen to make a false accusation impossible rather than merely unlikely:
+ *
+ * - a genuine snapshot recorded as having `serverCount > 0` servers has those
+ *   rows in its main file from the moment it is installed, so it never reads as
+ *   `empty` — including a legitimately *tiny* one, where a row count separates
+ *   a one-server catalogue from a stand-in that a length comparison could not
+ *   (SQLite rounds both up to the same whole pages);
+ * - a stand-in is not "nearly empty", it is exactly empty — `initDatabase`
+ *   inserts nothing;
+ * - `unknown` accuses nobody. A probe that could not open or read the file
+ *   leaves the caller with the behaviour it had before this check existed.
+ *
+ * Two states it deliberately declines to judge. A pointer with no recorded
+ * `serverCount` — written before the field existed, or by `writeSnapshotState`
+ * directly — has made no promise to break, so it keeps the old
+ * existence-based treatment until an install replaces it. Accepted knowingly,
+ * and it is not free: such a pointer stays wedgeable exactly as before, because
+ * nothing here can tell its file from a stand-in. The exposure shrinks to zero
+ * as those pointers are replaced, and no path writes one today —
+ * `bootstrapFromSnapshot` always records the manifest's count. And a snapshot
+ * genuinely published with zero servers is indistinguishable from a stand-in by
+ * this evidence, so it is left alone; it is also a snapshot nobody can be
+ * wedged *out of* anything by.
+ *
+ * Being wrong in the cautious direction costs one reinstall of a snapshot we
+ * already hold. Being wrong the other way is the wedge: the data dir serves an
+ * empty catalogue behind a pointer, a digest and a file that all look healthy,
+ * and `sweepSnapshotFiles` protects the file at any age because it is current.
+ */
+function isStandInFor(path: string, state: SnapshotState): boolean {
+  // One condition, not two overlapping ones: `undefined` (a pointer that made
+  // no promise), zero (a promise nothing could be caught breaking), a negative
+  // or a `NaN`, and — since `parseState` validates only `sha256` and `dbFile` —
+  // whatever else a hand-edited pointer puts in the field, all mean the same
+  // thing here. There is no number to hold the file to, so there is no
+  // accusation to make.
+  if (!(typeof state.serverCount === 'number' && state.serverCount > 0)) return false;
+  return catalogVerdict(path) === 'empty';
+}
+
+/**
+ * As `isStandInFor`, for the file a pointer selects.
+ *
+ * Exported for `bootstrapFromSnapshot`, which has to ask the same question of
+ * the pointer it is about to call up to date.
+ */
+export function pointerNamesStandIn(nominalDbPath: string, state: SnapshotState): boolean {
+  return isStandInFor(pointerTarget(nominalDbPath, state), state);
 }
 
 /**
@@ -475,8 +615,11 @@ async function newestMtime(paths: string[]): Promise<number> {
  *    from being what a killed process leaves behind. A database name that comes
  *    back later is handled at install time instead (see `variantDbPath`).
  *
- * Removal failures are normal, not errors: on Windows an open file refuses to
- * go, so stale snapshots simply accumulate there until nothing holds them.
+ * Removal failures are normal, not errors. Whether a file another process holds
+ * open can be unlinked varies by platform, filesystem and the share mode every
+ * holder used, and this sweep is written to need neither answer: either the name
+ * goes away while the peer keeps reading the object it already opened, or the
+ * unlink fails, the file stays, and a later pass tries again.
  */
 export async function sweepSnapshotFiles(
   nominalDbPath: string,
@@ -527,8 +670,10 @@ export async function sweepSnapshotFiles(
     const mtime = await newestMtime(witnesses);
     if (mtime === 0 || now - mtime < grace) continue;
 
-    // The DB file and nothing else. A peer holding it open is unaffected on
-    // POSIX; on Windows the unlink simply fails and the file stays.
+    // The DB file and nothing else. On POSIX a peer holding it open is
+    // unaffected: the name goes while its handle keeps reading the object.
+    // Elsewhere the unlink may simply fail, which costs nothing — the file
+    // stays and the next pass tries again.
     await rm(path, { force: true }).catch(() => {});
     if (!existsSync(path)) removed.push(entry);
   }

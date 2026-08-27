@@ -62,8 +62,9 @@ superseded file for days.
 `SIGKILL`, which is how MCP clients usually stop stdio servers, cannot be
 intercepted, so what accumulated since the last checkpoint is a known leak. See
 [`@mcpfinder/core`](../core/README.md#retention) for the two things that follow:
-on Windows an open file cannot be unlinked, so stale snapshots linger there, and
-sidecars can outlive the database they belong to.
+a removal is allowed to fail, so stale snapshots linger wherever an open file's
+name cannot be taken away, and sidecars can outlive the database they belong
+to.
 In-process the switch opens the new file *before* retiring the old handle, so
 there is never a moment without a usable database and no tool call ever waits on
 the swap. Installs from earlier versions keep running from their existing

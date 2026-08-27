@@ -16,8 +16,11 @@
  *   unlinking a database a peer has open is harmless; removing its journal
  *   is not.
  *
- * POSIX only. The unlink half of that sentence is simply false on Windows, so
- * this harness skips there rather than asserting something untrue.
+ * POSIX only — not a claim that the unlink half fails elsewhere, but that it is
+ * only *guaranteed* here. Off POSIX the unlink may succeed or may fail
+ * depending on the filesystem and on how every holder opened the file, so this
+ * harness skips rather than asserting an invariant the platform does not owe
+ * it.
  */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';

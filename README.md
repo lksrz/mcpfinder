@@ -190,9 +190,10 @@ corruption. What keeps the residue small is that every successful sync ends with
 `PRAGMA wal_checkpoint(TRUNCATE)`; the 40MB `-wal` measured beside a 323MB
 database came from a single-transaction crawl whose journal was never trimmed at
 all. What is left is a bounded leak after processes killed with `SIGKILL` — how
-MCP clients usually stop stdio servers. Two limits follow: on Windows an open
-file cannot be unlinked, so stale snapshots stay until nothing holds them, and a
-journal can outlive the database it belonged to. The install is re-checked daily: one
+MCP clients usually stop stdio servers. Two limits follow: a removal is allowed
+to fail — on the platforms and filesystems where an open file's name cannot be
+taken away, stale snapshots stay until nothing holds them — and a journal can
+outlive the database it belonged to. The install is re-checked daily: one
 manifest request when nothing changed, plus a request for the DB when the
 manifest advertises a newer digest — conditional (ETag) on the gzip endpoint,
 unconditional on the brotli one, which is content-addressed by its own digest
@@ -215,7 +216,9 @@ Both figures scale with the corpus, so treat the manifest's `sizeBytes` and
 `brotli.sizeBytes` as the live numbers rather than these. Compressing the
 second artifact costs well under a minute of build time inside a 90-minute job,
 and decompression is a fraction of a second. zstd compresses a further ~2MB but
-needs Node 22.15+/23.8+, which is not worth cutting older runtimes off for.
+needs Node 22.15+/23.8+. The 22.x floor now clears that bar, but Node 23.0-23.7
+does not, so a third artifact would still have to carry a fallback for the gain
+to be safe — not worth it while brotli already does the work.
 
 ```jsonc
 {

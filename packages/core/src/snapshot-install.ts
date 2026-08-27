@@ -22,23 +22,6 @@ export async function fileExistsNonEmpty(path: string): Promise<boolean> {
   }
 }
 
-/**
- * Inode of a usable file at this path, or null when there is none.
- *
- * The identity, not just the presence: a name can be occupied by a *different*
- * file than the one that was there a moment ago, which is the whole failure this
- * is used to detect. A platform that reports no meaningful inode reports the
- * same meaningless one twice, so the comparison degrades to "still there".
- */
-export async function fileIdentity(path: string): Promise<number | bigint | null> {
-  try {
-    const s = await stat(path);
-    return s.isFile() && s.size > 0 ? s.ino : null;
-  } catch {
-    return null;
-  }
-}
-
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -103,16 +86,26 @@ async function adopt(tmpPath: string, targetPath: string): Promise<PromoteOutcom
 /**
  * What a comparison against the verified download could actually establish.
  *
- * Three states rather than two, because the two questions callers ask are not
- * each other's negation. `adopt` and `claimVariant` ask "may I use this file?"
- * and must hear yes; `discardStandIn` asks "may I destroy this file?" and must
- * hear a positive no. Collapsing "I could not tell" into `false` answers both
- * at once, and answers one of them wrongly: a momentary `EMFILE`, `EIO` or a
- * network mount that blinked while reading a peer's genuine ~230MB snapshot
- * would read as proof the file is a stand-in, and we would unlink somebody's
- * current database.
+ * Three states rather than two, and every surviving caller requires the same
+ * one: a positive `matches`. `adopt`, `claimVariant` and `holdAdopted` ask "may
+ * I use this file?"; `stillAdopted` asks "is the file I am handing the caller
+ * still the one I pinned?" — and `bootstrapFromSnapshot`'s switch reads
+ * anything short of `matches` as "repair anyway", because being wrong in that
+ * direction costs one `link` of bytes already on this disk while being wrong in
+ * the other leaves a live process serving an empty catalogue.
+ *
+ * So `differs` and `indeterminate` are no longer told apart by anybody, and
+ * that is a deliberate end state rather than an oversight. The one caller that
+ * distinguished them was `discardStandIn`, which *destroyed* a file and so
+ * needed a positive no; it was removed once `sweepSnapshotFiles` was shown to
+ * reclaim the same files on the ordinary retention clock (see `claimVariant`).
+ * The distinction is kept in the type because it is what these functions can
+ * honestly report — and because collapsing it is exactly what would make the
+ * next destructive caller easy to write and wrong: a momentary `EMFILE`, `EIO`
+ * or a network mount that blinked while reading a peer's genuine ~230MB
+ * snapshot must never read as proof the file is a stand-in.
  */
-type MatchVerdict = 'matches' | 'differs' | 'indeterminate';
+export type MatchVerdict = 'matches' | 'differs' | 'indeterminate';
 
 /**
  * How `path` compares to the verified download.
@@ -169,11 +162,38 @@ async function sampledBytesVerdict(
   size: number,
 ): Promise<MatchVerdict> {
   let candidate: FileHandle | undefined;
+  try {
+    candidate = await open(path, 'r');
+    return await sampledHandleVerdict(candidate, tmpPath, size);
+  } catch {
+    // EMFILE, ENFILE, EACCES, a mount that went away: a file that cannot be
+    // opened is a file that cannot be adopted — and equally one that has not
+    // been shown to be a stand-in.
+    return 'indeterminate';
+  } finally {
+    await candidate?.close().catch(() => {});
+  }
+}
+
+/**
+ * The sampled comparison, asked of an *already open* candidate.
+ *
+ * The only difference from `sampledBytesVerdict` is where the candidate comes
+ * from, and it is the whole reason this exists separately. A check taken
+ * through a *name* establishes something about whatever occupied that name for
+ * the instant of the check; the name can resolve to a different file the moment
+ * after, and re-opening it to look again only moves the window. A check taken
+ * through a descriptor establishes it about the object the descriptor holds,
+ * and that object cannot be swapped for as long as the descriptor is open. So
+ * this is what binds a pin to verified bytes: see `holdAdopted`.
+ */
+async function sampledHandleVerdict(
+  candidate: FileHandle,
+  tmpPath: string,
+  size: number,
+): Promise<MatchVerdict> {
   let verified: FileHandle | undefined;
   try {
-    // Sequentially, not `Promise.all`: a rejection there skips the destructuring
-    // and leaks whichever handle did open.
-    candidate = await open(path, 'r');
     verified = await open(tmpPath, 'r');
     for (const offset of sampleOffsets(size)) {
       const length = Math.min(SAMPLE_WINDOW_BYTES, size - offset);
@@ -194,7 +214,6 @@ async function sampledBytesVerdict(
     // been shown to be a stand-in.
     return 'indeterminate';
   } finally {
-    await candidate?.close().catch(() => {});
     await verified?.close().catch(() => {});
   }
 }
@@ -393,33 +412,141 @@ async function promoteByRename(tmpPath: string, targetPath: string): Promise<Pro
 }
 
 /**
- * Unlink the file that took an adopted name — but only once it has proved it
- * is not this snapshot.
+ * The file this process adopted, pinned open for as long as the question "is
+ * this still the file I adopted?" has to be answerable.
  *
- * The name was occupied by the snapshot when it was adopted and is occupied by
- * a different inode now, which in practice means a sweep unlinked it and
- * `initDatabase` recreated it as an empty stand-in. Left there, that stand-in
- * is the poison the size check in `adopt` exists to survive: it wears a
- * verified digest in its name and every later peer would meet it. Removing it
- * closes the hole rather than merely tolerating it — but only when its length
- * says it cannot be the snapshot, because the other way the inode can change is
- * a peer re-installing genuine bytes under a name we happened to share, and
- * that file is somebody's current database.
+ * The pin is the whole mechanism, not a convenience. An inode number on its own
+ * is not an identity across an unlink: ext4 allocates inode numbers from a free
+ * list and hands a just-freed one straight back to the next create in the same
+ * directory, so a name the sweep unlinked and `initDatabase` recreated
+ * microseconds later can come back wearing the number it had before. An *open
+ * descriptor* changes that. POSIX frees an inode only when its link count
+ * reaches zero **and** no descriptor still refers to it, so while this handle is
+ * open the number cannot be recycled — a sweep's `unlink` removes the name but
+ * not the object, and any file created at that name afterwards must be given a
+ * different one. Held open, the number is an identity; not held, it is a hint.
  *
- * This is the one caller that *destroys* something, so it is the one caller
- * that needs a positive `differs`. "I could not read it" is not that: a
- * momentary `EMFILE`, an `EIO`, a network mount that blinked mid-read of a
- * ~230MB file are all things a busy machine does, and none of them is evidence
- * about the bytes. On an indeterminate answer the file stays exactly where it
- * is and `sweepSnapshotFiles` ages it out on the usual clock if it really was
- * a stand-in — later than we would have liked, which is the safe direction.
+ * What that buys is a guard that is positive about *replacement* and blind to
+ * *content*, which is the exact shape the switch needs: a WAL checkpoint — ours
+ * or a peer's — rewrites a live database's bytes in place without touching its
+ * inode, and must not be mistaken for a substitution.
  *
- * The database file and nothing else, exactly like `sweepSnapshotFiles`: the
- * `-wal`/`-shm` beside it may belong to a peer that still has the *old* inode
- * open, and unlinking those is the corruption this whole layout prevents.
+ * Costs, all bounded by one `activate`: one descriptor, and — when the sweep
+ * really does unlink the file underneath us — the file's blocks stay allocated
+ * until `releaseAdopted` runs, because that is precisely what pinning it means.
+ *
+ * The guard is deliberately not written as though some platform forbade
+ * unlinking a file this process holds open. Whether that succeeds varies by
+ * platform, filesystem and the share mode every holder used, so assume the
+ * substitution can happen anywhere. What holds regardless is the narrower
+ * property the guard actually rests on: an open handle keeps the
+ * MFT record referenced, so the file ID behind it cannot be recycled, and
+ * `stat`'s `ino` on a new file at that name is necessarily different. On a
+ * filesystem that reports no meaningful `dev`/`ino` at all it reports the same
+ * meaningless pair twice, and the comparison degrades to "the name still
+ * resolves to a regular file".
  */
-export async function discardStandIn(path: string, verifiedCopy: string): Promise<void> {
-  if ((await compareToDownload(path, verifiedCopy)) !== 'differs') return;
-  await unlink(path).catch(() => {});
+export interface AdoptedFile {
+  /** Open for the lifetime of the pin; released only by `releaseAdopted`. */
+  readonly handle: FileHandle;
+  readonly dev: number | bigint;
+  readonly ino: number | bigint;
 }
 
+/**
+ * Pin the file at `path` and prove, through the pin, that it is this snapshot.
+ *
+ * The order is the point, and it is the opposite of the obvious one. `adopt`
+ * has already compared this name against `verifiedCopy` — but it did so through
+ * the *name*, and between that check and this `open` the name can come to
+ * resolve to something else entirely: a sweep pass that read the file's mtime
+ * before we claimed it unlinks it, and `initDatabase` in a peer recreates a
+ * ~53KB schema-only database at the same name microseconds later. Pinning a
+ * file that was verified a moment ago therefore pins whatever is there *now*,
+ * and from then on every question the switch asks is answered about the
+ * stand-in: identity is stable across `activate` because the stand-in is what
+ * was pinned, the guard says `matches`, and the process serves an empty
+ * catalogue behind a healthy-looking pointer and digest.
+ *
+ * So the bytes are checked again here, after the descriptor is in hand and
+ * through that descriptor — never by re-opening `path`, which would reintroduce
+ * the very window. Once the handle is held the object behind it cannot be
+ * swapped, so a comparison taken through it binds the pin to verified bytes for
+ * the whole life of the pin. That is what the switch's identity check then
+ * carries forward: it says "still the object I pinned", and this says the
+ * object I pinned was the snapshot.
+ *
+ * Null covers all of it — nothing worth handing over is there, it could not be
+ * opened at all, or it is not the download in `verifiedCopy`. An `EMFILE`, an
+ * `EACCES` and a positive mismatch land here alike, and the caller treats every
+ * null the same way: install a file of its own instead. It pays for that with
+ * one `link` of bytes already on this disk, and it never destroys anything on
+ * the strength of a null, because a pin it never took cannot be evidence about
+ * anything.
+ *
+ * Cost, once per adoption: three 64KB reads of a file the caller is about to
+ * open anyway, on a path that has just downloaded or hard-linked ~230MB.
+ */
+export async function holdAdopted(
+  path: string,
+  verifiedCopy: string,
+): Promise<AdoptedFile | null> {
+  let handle: FileHandle | undefined;
+  try {
+    handle = await open(path, 'r');
+    const s = await handle.stat();
+    if (!s.isFile() || s.size === 0) {
+      await handle.close().catch(() => {});
+      return null;
+    }
+    // Length first, from the pinned object and the yardstick, exactly as
+    // `compareToDownload` asks it — and a yardstick we cannot stat is no
+    // yardstick, so it proves nothing and the pin is refused.
+    const verified = await fileFacts(verifiedCopy);
+    if (verified.kind !== 'file' || verified.size !== s.size) {
+      await handle.close().catch(() => {});
+      return null;
+    }
+    if ((await sampledHandleVerdict(handle, verifiedCopy, s.size)) !== 'matches') {
+      await handle.close().catch(() => {});
+      return null;
+    }
+    return { handle, dev: s.dev, ino: s.ino };
+  } catch {
+    await handle?.close().catch(() => {});
+    return null;
+  }
+}
+
+/** Drop the pin. Safe to call on every path out, including a throw. */
+export async function releaseAdopted(adopted: AdoptedFile): Promise<void> {
+  await adopted.handle.close().catch(() => {});
+}
+
+/**
+ * Does `path` still name the pinned file?
+ *
+ * `matches` means the name resolves to the very object the pin holds — the file
+ * may have been written, checkpointed or grown in the meantime, and this
+ * deliberately does not care. `differs` is positive evidence of substitution:
+ * the name resolves to a different object, to something that is not a regular
+ * file, or to nothing at all, and while the pin is held none of those can be
+ * the file it holds. Everything else is `indeterminate` — an `EACCES` on a
+ * parent directory, an `EIO`, a mount that blinked — and says nothing either
+ * way, which is why the switch repairs on it rather than trusting it.
+ *
+ * What the pin cannot see is the *contents* of the object it holds, by design:
+ * a WAL checkpoint — ours or a peer's — rewrites a live database's bytes in
+ * place without touching its identity, and must not read as a substitution.
+ * The bytes are established once, through the pin, at `holdAdopted`.
+ */
+export async function stillAdopted(adopted: AdoptedFile, path: string): Promise<MatchVerdict> {
+  try {
+    const s = await stat(path);
+    if (!s.isFile()) return 'differs';
+    return s.dev === adopted.dev && s.ino === adopted.ino ? 'matches' : 'differs';
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    return code && ABSENT_CODES.has(code) ? 'differs' : 'indeterminate';
+  }
+}

@@ -11,13 +11,12 @@
  */
 import assert from 'node:assert/strict';
 import {
-  chmodSync,
-  closeSync,
   existsSync,
-  openSync,
+  readFileSync,
   readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { basename, join } from 'node:path';
@@ -26,7 +25,6 @@ import {
   ageFile,
   bootstrapFromSnapshot,
   dir,
-  discardStandIn,
   getServerCount,
   initDatabase,
   manifestFor,
@@ -35,6 +33,7 @@ import {
   promoteDownload,
   publishSnapshotState,
   readSnapshotState,
+  reportPassed,
   resolveCurrentDbPath,
   scratch,
   serveOk,
@@ -251,6 +250,253 @@ import {
   );
 }
 
+// ─── 5b. The rescue does not depend on the filesystem's inode allocator ─────
+
+{
+  // Block 5 leaves the recreate to `initDatabase` on a name a real sweep really
+  // unlinked. This one takes the sweep's timing out of the question and does
+  // the substitution by hand — unlink, then write what `initDatabase` leaves at
+  // an empty name — so that what is under test is only the guard.
+  //
+  // And it asserts the property the guard rests on, on whatever filesystem it
+  // is running: while the adopted file is pinned open, the file that arrives at
+  // its name cannot be handed the inode number the pinned one holds. POSIX
+  // frees an inode only when its link count is zero *and* no descriptor refers
+  // to it, so the recycling ext4 does so eagerly — a freed number given
+  // straight back to the next create in the same directory, which is what made
+  // an unpinned inode comparison detect nothing at all on Linux — is not
+  // available to it here. Nothing about that reasoning is APFS-specific, and
+  // the assertion below fails on any platform where it stops holding.
+  const nominal = scratch('adopt-standin-recreated');
+  const folder = join(dir, 'adopt-standin-recreated');
+  const canonical = versionedDbPath(nominal, payloadSha);
+  writeFileSync(`${canonical}-wal`, 'still-owned-wal');
+  const adopted = join(folder, `data-${payloadSha.slice(0, 16)}-bbbbbb.db`);
+  writeFileSync(adopted, gunzipSync(payload));
+
+  // What `initDatabase` leaves at a name with no file at it: a valid database
+  // with the schema and no rows. Built once, here, so the substitution below is
+  // a plain unlink-and-write with no SQLite timing in it.
+  const standInSource = join(folder, 'stand-in.src.db');
+  initDatabase(standInSource).close();
+  const standInBytes = readFileSync(standInSource);
+
+  const origin = await startOrigin(serveOk);
+  const opened = [];
+  const result = await bootstrapFromSnapshot({
+    baseUrl: origin.base,
+    dbPath: nominal,
+    force: true,
+    activate: async (path) => {
+      if (opened.length === 0) {
+        const pinnedIno = statSync(adopted).ino;
+        rmSync(adopted);
+        writeFileSync(adopted, standInBytes);
+        assert.notEqual(
+          statSync(adopted).ino,
+          pinnedIno,
+          'a name recreated while the old file is pinned open cannot reuse its inode',
+        );
+      }
+      const db = initDatabase(path);
+      opened.push({ path, servers: getServerCount(db) });
+      db.close();
+    },
+  });
+  await origin.close();
+
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(opened.length, 2, 'the substitution is noticed and a real file activated instead');
+  assert.equal(opened[0].servers, 0, 'the first open really did land on the stand-in');
+  assert.equal(opened.at(-1).servers, 1, 'and the caller does not stay there');
+  assert.notEqual(opened.at(-1).path, adopted, 'the repair is a file of our own');
+  assert.equal(result.dbPath, opened.at(-1).path, 'which is the file the bootstrap reports');
+  // The stand-in stays where it is, and that is the safe answer rather than a
+  // loose end. Unlinking it here is indistinguishable from unlinking a peer
+  // that re-installed genuine bytes at a name we both drew, so nothing on this
+  // path destroys: `adopt` refuses it, `claimVariant` refuses it before its
+  // `utimes`, and its mtime therefore ages on the ordinary clock.
+  assert.equal(existsSync(adopted), true, 'the stand-in is replaced, not destroyed');
+  await sweepSnapshotFiles(nominal, { retainHours: 0 });
+  assert.equal(existsSync(adopted), false, 'and the sweep is what reclaims it');
+
+  const db = initDatabase(resolveCurrentDbPath(nominal));
+  assert.equal(getServerCount(db), 1, 'so a process starting now sees the snapshot too');
+  db.close();
+  assert.equal(
+    readdirSync(folder).filter((f) => f.includes('.download-')).length,
+    0,
+    'and the retained copy is released',
+  );
+}
+
+// ─── 5c. A name we cannot resolve under the switch is repaired, not trusted ─
+
+{
+  // The tri-state, read the other way. `adopt` must not *trust* an
+  // `indeterminate`; here, where the question is "did the caller just open the
+  // file I pinned?", the answer has to be "assume not". Getting it wrong in this direction costs one `link`
+  // of bytes already on this disk; getting it wrong the other way leaves a live
+  // process serving an empty catalogue.
+  //
+  // The injection is a self-referential symlink, which every POSIX `stat`
+  // answers with ELOOP — not "there is nothing there" and not a description of
+  // a file, which is precisely `indeterminate`. Deliberately not mode 000: file
+  // permissions mean nothing to root, and CI runs as root in a container, so an
+  // EACCES fixture is a test that silently evaporates exactly where it is most
+  // needed. Nothing about a symlink loop depends on who is running.
+  const nominal = scratch('adopt-unresolvable-switch');
+  const folder = join(dir, 'adopt-unresolvable-switch');
+  const canonical = versionedDbPath(nominal, payloadSha);
+  writeFileSync(`${canonical}-wal`, 'still-owned-wal');
+  const adopted = join(folder, `data-${payloadSha.slice(0, 16)}-cccccc.db`);
+  writeFileSync(adopted, gunzipSync(payload));
+
+  const origin = await startOrigin(serveOk);
+  const opened = [];
+  const result = await bootstrapFromSnapshot({
+    baseUrl: origin.base,
+    dbPath: nominal,
+    force: true,
+    activate: async (path) => {
+      const db = initDatabase(path);
+      opened.push({ path, servers: getServerCount(db) });
+      db.close();
+      // Not a stand-in and not a vanishing — just a name that stops answering
+      // the question at the moment the switch asks it. EIO, an EACCES on a
+      // parent directory and a network mount that blinks all land here too.
+      if (opened.length === 1) {
+        rmSync(adopted);
+        symlinkSync(adopted, adopted);
+        assert.throws(
+          () => statSync(adopted),
+          { code: 'ELOOP' },
+          'the fixture must really be unresolvable',
+        );
+      }
+    },
+  });
+  rmSync(adopted);
+  await origin.close();
+
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(opened.length, 2, 'a name that could not be resolved is not taken on trust');
+  assert.notEqual(opened.at(-1).path, adopted, 'the caller is moved to a file of our own');
+  assert.equal(opened.at(-1).servers, 1, 'and it is the snapshot');
+  assert.equal(result.dbPath, opened.at(-1).path);
+}
+
+// ─── 5d. Our own write to an adopted file is not a substitution ─────────────
+
+{
+  // The regression this whole guard exists to *not* be. Adoption happens only
+  // while the main database file still matches the download byte for byte —
+  // which, for a peer that has been writing, means all of its work is sitting
+  // in an uncheckpointed `-wal`. `db.ts` records that state as measured in
+  // production: a 323MB database beside a 40MB journal, and a checkpoint that
+  // is best effort because a concurrent reader can hold it off.
+  //
+  // Then we hand that file to the caller and the caller *writes* to it —
+  // `activate` ends in `markSnapshotInstalled`, a committing write. SQLite's
+  // default 1000-page auto-checkpoint fires on that commit and folds the peer's
+  // frames into the main file. The bytes at the name move, on the ordinary
+  // path, every time. A switch guard that reads the bytes calls that a stand-in
+  // and unlinks a live database — and unlinks only the `.db`, stranding the
+  // peer's `-wal` at a name no future install of this digest can ever use.
+  //
+  // Everything below is that chain, run for real: no mocked checkpoint, no
+  // injected mutation, nothing that depends on the filesystem or the user.
+  const nominal = scratch('adopt-peer-checkpoint');
+  const folder = join(dir, 'adopt-peer-checkpoint');
+  const canonical = versionedDbPath(nominal, payloadSha);
+  writeFileSync(`${canonical}-wal`, 'still-owned-wal');
+  const adopted = join(folder, `data-${payloadSha.slice(0, 16)}-eeeeee.db`);
+  const snapshotBytes = gunzipSync(payload);
+  writeFileSync(adopted, snapshotBytes);
+
+  // A peer holding a read snapshot open is what keeps the checkpoint off; its
+  // other connection is what fills the journal. Both belong to a process that
+  // is still running — that is the whole reason its database matters.
+  const pinned = initDatabase(adopted);
+  pinned.exec('BEGIN');
+  pinned.prepare('SELECT count(*) FROM servers').get();
+  const peer = initDatabase(adopted);
+  const insert = peer.prepare(
+    'INSERT INTO servers (id, slug, name, description) VALUES (?, ?, ?, ?)',
+  );
+  peer.exec('BEGIN');
+  // Past 1000 pages of 4KB, so the next commit on any connection trips the
+  // auto-checkpoint. The row bodies are padding and nothing else.
+  for (let i = 0; i < 1500; i += 1) {
+    insert.run(`io.example/peer-${i}`, `peer-${i}`, `peer-${i}`, 'x'.repeat(2000));
+  }
+  peer.exec('COMMIT');
+  assert.ok(
+    statSync(`${adopted}-wal`).size > 4 * 1024 * 1024,
+    'the journal must be past the threshold',
+  );
+  assert.ok(
+    readFileSync(adopted).equals(snapshotBytes),
+    'and the peer\'s work must still be entirely in it — otherwise nothing would adopt this file',
+  );
+  pinned.exec('COMMIT');
+
+  const origin = await startOrigin(serveOk);
+  const opened = [];
+  const result = await bootstrapFromSnapshot({
+    baseUrl: origin.base,
+    dbPath: nominal,
+    force: true,
+    activate: async (path) => {
+      const db = initDatabase(path);
+      // The caller's own committing write, which is what `catalog.ts` does the
+      // moment it adopts a file. This is the line that moves the bytes.
+      db.prepare('INSERT INTO servers (id, slug, name, description) VALUES (?, ?, ?, ?)').run(
+        'io.example/ours',
+        'ours',
+        'ours',
+        '',
+      );
+      opened.push({ path, servers: getServerCount(db) });
+      db.close();
+    },
+  });
+  await origin.close();
+
+  assert.equal(
+    existsSync(adopted),
+    true,
+    'a peer’s live database is not destroyed because our own write checkpointed it',
+  );
+  assert.ok(
+    !readFileSync(adopted).equals(snapshotBytes),
+    'the fixture must really have moved the bytes at the adopted name',
+  );
+  assert.equal(
+    existsSync(`${adopted}-wal`),
+    true,
+    'nor is its journal stranded at a name no future install of this digest could use',
+  );
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(
+    opened.length,
+    1,
+    'and the caller is not moved off a file that was never substituted',
+  );
+  assert.equal(result.dbPath, adopted, 'the adopted file is the one the bootstrap reports');
+  assert.equal(
+    readdirSync(folder).filter((f) => f.endsWith('.db')).length,
+    1,
+    'no duplicate variant is installed alongside it',
+  );
+
+  const still = initDatabase(adopted);
+  assert.equal(getServerCount(still), 1502, 'and every row the peer synced is still there');
+  still.close();
+  peer.close();
+  pinned.close();
+}
+
 // ─── 6. A pointer whose file is gone is not "up to date" ───────────────────
 
 {
@@ -314,7 +560,7 @@ import {
     },
   });
   assert.equal(first.ok, true, first.reason);
-  assert.equal(existsSync(doomed), false, 'the repair takes the stand-in away with it');
+  assert.equal(existsSync(doomed), true, 'the repair leaves the stand-in rather than destroying it');
 
   // Peer two: a fresh install of the same digest, meeting the same stranded
   // journal and therefore scanning for a variant to adopt.
@@ -336,12 +582,14 @@ import {
 // ─── 8. A stand-in at a variant name is never adopted as the snapshot ───────
 
 {
-  // The cleanup above closes the steady state, not the window. A process killed
-  // between `activate` and that unlink leaves the stand-in behind for good, and
-  // on Windows the unlink simply fails while anything holds the file. So
-  // adoption does not rest on the cleanup having happened: a variant name is a
-  // *candidate*, and the file's length against the verified download in hand is
-  // what decides.
+  // Nothing cleans a stand-in up on this path — the function that unlinked one
+  // was removed, because no number of positive answers separates a stand-in
+  // from a peer re-installing genuine bytes at a name we happened to draw, and
+  // the sweep reclaims it on the ordinary retention clock instead. So adoption
+  // cannot rest on the stand-in being gone: a variant name is a *candidate*,
+  // and the file measured against the verified download in hand is what
+  // decides. The assertions below are the same either way; only the reason they
+  // are needed has changed.
   const nominal = scratch('standin-guard');
   const folder = join(dir, 'standin-guard');
   const canonical = versionedDbPath(nominal, payloadSha);
@@ -482,69 +730,6 @@ import {
   db.close();
 }
 
-// ─── 11. What a candidate has to match, at snapshot scale ──────────────────
-
-{
-  // The two checks above run against ~53KB fixtures, where one sampled window
-  // covers the whole file and length adds nothing. At snapshot scale they are
-  // different questions, so both are asked of a candidate built to pass the
-  // other: a file 200KB long, deliberately not a database, because what is
-  // under test here is the evidence `adopt` demands and nothing else.
-  const body = Buffer.alloc(200 * 1024, 0x61);
-  const install = async (name, candidateBytes) => {
-    const nominal = scratch(name);
-    const folder = join(dir, name);
-    const canonical = versionedDbPath(nominal, payloadSha);
-    // A stranded journal at the canonical name is what sends an installer to
-    // the variant scan in the first place.
-    writeFileSync(`${canonical}-wal`, 'still-owned-wal');
-    const candidate = join(folder, `data-${payloadSha.slice(0, 16)}-bbbbbb.db`);
-    writeFileSync(candidate, candidateBytes);
-    ageFile(candidate, 24);
-    const download = join(folder, 'data.db.download-999-zzzz');
-    writeFileSync(download, body);
-    return { candidate, outcome: await promoteDownload(download, canonical) };
-  };
-
-  // A truncated copy: every byte it has is the snapshot's, and every window
-  // sampled inside it matches, because the offsets are taken from its own
-  // length. Only the length itself gives it away.
-  const short = await install('adopt-evidence-length', body.subarray(0, body.length - 4096));
-  assert.equal(short.outcome.status, 'ok');
-  assert.notEqual(
-    short.outcome.path,
-    short.candidate,
-    'a truncated copy that matches everywhere it is sampled is not the snapshot',
-  );
-
-  // Identical length, identical opening window, one byte different well past
-  // it — which is exactly what a single-window check cannot see.
-  const tampered = Buffer.from(body);
-  tampered[150 * 1024] = 0x62;
-  const inner = await install('adopt-evidence-tail', tampered);
-  assert.equal(inner.outcome.status, 'ok');
-  assert.notEqual(
-    inner.outcome.path,
-    inner.candidate,
-    'nor is one that differs only past the first sampled window',
-  );
-  // And once more in the window between the two, which neither of the others
-  // reaches — the sample is three windows because two would leave this gap.
-  const middled = Buffer.from(body);
-  middled[100 * 1024] = 0x62;
-  const centre = await install('adopt-evidence-middle', middled);
-  assert.equal(centre.outcome.status, 'ok');
-  assert.notEqual(
-    centre.outcome.path,
-    centre.candidate,
-    'nor one that differs only between the first window and the last',
-  );
-  assert.ok(
-    Date.now() - statSync(inner.candidate).mtimeMs > 3_600_000,
-    'and none of them is claimed on the way past',
-  );
-}
-
 // ─── 12. A pointer with no file replays no ETag ─────────────────────────────
 
 {
@@ -639,137 +824,4 @@ import {
   assert.match(answer.reason, /download-failed-304/, 'an unbidden 304 is reported as what it is');
 }
 
-// ─── 13. Destroying a peer's database takes positive evidence ───────────────
-
-{
-  // `discardStandIn` is the one place that unlinks a file it did not create,
-  // and the name it unlinks is a name a peer may have re-installed *genuine*
-  // bytes under. So the comparison it rests on has three answers, not two:
-  // "could not read it" is not "is not the snapshot", and a momentary EMFILE,
-  // EIO or a mount that blinked mid-read of ~230MB must not cost somebody
-  // their current database.
-  const nominal = scratch('discard-evidence');
-  const folder = join(dir, 'discard-evidence');
-  const bytes = gunzipSync(payload);
-  const verified = join(folder, 'data.db.download-999-zzzz');
-  writeFileSync(verified, bytes);
-  const peerCopy = (name) => {
-    const path = join(folder, name);
-    writeFileSync(path, bytes);
-    return path;
-  };
-
-  // Positive evidence, both shapes: a different length, and the same length
-  // with different bytes. These are the stand-ins the unlink exists for.
-  const truncated = join(folder, 'truncated.db');
-  writeFileSync(truncated, bytes.subarray(0, bytes.length - 1));
-  await discardStandIn(truncated, verified);
-  assert.equal(existsSync(truncated), false, 'a file of the wrong length is a stand-in');
-
-  const tampered = join(folder, 'tampered.db');
-  const altered = Buffer.from(bytes);
-  altered[altered.length - 1] ^= 0xff;
-  writeFileSync(tampered, altered);
-  await discardStandIn(tampered, verified);
-  assert.equal(existsSync(tampered), false, 'so is one whose bytes differ at the same length');
-
-  // No yardstick: our own verified copy is gone, so nothing about the
-  // candidate has been established and nothing may be destroyed.
-  const noYardstick = peerCopy('no-yardstick.db');
-  await discardStandIn(noYardstick, join(folder, 'never-existed.download'));
-  assert.equal(
-    existsSync(noYardstick),
-    true,
-    'with no verified copy to compare against, the peer’s database survives',
-  );
-
-  // A transient read failure on the candidate itself — the case the old
-  // boolean could not express. EACCES stands in for EMFILE/EIO: `stat`
-  // succeeds and agrees on the length, the read is what fails.
-  // Named like a real variant, so the sweep below treats it as one.
-  const unreadable = peerCopy(`data-${payloadSha.slice(0, 16)}-cccccc.db`);
-  chmodSync(unreadable, 0o000);
-  let reallyUnreadable = false;
-  try {
-    closeSync(openSync(unreadable, 'r'));
-  } catch {
-    reallyUnreadable = true;
-  }
-  if (reallyUnreadable) {
-    await discardStandIn(unreadable, verified);
-    assert.equal(
-      existsSync(unreadable),
-      true,
-      'a read that fails is not proof the file is a stand-in',
-    );
-  } else {
-    // Running as root, where mode 000 means nothing. Nothing to assert.
-    console.log('  (skipped: EACCES injection needs a non-root user)');
-  }
-  chmodSync(unreadable, 0o600);
-
-  // And the sweep is what eventually reclaims a stand-in we could not read, so
-  // leaving it is a delay, not a leak.
-  ageFile(unreadable, 24 * 30);
-  await sweepSnapshotFiles(nominal, { retainHours: 0 });
-  assert.equal(existsSync(unreadable), false, 'the usual retention clock still ages it out');
-}
-
-// ─── 14. An unreadable candidate is not adopted, and not claimed either ─────
-
-{
-  // The other half of the tri-state, and the opposite answer: where
-  // `discardStandIn` must not destroy on "could not tell", `adopt` must not
-  // *trust* on it. Serving a file we could not read a single window of would
-  // be adoption on the strength of its name alone — the very thing the size
-  // and sample checks exist to stop. Declining costs one download.
-  const nominal = scratch('adopt-unreadable');
-  const folder = join(dir, 'adopt-unreadable');
-  const canonical = versionedDbPath(nominal, payloadSha);
-  writeFileSync(`${canonical}-wal`, 'still-owned-wal');
-  const bytes = gunzipSync(payload);
-  const variant = join(folder, `data-${payloadSha.slice(0, 16)}-dddddd.db`);
-  writeFileSync(variant, bytes);
-  ageFile(variant, 24);
-  const before = statSync(variant).mtimeMs;
-
-  chmodSync(variant, 0o000);
-  let reallyUnreadable = false;
-  try {
-    closeSync(openSync(variant, 'r'));
-  } catch {
-    reallyUnreadable = true;
-  }
-  if (reallyUnreadable) {
-    const download = join(folder, 'data.db.download-888-yyyy');
-    writeFileSync(download, bytes);
-    const outcome = await promoteDownload(download, canonical);
-    chmodSync(variant, 0o600);
-    assert.equal(outcome.status, 'ok');
-    assert.notEqual(outcome.path, variant, 'a candidate we could not read is not adopted');
-    assert.equal(
-      statSync(variant).mtimeMs,
-      before,
-      'nor claimed on the way past — claiming restarts a retention clock on a file we refused',
-    );
-
-    // The same refusal at the *canonical* name, which no variant scan gates:
-    // there `adopt` is the only thing standing between an unreadable file and
-    // the caller opening it as the snapshot.
-    const other = scratch('adopt-unreadable-canonical');
-    const home = versionedDbPath(other, payloadSha);
-    writeFileSync(home, bytes);
-    chmodSync(home, 0o000);
-    const spare = join(dir, 'adopt-unreadable-canonical', 'data.db.download-777-xxxx');
-    writeFileSync(spare, bytes);
-    const taken = await promoteDownload(spare, home);
-    chmodSync(home, 0o600);
-    assert.equal(taken.status, 'ok');
-    assert.notEqual(taken.path, home, 'the canonical name is refused on the same evidence');
-  } else {
-    chmodSync(variant, 0o600);
-    console.log('  (skipped: EACCES injection needs a non-root user)');
-  }
-}
-
-console.log('snapshot adoption checks passed');
+reportPassed('snapshot adoption checks');

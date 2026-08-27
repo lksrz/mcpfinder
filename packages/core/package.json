@@ -9,7 +9,7 @@
   },
   "homepage": "https://mcpfinder.dev",
   "bugs": { "url": "https://github.com/mcpfinder/mcpfinder/issues" },
-  "engines": { "node": ">=22.13.0" },
+  "engines": { "node": ">=22.15.0" },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -36,15 +36,17 @@ import { createBrotliDecompress, createGunzip } from 'node:zlib';
 import { Readable, Transform } from 'node:stream';
 import { getDataDir } from './db.js';
 import {
-  discardStandIn,
   fileExistsNonEmpty,
-  fileIdentity,
+  holdAdopted,
   promoteDownload,
   promoteTo,
+  releaseAdopted,
+  stillAdopted,
 } from './snapshot-install.js';
 import {
   downloadTempPath,
   isValidSha256,
+  pointerNamesStandIn,
   publishSnapshotState,
   readSnapshotState,
   reconcileSnapshotPointer,
@@ -511,10 +513,23 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
     // self-healing rather than terminal.
     const pointerIntact =
       !previous?.dbFile || currentPath === join(dirname(nominalPath), basename(previous.dbFile));
+    // And a pointer whose file is *there* but holds no catalogue is not up to
+    // date either, for the same reason and with a worse ending. The name being
+    // occupied proves only that something occupies it: `initDatabase` recreates
+    // any name it is handed as a schema-only database, so a file a sweep took
+    // out from under a peer comes back non-empty, at the same name, wearing a
+    // verified digest — and `pointerIntact` above says yes to it, as does
+    // `exists`. Accepting that wedges the data dir permanently: the digest
+    // matches on every later check too, the sweep exempts the file at any age
+    // because it is current, and an empty catalogue is served until a new
+    // digest is published. `pointerNamesStandIn` asks the pointer's own
+    // `serverCount` to be visible in the file it names, and answers no unless
+    // it can positively show the catalogue is empty.
+    const servesPointerFile = !previous || !pointerNamesStandIn(nominalPath, previous);
     // Whether the pointer's provenance still describes a file we actually hold.
     // Everything the pointer records — its digest, its ETag — is a claim about
     // that file, and every use of those below is conditional on this.
-    const holdsPointerFile = exists && pointerIntact;
+    const holdsPointerFile = exists && pointerIntact && servesPointerFile;
     // Already running the published snapshot — including a pre-versioning
     // install still serving it out of the legacy `data.db`, which stays put
     // until a genuinely newer snapshot gives us a versioned file to switch to.
@@ -657,22 +672,73 @@ export async function bootstrapFromSnapshot(opts: BootstrapOptions = {}): Promis
         // `initDatabase` does not fail on a name with no file at it: it creates
         // a brand-new empty database there, on top of the `-wal` the sweep
         // deliberately left behind. Presence therefore proves nothing *after*
-        // the fact — the name is occupied either way — so what is compared is
-        // identity. Same inode before and after means the caller opened the
-        // snapshot; anything else means it opened a stand-in, and the verified
-        // copy we are still holding is what repairs it.
-        const adopted = await fileIdentity(targetPath);
-        if (adopted !== null) {
-          const failure = await activateNow();
-          if (failure) return { ok: false, reason: failure, manifest };
-          if ((await fileIdentity(targetPath)) === adopted) break;
-          // The stand-in is unlinked as well as replaced. `adopt` refuses to
-          // trust it, so leaving it would be survivable — but it wears a
-          // verified digest in its name, every peer scanning for variants meets
-          // it, and nothing else will ever remove it while peers keep touching
-          // it. Both halves are wanted: the guard covers the crash between
-          // these two lines, this covers the steady state.
-          await discardStandIn(targetPath, spare);
+        // the fact — the name is occupied either way — so the file is pinned
+        // open *before* it is handed over and the question afterwards is one
+        // only a pin can answer: does this name still resolve to the object I
+        // pinned? See `AdoptedFile` for why an open descriptor makes an inode
+        // number mean something it does not mean on its own.
+        //
+        // The pin is taken *and the bytes re-checked through it* — `spare` is
+        // the verified download, and `holdAdopted` compares the pinned object
+        // against it rather than trusting the check `promoteDownload` already
+        // made through the name. Those two checks are not the same check: the
+        // first one proves something about whatever occupied the name at that
+        // instant, and a sweep plus a peer's `initDatabase` can put a different
+        // file there before this `open`. Verifying after pinning is what stops
+        // a stand-in from being pinned *as trusted*, which the identity guard
+        // below could never afterwards detect — it would faithfully report that
+        // the stand-in is still the stand-in.
+        //
+        // From here on the question is asked of the file's identity,
+        // deliberately, and not of its bytes. The
+        // bytes at this name change on the ordinary path, every time: the first
+        // thing a caller does with the file it is handed is open it and write —
+        // `markSnapshotInstalled` alone is a committing write — and SQLite's
+        // default 1000-page auto-checkpoint folds a WAL that may be somebody
+        // else's into the main file the moment it crosses the threshold. A
+        // guard that compared bytes would read that checkpoint as proof of
+        // substitution and unlink a peer's live database, `-wal` and all its
+        // synced work stranded beside the hole. Identity is blind to writes,
+        // which is the point.
+        //
+        // `indeterminate` repairs here, and so does every other non-`matches`
+        // answer. The costs are what make that easy: `adopt` and `claimVariant`
+        // pay for an unnecessary "no" with a second ~230MB download, whereas
+        // being wrong in the cautious direction *here* costs one `link` of
+        // bytes already on this disk and a second `activate` — and being wrong
+        // in the trusting direction leaves this process serving an empty
+        // catalogue behind a pointer and a digest that both look perfectly
+        // healthy. A failure to pin the file at all — including a refusal
+        // because the pinned bytes are not the snapshot's — is read the same
+        // way, and for the same reason.
+        // The repair usually installs a file of our own, which clears `spare`
+        // and ends the loop; it is `MAX_SWITCH_PASSES` and not that which makes
+        // termination a fact, because `promoteTo` hands `spare` back when the
+        // fresh name it drew is already occupied by these very bytes — the
+        // lottery win above, which does run this check a second time.
+        const adopted = await holdAdopted(targetPath, spare);
+        if (adopted) {
+          try {
+            const failure = await activateNow();
+            if (failure) return { ok: false, reason: failure, manifest };
+            if ((await stillAdopted(adopted, targetPath)) === 'matches') break;
+            // The stand-in left at `targetPath` is replaced, not destroyed.
+            // Unlinking it here used to look like the tidier answer, and it is
+            // the answer that cost a peer its database: a peer re-installing
+            // genuine bytes at a variant name we happened to draw is positive
+            // on *both* the identity and the bytes — different inode, and moved
+            // bytes because its own commit checkpointed its WAL into the main
+            // file — so no number of positive answers separates it from a
+            // stand-in. Leaving it is safe and bounded instead: `adopt` and
+            // `claimVariant` both refuse it, `claimVariant` refuses it *before*
+            // its `utimes` so nothing refreshes its retention clock, and
+            // `sweepSnapshotFiles` reclaims it on the ordinary grace.
+          } finally {
+            // On every path out, `break` and `return` included: the pin holds a
+            // descriptor, and on a file the sweep unlinked underneath us it
+            // holds the disk blocks too.
+            await releaseAdopted(adopted);
+          }
         }
         if (pass + 1 >= MAX_SWITCH_PASSES) {
           return {

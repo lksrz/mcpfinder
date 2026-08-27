@@ -66,6 +66,7 @@ export {
   reconcileSnapshotPointer,
   snapshotStatePath,
   resolveCurrentDbPath,
+  pointerNamesStandIn,
   versionedDbPath,
   variantDbPath,
   sweepSnapshotFiles,

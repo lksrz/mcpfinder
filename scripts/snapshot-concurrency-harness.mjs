@@ -33,6 +33,7 @@ export const {
   bootstrapFromSnapshot,
   initDatabase,
   getServerCount,
+  pointerNamesStandIn,
   publishSnapshotState,
   readSnapshotState,
   reconcileSnapshotPointer,
@@ -43,9 +44,8 @@ export const {
 } = await import('../packages/core/dist/index.js');
 // Not part of the public surface — reached directly so the promotion primitive
 // can be exercised without racing two real downloads.
-export const { discardStandIn, promoteDownload } = await import(
-  '../packages/core/dist/snapshot-install.js'
-);
+export const { holdAdopted, promoteDownload, releaseAdopted, stillAdopted } =
+  await import('../packages/core/dist/snapshot-install.js');
 export const { createCatalog } = await import('../packages/mcp-server/dist/catalog.js');
 
 function buildSnapshotPayload(name, rows = 1) {
@@ -134,3 +134,31 @@ export function stateFor(nominal, sha, publishedAt) {
 }
 
 export const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const skips = [];
+
+/**
+ * Record coverage this run could not exercise.
+ *
+ * A skip printed into an otherwise green run is a skip nobody reads: CI shows a
+ * tick, and a check that silently stopped running looks exactly like a check
+ * that passed. Container CI runs as root, where an EACCES fixture means
+ * nothing, so this is not hypothetical — mutation testing found a build that
+ * ran the whole suite to green with the one case that mattered skipped. So a
+ * skip goes in the summary line where the reader is already looking, and the
+ * suite says how many there were rather than how few.
+ */
+export function skip(reason) {
+  skips.push(reason);
+  console.log(`  (skipped: ${reason})`);
+}
+
+/** The suite's closing line, with any skips folded into it. */
+export function reportPassed(label) {
+  if (skips.length === 0) {
+    console.log(`${label} passed`);
+    return;
+  }
+  console.log(`${label} passed, with ${skips.length} check(s) SKIPPED:`);
+  for (const reason of skips) console.log(`  - ${reason}`);
+}
