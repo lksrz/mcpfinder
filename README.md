@@ -192,7 +192,8 @@ and for which no ETag is ever recorded.
 - snapshot database (gzip): use `manifest.url` (`data.sqlite.gz?sha=<sha256>`) as the content-addressed primary endpoint
 - snapshot database (brotli): use `manifest.brotli.url` (`data.sqlite.br?sha=<brotli sha256>`)
 - durable current fallback: `/api/v1/snapshot/data.sqlite.gz`, refreshed only after manifest publication
-- scheduled build: [`.github/workflows/snapshot.yml`](/Users/lukasz/Git/mcpfinder/.github/workflows/snapshot.yml:1)
+- scheduled build: [`.github/workflows/snapshot.yml`](.github/workflows/snapshot.yml)
+- staleness monitor: [`.github/workflows/snapshot-staleness.yml`](.github/workflows/snapshot-staleness.yml)
 
 ### Two compressions of one database
 
@@ -376,6 +377,83 @@ snapshot job from silently exceeding its wall-clock budget.
 An empty Glama page with `hasNextPage=true` is followed when it supplies a new,
 non-empty cursor. Missing or repeated cursors fail safely as structural errors,
 preventing upstream pagination loops.
+
+Smithery paginates through a fixed seed, and the seeded ordering occasionally
+returns the same `qualifiedName` on two different pages. That is a structural
+error — a corpus counted twice is not a corpus — so the crawl restarts from page
+one rather than committing what it has. Restarts are capped at three attempts,
+spaced by an exponential backoff, because the fault is transient upstream: the
+build of 2026-08-26 20:02 exhausted its two attempts and skipped a publication
+cycle that the 21:43 build then completed with 10,845 servers. Three full passes
+do not fit the 5-minute local budget, so the snapshot job sets
+`MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES=12`; custom values must be whole minutes
+from 1 through 15.
+
+### A frozen publication announces itself
+
+Because a failed build is *staleness*, not *unavailability*, nothing breaks when
+publication stops — which is exactly why it has to be announced. A red run is
+visible only to whoever opens the Actions tab, and `publishedAt` is a pull-based
+signal nobody polls; that combination once let a stalled publication go
+unnoticed for six days.
+
+Two independent signals now cover it, and both file into the same GitHub issue,
+deduplicated by the `snapshot-freeze` label:
+
+1. **The build says it did not finish.** A final
+   `if: (failure() || cancelled()) && steps.manifest-pointer.outcome != 'success'`
+   step in `.github/workflows/snapshot.yml` opens the freeze issue — or comments
+   on the open one — naming the failing step and linking the run. `cancelled()`
+   is there because a job that trips `timeout-minutes`, loses its runner, or is
+   stopped by hand is cancelled rather than failed, and those runs publish
+   nothing. The pointer clause is there because a failure *after* the manifest
+   pointer moved is not a freeze at all: `publishedAt` advanced and clients are
+   already bootstrapping the new snapshot, so a broken durable-fallback upload
+   files no issue — it closes an open one, on the same `publishedAt` criterion
+   the staleness monitor would use two hours later, and reports itself in the
+   run summary and the red run instead. The matching `if: success()` step closes
+   the issue with the new `publishedAt`. The job carries a minimal `permissions`
+   block (`contents: read`, `issues: write`, and `actions: read` so it can read
+   back which step failed).
+2. **The published manifest says nothing moved.**
+   `.github/workflows/snapshot-staleness.yml` runs every two hours, fetches
+   `https://mcpfinder.dev/api/v1/snapshot/manifest.json` the way a client would,
+   and alarms when `publishedAt` is older than **18 hours** — three missed
+   6-hourly builds, so a single failed cycle stays quiet. An unreachable
+   endpoint, unparseable JSON, a `publishedAt` that is not an ISO-8601 instant,
+   or a timestamp in the future are alarm states of their own, never a silent
+   pass. The fetch retries on `[500, 1500, 4500]` ms with a 15s per-attempt
+   timeout, so one 502 or DNS blip does not file an issue the next run closes.
+
+Neither signal subsumes the other: the failure step cannot see a run that never
+started or a green run whose bytes never reached R2, and the age monitor cannot
+say which step broke. The threshold logic lives in
+`scripts/check-snapshot-staleness.mjs` — dependency-free, and unit-tested by
+`scripts/test-snapshot-artifacts.mjs` — rather than inline in YAML.
+`MCPFINDER_SNAPSHOT_BASE_URL` repoints both the monitor and the upload preflight
+at a staging Worker. Both signals go through one shared implementation,
+`scripts/snapshot-freeze-signal.mjs`, which owns the label, the title, the
+duplicate-thread reconciliation, and the throttle that keeps an unchanged alarm
+to one comment per 12 hours instead of one per two-hour pass. "Unchanged" is
+judged on the verdict's *cause* — `age-exceeded`, `http-502`,
+`no-published-at`, the failing step names — not on its wording: the wording
+carries the age, which moves on every pass, while a 502 that becomes a DNS
+failure is a different incident and comments immediately.
+
+Every alarm says, in the issue body, that the previous complete snapshot is
+still being served. A freeze is a data stall; treating it as an outage is how a
+monitor loses its audience.
+
+**What neither signal covers.** The staleness monitor is itself a GitHub
+scheduled workflow, so repository inactivity takes it down with the build it
+watches: GitHub disables cron schedules in a repository idle for 60 days, and
+that one switch silences both. The same applies to an Actions outage, a
+manually disabled workflow, or an archived repository — a dead monitor produces
+no red X and no issue, which is indistinguishable from a healthy one. Nothing
+inside GitHub can close that gap. The only complete fix is an **external uptime
+check** that fetches `/api/v1/snapshot/manifest.json` from outside GitHub and
+alerts on `publishedAt` age. Until one exists, read the two signals above as
+covering build and publication failures, not the disappearance of the schedule.
 
 ## Example Workflow
 

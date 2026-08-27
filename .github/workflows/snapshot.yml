@@ -32,8 +32,25 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Registry budgets can consume 43 minutes; keep at least 47 minutes for
-    # install, focused tests, enrichment, vacuum/gzip, preflight, and upload.
+    # Least privilege, with two additions the freeze signal at the end of this
+    # job needs: `issues: write` to open/update/close the alarm, and
+    # `actions: read` so `gh run view --json jobs` can name the step that broke
+    # — an explicit permissions block leaves the Actions API at `none`, and the
+    # alarm would file "not recorded yet" forever while README promises it names
+    # the failing step. `contents: read` is what checkout needs.
+    #
+    # Narrowing the token does not break the REST probes in "Build snapshot":
+    # those read *public* data in other repositories, which any valid
+    # GITHUB_TOKEN may do — the permission block only scopes what the token can
+    # touch in this repository.
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    # Registry budgets can consume 50 minutes (Official 8 + Glama 30 +
+    # Smithery 12); keep at least 40 minutes for install, focused tests,
+    # enrichment, vacuum/gzip, preflight, and upload. Raising any budget below
+    # eats into that reserve — re-add them here before touching this ceiling.
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
@@ -63,6 +80,11 @@ jobs:
           # Glama has repeatedly needed more than the 12-minute local budget.
           # Thirty minutes leaves headroom inside the 90-minute job ceiling.
           MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES: '30'
+          # Smithery now restarts a stalled crawl up to three times instead of
+          # two, and three full passes do not fit the default 5-minute budget.
+          # Twelve minutes covers them and still leaves the 90-minute ceiling
+          # untouched next to Glama's 30.
+          MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES: '12'
           # Glama requires an API key since 2026-08-26. An unset/empty secret
           # makes the Glama sync record a 'skipped' status, which fails the
           # quality gate — the previous complete snapshot keeps serving. Note
@@ -132,7 +154,11 @@ jobs:
       - name: Verify immutable database through public endpoint
         run: node scripts/verify-snapshot-upload.mjs dist/snapshot/manifest.json
 
+      # `id` so the freeze signal below can tell "nothing was published" from
+      # "the pointer moved and a later step failed" — two very different things
+      # to wake someone up about.
       - name: Publish manifest pointer to R2
+        id: manifest-pointer
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -180,3 +206,120 @@ jobs:
           echo '```json' >> $GITHUB_STEP_SUMMARY
           cat dist/snapshot/manifest.json >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+      # ─── Freeze signalling ──────────────────────────────────────────────────
+      #
+      # A build that cannot finish leaves the previous complete snapshot in
+      # place — correct, and deliberate — but nothing used to say so out loud.
+      # A red run is visible only to whoever opens the Actions tab, and
+      # `publishedAt` is a pull-based signal nobody polls; that is how issue #8
+      # stayed unnoticed for six days.
+      #
+      # This is one of two signals, and it is the near one: it fires the moment
+      # a run fails. It is structurally blind to a run that never started
+      # (GitHub disables cron schedules in a repository idle for 60 days) and
+      # to a green run whose bytes never reached R2 — for those,
+      # .github/workflows/snapshot-staleness.yml watches the published manifest
+      # from the outside. Neither signal subsumes the other; hence both.
+      #
+      # Deduplication is by the `snapshot-freeze` label, not by title: the
+      # label survives someone renaming the issue, and it is the same handle
+      # the staleness monitor files under, so the two signals converge on one
+      # thread instead of opening two parallel ones.
+      - name: Signal frozen publication
+        # `failure()` on its own is false when the job is *cancelled*, and a job
+        # that trips `timeout-minutes: 90`, loses its runner, or is stopped by
+        # hand is cancelled rather than failed — precisely the runs that publish
+        # nothing. Hence `cancelled()` as well. One honest limit remains: after a
+        # cancellation the runner gives post-cancellation steps only a short
+        # grace window, and a runner that died outright runs nothing at all, so
+        # this step can be killed before `gh` returns. That gap is not closed
+        # here; it is what snapshot-staleness.yml, which needs no live runner,
+        # exists to cover.
+        #
+        # The pointer clause is the other half of being honest. Once
+        # `Publish manifest pointer to R2` has succeeded, `publishedAt` has
+        # already advanced and clients are bootstrapping the new snapshot, so
+        # nothing about that run is frozen — the step below handles it instead.
+        if: (failure() || cancelled()) && steps.manifest-pointer.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # '', 'failure' or 'skipped' here — 'success' is routed to the step
+          # below, and the distinction is the difference between a stalled
+          # publication and a stumble after one.
+          POINTER: ${{ steps.manifest-pointer.outcome }}
+        run: |
+          set -euo pipefail
+          failed=$(gh run view "$RUN_ID" --json jobs \
+            --jq '[.jobs[].steps[] | select(.conclusion == "failure") | .name] | join(", ")' || true)
+          [ -n "$failed" ] || failed='not recorded yet — see the run log'
+          # The failing step names are the signature's stable half: a build that
+          # keeps dying in the same place says nothing new, while one that moves
+          # to a different step is a different incident and must break through
+          # the shared script's 12-hour throttle.
+          export FREEZE_SIGNATURE="build:pointer=${POINTER:-none}:$failed"
+          export FREEZE_BODY=$(cat <<EOF
+          The scheduled snapshot build did not finish, so **no new snapshot was published**.
+
+          - failing step(s): $failed
+          - manifest pointer this run: \`${POINTER:-not reached}\`
+          - run: $RUN_URL
+
+          The previous complete snapshot is **still being served**: clients keep
+          bootstrapping normally and nothing 404s. This is not an availability
+          incident, it is a data stall — \`publishedAt\` stops advancing until a
+          build succeeds again. The next successful build closes this issue.
+          EOF
+          )
+          node scripts/snapshot-freeze-signal.mjs raise
+
+      # A failure *after* the pointer moved is not a freeze at all: `publishedAt`
+      # advanced, and everyone bootstrapping from now on gets the new snapshot.
+      # What broke is the durable fallback, its commit marker or the run summary
+      # — real enough to leave the run red, but filing it under `snapshot-freeze`
+      # would make the label assert the opposite of what the published manifest
+      # says, and a label that lies is worse than no label.
+      #
+      # So this path opens nothing, and goes one step further: it *clears* an
+      # open freeze thread. The whole signal rests on one criterion — the age of
+      # `publishedAt` — and by that criterion publication is healthy again. The
+      # staleness monitor would reach the same conclusion from the outside
+      # within two hours anyway; leaving the issue open until then would only
+      # have the two signals disagree about a manifest they both call fresh.
+      # The post-publication failure is carried by the red run and the summary
+      # below, which is where a broken *upload* belongs.
+      - name: Report failure after publication
+        if: (failure() || cancelled()) && steps.manifest-pointer.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          failed=$(gh run view "$RUN_ID" --json jobs \
+            --jq '[.jobs[].steps[] | select(.conclusion == "failure") | .name] | join(", ")' || true)
+          [ -n "$failed" ] || failed='not recorded yet — see the run log'
+          {
+            echo '> [!WARNING]'
+            echo "> **The snapshot was published**, then this run failed at: $failed."
+            echo '> The manifest pointer is live and `publishedAt` advanced, so publication is *not* frozen and no freeze issue is filed. What may be out of date is the durable fallback (`data.sqlite.gz`) or its commit marker — the Worker keeps serving the immutable object either way.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          export FREEZE_BODY="Publication is not frozen: the manifest pointer moved in $RUN_URL before that run failed at: $failed. Closing on the criterion this alarm is built from — \`publishedAt\` advanced. The post-publication failure is tracked by the red run, not here."
+          node scripts/snapshot-freeze-signal.mjs clear
+
+      # The all-clear. Without it the freeze issue would need a human to close
+      # it, and an alarm nobody closes is an alarm everyone learns to ignore.
+      # `success()` is the default condition, spelled out here because this
+      # step's meaning depends on it entirely.
+      - name: Clear frozen-publication signal
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          published=$(node -e "process.stdout.write(String(JSON.parse(require('node:fs').readFileSync('dist/snapshot/manifest.json')).publishedAt ?? 'unknown'))")
+          export FREEZE_BODY="Publication resumed: a snapshot was published at \`$published\` by $RUN_URL."
+          node scripts/snapshot-freeze-signal.mjs clear

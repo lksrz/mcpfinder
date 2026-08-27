@@ -166,7 +166,7 @@ export async function runSnapshotSmitheryPaginationChecks(dir) {
           smitheryEntry(`smithery/persistent-${index}`)), 2, 101)
       : payload(2, [smitheryEntry('smithery/persistent-0')], 2, 101));
   }));
-  assert.equal(persistentDuplicateCalls, 4);
+  assert.equal(persistentDuplicateCalls, 6);
   assert.equal(syncLog(persistentDuplicateDb).status, 'error');
   assert.equal(syncLog(persistentDuplicateDb).server_count, 0);
   assert.match(syncLog(persistentDuplicateDb).error, /cross-page duplicate/);
@@ -175,6 +175,55 @@ export async function runSnapshotSmitheryPaginationChecks(dir) {
     0,
   );
   persistentDuplicateDb.close();
+
+  // Two consecutive duplicate attempts cost the 2026-08-26 20:02 build its
+  // whole publication cycle; the third attempt is what turns that into a
+  // recovered crawl. The restart waits back off exponentially (500 ms, then
+  // 1 s) rather than hammering the same degraded upstream twice in 250 ms.
+  // The clock is deliberately not zero: the ladder must not depend on wall
+  // time, and `now: () => 0` would pass even if it did.
+  const thirdAttemptDb = initDatabase(join(dir, 'smithery-third-attempt.sqlite'));
+  let thirdAttempt = 0;
+  let thirdAttemptCalls = 0;
+  const restartSleeps = [];
+  assert.equal(
+    await syncSmitheryRegistry(thirdAttemptDb, {
+      now: () => 1_772_000_000_123,
+      sleep: async (ms) => { if (ms > 100) restartSleeps.push(ms); },
+      fetchImpl: async (requestUrl) => {
+        thirdAttemptCalls++;
+        const page = Number(new URL(requestUrl).searchParams.get('page'));
+        if (page === 1) {
+          thirdAttempt++;
+          return Response.json(payload(1, Array.from({ length: PAGE_SIZE }, (_, index) =>
+            smitheryEntry(`smithery/third-${index}`)), 2, 101));
+        }
+        if (page === 2) {
+          return Response.json(payload(2, [smitheryEntry(
+            thirdAttempt < 3 ? 'smithery/third-0' : 'smithery/third-100',
+          )], 2, 101));
+        }
+        return Response.json(payload(3, [], 2, 101));
+      },
+    }),
+    101,
+  );
+  assert.equal(thirdAttempt, 3);
+  assert.equal(thirdAttemptCalls, 7);
+  assert.deepEqual(restartSleeps, [500, 1000]);
+  assert.equal(syncLog(thirdAttemptDb).status, 'ok');
+  assert.equal(syncLog(thirdAttemptDb).server_count, 101);
+  assert.equal(
+    thirdAttemptDb.prepare('SELECT COUNT(*) AS count FROM servers').get().count,
+    101,
+  );
+  assert.equal(
+    thirdAttemptDb
+      .prepare("SELECT COUNT(*) AS count FROM servers WHERE id = 'smithery:smithery/third-100'")
+      .get().count,
+    1,
+  );
+  thirdAttemptDb.close();
 
   const stableIdDb = initDatabase(join(dir, 'smithery-stable-id-priority.sqlite'));
   const repoA = 'https://github.com/acme/smithery-original';
@@ -375,4 +424,67 @@ export async function runSnapshotSmitheryPaginationChecks(dir) {
   assert.equal(applyDeadlineDb.prepare('SELECT COUNT(*) AS count FROM servers').get().count, 1);
   assert.deepEqual(JSON.parse(applyDeadlineDb.prepare('SELECT sources FROM servers').get().sources), ['official']);
   applyDeadlineDb.close();
+
+  // MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES overrides the wall-clock budget the
+  // crawl above spends its attempts inside, so its parsing lives next to the
+  // crawl it bounds. Three attempts do not fit in the default five minutes, so
+  // batch builds raise it explicitly.
+  const originalBudget = process.env.MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES;
+  const smitheryEmpty = payload(1, [], 0, 0);
+  try {
+    process.env.MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES = '12';
+    const overrideDb = initDatabase(join(dir, 'smithery-override-budget.sqlite'));
+    let overrideCalls = 0;
+    const overrideTimes = [0, 8 * 60_000];
+    await syncSmitheryRegistry(
+      overrideDb,
+      runtime(async () => {
+        overrideCalls++;
+        return Response.json(smitheryEmpty);
+      }, () => overrideTimes[Math.min(overrideCalls, overrideTimes.length - 1)]),
+    );
+    assert.equal(overrideCalls, 1);
+    assert.equal(syncLog(overrideDb).status, 'ok');
+    overrideDb.close();
+
+    process.env.MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES = '16';
+    const outOfRangeDb = initDatabase(join(dir, 'smithery-out-of-range-budget.sqlite'));
+    assert.equal(
+      await syncSmitheryRegistry(
+        outOfRangeDb,
+        runtime(async () => Response.json(smitheryEmpty)),
+      ),
+      0,
+    );
+    assert.equal(syncLog(outOfRangeDb).status, 'error');
+    assert.match(syncLog(outOfRangeDb).error, /integer between 1 and 15/);
+    outOfRangeDb.close();
+
+    process.env.MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES = 'twelve';
+    const malformedDb = initDatabase(join(dir, 'smithery-malformed-budget.sqlite'));
+    await syncSmitheryRegistry(
+      malformedDb,
+      runtime(async () => Response.json(smitheryEmpty)),
+    );
+    assert.equal(syncLog(malformedDb).status, 'error');
+    assert.match(syncLog(malformedDb).error, /integer between 1 and 15/);
+    malformedDb.close();
+
+    // An unset budget falls back to the historical five minutes.
+    delete process.env.MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES;
+    const defaultBudgetDb = initDatabase(join(dir, 'smithery-default-budget.sqlite'));
+    let defaultClock = 0;
+    await syncSmitheryRegistry(defaultBudgetDb, {
+      now: () => defaultClock,
+      sleep: async () => { defaultClock = 5 * 60_000; },
+      fetchImpl: async () => Response.json(
+        payload(1, [smitheryEntry('smithery/default-budget')], 2, 101),
+      ),
+    });
+    assert.match(syncLog(defaultBudgetDb).error, /exceeded its 5-minute budget/);
+    defaultBudgetDb.close();
+  } finally {
+    if (originalBudget === undefined) delete process.env.MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES;
+    else process.env.MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES = originalBudget;
+  }
 }

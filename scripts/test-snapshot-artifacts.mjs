@@ -17,6 +17,7 @@ import {
   loadCurrentSnapshotSha,
   resolveVerifiedCurrentFallback,
 } from '../shared/snapshot-proof-cache.js';
+import { runSnapshotFreezeChecks } from './snapshot-freeze-checks.mjs';
 import {
   isMainModule,
   verifyOptionalBrotli,
@@ -214,6 +215,9 @@ assert.match(markerCommand, /mcp-finder-db-snapshots\/data\.sqlite\.gz\.sha256/)
 const buildStep = parsedWorkflow.jobs.build.steps.find((step) => step.name === 'Build snapshot');
 assert.equal(buildStep?.env?.GLAMA_API_KEY, '${{ secrets.GLAMA_API_KEY }}');
 assert.equal(buildStep.env.MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES, '30');
+// Smithery restarts a stalled crawl up to three times; three full passes do
+// not fit the default 5-minute budget.
+assert.equal(buildStep.env.MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES, '12');
 assert.equal(parsedWorkflow.jobs.build['timeout-minutes'], 90);
 
 const immutableUpload = workflow.indexOf('Upload immutable database to R2');
@@ -255,6 +259,10 @@ assert.ok(manifestUpload > preflight);
 assert.match(workflow, /timeout-minutes: 90/);
 assert.doesNotMatch(workflow, /run: pnpm test(?:\s|$)/);
 assert.doesNotMatch(workflow, /check:types/);
+
+// The freeze alarm — both workflow signals, the age monitor's verdicts and the
+// README paragraph that promises them — lives in its own module.
+await runSnapshotFreezeChecks({ workflow, parsedWorkflow, durableProof });
 
 const body = Buffer.from('immutable snapshot bytes');
 const bodySha = createHash('sha256').update(body).digest('hex');

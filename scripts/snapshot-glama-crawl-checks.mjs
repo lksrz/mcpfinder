@@ -75,16 +75,24 @@ export async function runSnapshotGlamaCrawlChecks(dir) {
   assert.doesNotMatch(untouchedOfficial.raw_data, /first-attempt-only|\"id\":\"abandoned\"/);
   transientDb.close();
 
+  // Three attempts, so two restarts, so two waits: 500 ms then 1 s. The clock
+  // is deliberately not zero — the schedule is a fixed ladder, not a function
+  // of wall time, and pinning `now` at 0 would hide a regression that made it
+  // one. Inter-page 100 ms pacing is filtered out.
   const persistentDb = initDatabase(join(dir, 'glama-persistent-duplicate.sqlite'));
   let persistentCalls = 0;
+  const persistentRestartSleeps = [];
   await syncGlamaRegistry(persistentDb, runtime(async (requestUrl) => {
     persistentCalls++;
     const cursor = new URL(requestUrl).searchParams.get('after');
     return Response.json(cursor
       ? page([glamaEntry('persistent')], false)
       : page([glamaEntry('persistent')], true, 'next'));
+  }, () => 1_772_000_000_123, async (ms) => {
+    if (ms > 100) persistentRestartSleeps.push(ms);
   }));
-  assert.equal(persistentCalls, 4);
+  assert.equal(persistentCalls, 6);
+  assert.deepEqual(persistentRestartSleeps, [500, 1000]);
   assert.equal(syncLog(persistentDb).status, 'error');
   assert.equal(syncLog(persistentDb).server_count, 0);
   assert.match(syncLog(persistentDb).error, /cross-page duplicate/);

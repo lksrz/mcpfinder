@@ -377,9 +377,10 @@ healthy, keeping the enclosing job bounded.
 Empty Glama pages may legally continue with a new non-empty cursor; missing or
 previously seen continuation cursors are structural errors, preventing an
 upstream pagination loop from running until the deadline. A cross-page server
-ID duplicate restarts the complete cursor crawl once within the same deadline;
-intra-page or persistent duplicates fail closed. Like Smithery, Glama applies
-only the completed retry in one SQLite transaction.
+ID duplicate restarts the complete cursor crawl up to twice within the same
+deadline, waiting 500 ms then 1 s between attempts; intra-page or persistent
+duplicates fail closed. Like Smithery, Glama applies only the completed retry
+in one SQLite transaction.
 Official requires the upstream `metadata` object and per-page `count`, validates
 that count against returned records, and follows `nextCursor` until it is empty,
 null, or omitted by the terminal response. Repeated cursors or any failure
@@ -391,8 +392,14 @@ so completion follows actual pages rather than one sampled aggregate. Every
 non-empty final page, including a short candidate, is confirmed by an empty
 next-page probe; a non-empty page after a short candidate is a truncation/gap
 error. A cross-page `qualifiedName` duplicate restarts the entire seeded crawl
-once within the same five-minute deadline, while persistent cross-page or any
-intra-page duplicate fails closed. `currentPage` identity, non-negative typed
+up to twice within the same deadline, waiting 500 ms then 1 s between attempts
+— the fault is intermittent upstream, and a single retry has already cost a
+snapshot publication cycle — while persistent cross-page or any intra-page
+duplicate fails closed. `MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES` can raise
+Smithery's default 5-minute wall-clock budget, which three full crawl attempts
+no longer fit into. It accepts integer values from 1 through 15; invalid or
+unbounded values fail explicitly. The snapshot workflow uses 12 minutes.
+`currentPage` identity, non-negative typed
 pagination metadata, and the requested maximum result size remain structural;
 echoed `pageSize`, `totalCount`, and `totalPages` are advisory and may drift,
 including on the empty terminal probe. Each attempt is staged in a TEMP SQLite

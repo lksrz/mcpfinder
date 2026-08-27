@@ -1,0 +1,144 @@
+name: snapshot-staleness
+
+# Watches the *published* snapshot manifest from the outside and shouts when it
+# stops moving.
+#
+# This is the second of two freeze signals. The first one lives at the end of
+# .github/workflows/snapshot.yml and fires when a build run fails — but it can
+# only speak while a runner is alive. It says nothing when the schedule itself
+# is gone, nothing when the runner dies mid-run, and nothing when a run went
+# green while its bytes never reached R2. All of those look identical to a
+# client: `publishedAt` simply stops advancing. That is precisely the blindness
+# that let issue #8 live for six days, so this workflow trusts no internal state
+# at all and reads the public artifact the way a client would.
+#
+# What it reports is data staleness, not an outage: the previous complete
+# snapshot keeps being served the whole time. Nothing here is a paging alarm.
+#
+# ─── What this monitor cannot see ───────────────────────────────────────────
+#
+# It is itself a GitHub scheduled workflow, so it shares the failure mode it
+# partly exists to catch: GitHub disables cron schedules in a repository idle
+# for 60 days, and that switch turns off the build and this monitor together.
+# A dead monitor is silent by construction — no red X, no issue, nothing. The
+# same is true of an Actions outage, a disabled workflow, or a repository
+# archived by mistake.
+#
+# There is no way to close that from inside GitHub, and pretending otherwise
+# would be worse than the gap. The only complete fix is an external uptime
+# check that fetches https://mcpfinder.dev/api/v1/snapshot/manifest.json and
+# alerts on `publishedAt` age from somewhere that is not GitHub. Until that
+# exists, treat this monitor as covering build and publication failures only,
+# not the disappearance of the schedule.
+
+on:
+  schedule:
+    - cron: '23 */2 * * *' # every 2 hours at :23, offset from the build's :17
+  workflow_dispatch:
+
+# Deliberately *not* shared with the build workflow. A common group would
+# serialise the two freeze signals and remove the create-create race, but at the
+# price of queueing this 10-minute check behind a 90-minute build — and GitHub
+# keeps only one pending run per group, so checks would be dropped outright.
+# The race is handled where it belongs instead: scripts/snapshot-freeze-signal.mjs
+# reconciles duplicate threads on the next signal from either side.
+concurrency:
+  group: snapshot-staleness
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # `contents: read` for checkout; `issues: write` to file/close the alarm.
+    # No `actions: read`: unlike the build signal, this one has no run to
+    # introspect — its evidence is the public manifest.
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      # No dependency install: the checker is dependency-free on purpose, so
+      # the monitor cannot be taken down by the registry it monitors nothing
+      # about. The 18-hour threshold, the fresh/stale/unreadable classification
+      # and the fetch retries live in the script, where they are unit-tested by
+      # scripts/test-snapshot-artifacts.mjs, rather than inline here.
+      - name: Check published manifest age
+        id: staleness
+        run: node scripts/check-snapshot-staleness.mjs
+
+      # An unreachable endpoint, unparseable JSON or a missing `publishedAt`
+      # are alarm states, not quiet successes: they tell us exactly as little
+      # about publication health as a six-day-old manifest does. The script
+      # reports them as `unreadable`, and this condition covers every non-fresh
+      # verdict so a new state can never fall through silently.
+      #
+      # `!cancelled() &&` is load-bearing, and so is the fact that it is not
+      # `always()`. An `if:` with no status function is implicitly ANDed with
+      # `success()`, which would skip this step whenever the checker itself
+      # broke — leaving a monitor that fails silently behind the unread red X
+      # this workflow exists to replace. A broken checker leaves `state` empty,
+      # which is not 'fresh', so it still alarms, and the defaults below give
+      # that case something readable to say. `always()` reached one case too
+      # far: it also covers this monitor being *cancelled* — a manual stop, a
+      # tripped `timeout-minutes` — and a cancelled run has learned nothing at
+      # all about publication health. Filing "produced no verdict" for it is a
+      # false alarm nothing clears until the next pass two hours later.
+      - name: Signal frozen publication
+        if: "!cancelled() && steps.staleness.outputs.state != 'fresh'"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STATE: ${{ steps.staleness.outputs.state || 'unreadable' }}
+          CAUSE: ${{ steps.staleness.outputs.cause || 'no-verdict' }}
+          REASON: ${{ steps.staleness.outputs.reason || 'the staleness checker produced no verdict — see the run log' }}
+          AGE_HOURS: ${{ steps.staleness.outputs.age_hours }}
+          PUBLISHED_AT: ${{ steps.staleness.outputs.published_at }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # State *and* cause, never the wording. The wording carries the age,
+          # which moves on every two-hour pass and would restate the same
+          # verdict 84 times a week; the state alone was too coarse the other
+          # way — `unreadable` from a 502 and `unreadable` from a manifest that
+          # lost its timestamp are different incidents, and switching between
+          # them must not have to wait out the throttle. `cause` is the
+          # checker's stable class for the failure, so it changes exactly when
+          # the problem does. The shared script comments on a change of
+          # signature, or once every 12 h otherwise.
+          export FREEZE_SIGNATURE="staleness:$STATE:$CAUSE"
+          export FREEZE_BODY=$(cat <<EOF
+          The public snapshot manifest is **$STATE** (\`$CAUSE\`): $REASON
+
+          - \`publishedAt\`: \`${PUBLISHED_AT:-none}\`
+          - age: \`${AGE_HOURS:-unknown}\` h (alarm threshold 18 h — three missed 6-hourly builds)
+          - checked by: $RUN_URL
+
+          The previous complete snapshot is **still being served**; this is a
+          data stall, not an availability incident. Check whether the scheduled
+          build is still enabled — GitHub disables cron schedules in a
+          repository idle for 60 days — and whether the last green run actually
+          uploaded to R2.
+          EOF
+          )
+          node scripts/snapshot-freeze-signal.mjs raise
+
+      # A fresh manifest is the only proof that publication actually works end
+      # to end, so it — not a green build — is what retires the alarm. Only a
+      # verdict of 'fresh' clears; `!cancelled() &&` keeps this symmetric with
+      # the alarm above rather than letting an implicit `success()` decide.
+      - name: Clear frozen-publication signal
+        if: "!cancelled() && steps.staleness.outputs.state == 'fresh'"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGE_HOURS: ${{ steps.staleness.outputs.age_hours }}
+          PUBLISHED_AT: ${{ steps.staleness.outputs.published_at }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          export FREEZE_BODY="The public manifest is fresh again: \`publishedAt\` \`$PUBLISHED_AT\` (${AGE_HOURS}h old), verified by $RUN_URL."
+          node scripts/snapshot-freeze-signal.mjs clear

@@ -62,9 +62,40 @@ const PAGE_LIMIT = 100;
 const OFFICIAL_SYNC_BUDGET_MS = 8 * 60_000;
 const DEFAULT_GLAMA_SYNC_BUDGET_MINUTES = 12;
 const MAX_GLAMA_SYNC_BUDGET_MINUTES = 40;
-const MAX_GLAMA_CRAWL_ATTEMPTS = 2;
-const SMITHERY_SYNC_BUDGET_MS = 5 * 60_000;
-const MAX_SMITHERY_CRAWL_ATTEMPTS = 2;
+const DEFAULT_SMITHERY_SYNC_BUDGET_MINUTES = 5;
+const MAX_SMITHERY_SYNC_BUDGET_MINUTES = 15;
+
+/**
+ * Cross-page duplicates are an intermittent upstream fault: the same crawl
+ * repeated seconds later usually paginates cleanly. Two attempts proved too
+ * thin — the 2026-08-26 20:02 build burned both on the same duplicate, brought
+ * in zero servers, and the required-source gate correctly withheld the whole
+ * snapshot, while the very next build passed untouched. A third attempt costs
+ * a few minutes of a scheduled job; a missed publication cycle costs every
+ * consumer a day of staleness.
+ */
+const MAX_GLAMA_CRAWL_ATTEMPTS = 3;
+const MAX_SMITHERY_CRAWL_ATTEMPTS = 3;
+
+/**
+ * Restarting instantly walks straight back into an upstream still serving the
+ * same broken page order, so the two restarts three attempts allow wait 500 ms
+ * and then 1 s: long enough for a registry mid-reindex to move on, negligible
+ * against a multi-minute budget, and harmless if it isn't — the deadline is
+ * re-checked at the top of the restarted page loop, so a wait that outlives
+ * the budget degrades cleanly rather than overrunning it. Three attempts end
+ * the ladder at 1 s, so there is no ceiling constant: one would only document
+ * behaviour no argument can produce. Nor is there jitter — build-snapshot runs
+ * Glama then Smithery sequentially under one `concurrency: snapshot` group, so
+ * there is no second crawler to decorrelate from, and a fixed schedule is one
+ * the tests can assert outright.
+ */
+const CRAWL_RESTART_BASE_DELAY_MS = 500;
+
+function crawlRestartDelayMs(attempt: number): number {
+  return CRAWL_RESTART_BASE_DELAY_MS * 2 ** (attempt - 1);
+}
+
 // Smithery's unseeded reranker exposes only five pages. A fixed integer seed
 // selects the documented stable deep-pagination path for the full catalogue.
 const SMITHERY_PAGINATION_SEED = 20260820;
@@ -91,6 +122,32 @@ function getGlamaSyncBudgetMinutes(): number {
     throw new Error(
       'MCPFINDER_GLAMA_SYNC_BUDGET_MINUTES must be an integer between 1 and ' +
         MAX_GLAMA_SYNC_BUDGET_MINUTES,
+    );
+  }
+  return minutes;
+}
+
+/**
+ * Smithery's five minutes covered a single ~109-page crawl with room to spare,
+ * but not the three the restart budget now allows: the deadline would abort the
+ * loop before the third attempt could run, making it dead code. Local stdio
+ * keeps the historical five-minute limit; the snapshot job raises it. Reject
+ * invalid values instead of silently turning a typo into an unbounded sync.
+ */
+function getSmitherySyncBudgetMinutes(): number {
+  const raw = process.env.MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES;
+  if (raw === undefined || raw === '') return DEFAULT_SMITHERY_SYNC_BUDGET_MINUTES;
+  if (!/^\d+$/.test(raw)) {
+    throw new Error(
+      'MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES must be an integer between 1 and ' +
+        MAX_SMITHERY_SYNC_BUDGET_MINUTES,
+    );
+  }
+  const minutes = Number(raw);
+  if (minutes < 1 || minutes > MAX_SMITHERY_SYNC_BUDGET_MINUTES) {
+    throw new Error(
+      'MCPFINDER_SMITHERY_SYNC_BUDGET_MINUTES must be an integer between 1 and ' +
+        MAX_SMITHERY_SYNC_BUDGET_MINUTES,
     );
   }
   return minutes;
@@ -457,7 +514,7 @@ export async function syncGlamaRegistry(
             `[mcpfinder] ${err.message} — restarting cursor crawl ` +
               `(${crawlAttempt + 1}/${MAX_GLAMA_CRAWL_ATTEMPTS})\n`,
           );
-          await delay(250, runtime);
+          await delay(crawlRestartDelayMs(crawlAttempt), runtime);
           continue;
         }
         throw err;
@@ -583,8 +640,9 @@ export async function syncSmitheryRegistry(
 ): Promise<number> {
   let totalUpserted = 0;
   let degradation: string | null = null;
+  let budgetMinutes = DEFAULT_SMITHERY_SYNC_BUDGET_MINUTES;
+  let deadline = Number.POSITIVE_INFINITY;
   const now = runtime.now ?? Date.now;
-  const deadline = now() + SMITHERY_SYNC_BUDGET_MS;
 
   // Insert-only: the apply loop routes every id already present in `servers`
   // through mergeServerData, so this statement is reached exclusively for ids
@@ -607,6 +665,8 @@ export async function syncSmitheryRegistry(
 
   const staging = new CrawlStaging<SmitheryServer>(db, 'smithery');
   try {
+    budgetMinutes = getSmitherySyncBudgetMinutes();
+    deadline = now() + budgetMinutes * 60_000;
     let crawlCompleted = false;
     crawlAttempts:
     for (let crawlAttempt = 1; crawlAttempt <= MAX_SMITHERY_CRAWL_ATTEMPTS; crawlAttempt++) {
@@ -619,7 +679,7 @@ export async function syncSmitheryRegistry(
         while (true) {
           if (now() >= deadline) {
             degradation =
-              `Smithery sync exceeded its ${SMITHERY_SYNC_BUDGET_MS / 60_000}-minute budget ` +
+              `Smithery sync exceeded its ${budgetMinutes}-minute budget ` +
               `— discarded ${staging.size} staged servers; ` +
               'existing last-known-good database unchanged';
             process.stderr.write(`[mcpfinder] ${degradation}\n`);
@@ -685,7 +745,7 @@ export async function syncSmitheryRegistry(
             `[mcpfinder] ${err.message} — restarting seeded crawl ` +
               `(${crawlAttempt + 1}/${MAX_SMITHERY_CRAWL_ATTEMPTS})\n`,
           );
-          await delay(250, runtime);
+          await delay(crawlRestartDelayMs(crawlAttempt), runtime);
           continue;
         }
         throw err;
