@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { runSearchRelevanceChecks } from './search-relevance-checks.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'mcpf-core-test-'));
 process.env.MCPFINDER_DATA_DIR = dir;
@@ -94,5 +95,8 @@ assert.equal(
 );
 
 db.close();
+
+await runSearchRelevanceChecks();
+
 rmSync(dir, { recursive: true, force: true });
 console.log('core capability checks passed');

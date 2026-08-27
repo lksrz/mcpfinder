@@ -127,7 +127,17 @@ MCPfinder is intentionally optimized for agent consumption.
 Search ranking uses:
 
 - text relevance
-- name-match boost
+- name-match boost — measured against the name with its *hosting prefix* removed
+  (`io.github.<owner>/<repo>` → `<owner>/<repo>`, `ai.smithery/<slug>` →
+  `<slug>`). That leading segment is a reverse-DNS namespace assigned by the
+  Official registry to say where the server's code is hosted — `io.github.*`
+  servers all come from Official, not from some "GitHub" registry — and it says
+  nothing about what the server does. 19.6% of the catalog is named
+  `io.github.%`, so scoring it turned the boost into a constant and buried every
+  real match. The owner segment stays, so searching by owner still works. There
+  is no way to search *by* the hosting namespace: `registrySource` filters on
+  the registries an entry was found in (`official`/`glama`/`smithery`), which is
+  a different thing.
 - community usage (`useCount`)
 - official registry presence
 - verification signals

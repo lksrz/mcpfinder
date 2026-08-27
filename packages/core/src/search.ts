@@ -1,6 +1,15 @@
 /**
  * Search engine using SQLite FTS5 for MCP server discovery.
- * Ranking formula: fts_rank * 0.4 + log(useCount+1) * 0.3 + source_count * 0.2 + official_boost * 0.1
+ *
+ * Ranking formula, per candidate row (see `searchServers`):
+ *   5.0 for every query term found in the hosting-prefix-stripped name
+ * + fts_relevance * 0.3
+ * + log(use_count + 1) * 0.2
+ * + (3.0 if official | 1.5 if verified | 0) * 0.15
+ *
+ * The name-match term dominates by design — a query word occurring in the name
+ * is the strongest signal we have — which is exactly why it must not fire on
+ * the reverse-DNS hosting prefix. See HOSTING_PREFIXES.
  */
 import type { DatabaseSync } from 'node:sqlite';
 import type { SqlParam } from './db.js';
@@ -59,6 +68,79 @@ const SEARCH_ALIASES: Record<string, string> = {
 };
 
 /**
+ * Hosting prefix: the leading reverse-DNS segment of a server name. It is a
+ * namespace saying *where the server's code is hosted* — `io.github.<owner>/`
+ * marks a server published from a GitHub repository, `ai.smithery/` one hosted
+ * on Smithery — and it is assigned by the Official registry, which owns the
+ * reverse-DNS namespace. It is not the registry a server was found in
+ * (`io.github.*` entries all come from Official), and it says nothing about
+ * what the server does.
+ *
+ * The owner segment deliberately stays: `com.cloudflare/...` really is
+ * Cloudflare's, and a query for an owner (`cyanheads`) has to keep working.
+ * There is, after this change, no way to search *by* the hosting namespace:
+ * `registrySource` is an official|glama|smithery enum matched against the
+ * `sources` column and no value of it selects `io.github.*`.
+ *
+ * Why this matters, measured on the published snapshot of 2026-08-27 (89,840
+ * rows — the same corpus the timings further down were taken on): 19.6% of it
+ * (17,636 rows) is named `io.github.%`, so for the query "github" 94.0% of the
+ * 19,129 FTS hits collected the full name-match boost — 98.0% of them purely
+ * through that prefix. A boost that fires on almost every candidate is a
+ * constant, and the ranking collapses onto whatever noise is left. Stripping
+ * the prefix before the name test restores it to a signal.
+ *
+ * Single source of truth for both the SQL and the JS path. `field` is load
+ * bearing, not documentation: slugs come out of `slugify()`, which collapses
+ * every non-alphanumeric run to a dash, so a dotted prefix can never occur in
+ * a slug and a dashed one can never occur in a name. Applying the dashed forms
+ * to names would demote a legitimate server actually called `io-github-...`.
+ */
+const HOSTING_PREFIXES: readonly { prefix: string; field: 'name' | 'slug' }[] = [
+  { prefix: 'io.github.', field: 'name' },
+  { prefix: 'ai.smithery/', field: 'name' },
+  { prefix: 'ai.smithery.', field: 'name' },
+  { prefix: 'io-github-', field: 'slug' },
+  { prefix: 'ai-smithery-', field: 'slug' },
+];
+
+// The prefixes are interpolated into SQL as LIKE literals, so a quote would
+// break out of the string and `%`/`_` would silently widen the pattern. The
+// list is a constant, so this can only ever fire during development.
+for (const { prefix } of HOSTING_PREFIXES) {
+  if (/['%_]/.test(prefix)) throw new Error(`unsafe hosting prefix: ${prefix}`);
+}
+
+/**
+ * SQL expression yielding `column` with its hosting prefix removed. `substr` is
+ * 1-indexed, so the first character past the prefix is at `length + 1` —
+ * derived from the string rather than hand-counted, because a wrong offset
+ * silently over- or under-trims every name in that namespace.
+ *
+ * Case handling is free here: SQLite `LIKE` is case-insensitive over ASCII.
+ */
+function hostingPrefixSql(column: string, field: 'name' | 'slug'): string {
+  const whens = HOSTING_PREFIXES.filter((p) => p.field === field).map(
+    (p) => `WHEN ${column} LIKE '${p.prefix}%' THEN substr(${column}, ${p.prefix.length + 1})`,
+  );
+  return `CASE ${whens.join(' ')} ELSE ${column} END`;
+}
+
+/**
+ * JS counterpart of {@link hostingPrefixSql}, for the scoring in
+ * `findServerByNameOrSlug`. Matches case-insensitively so the two paths agree
+ * on `IO.GITHUB.Foo/Bar` — `String.startsWith` alone would no-op on it and the
+ * agreement would rest on callers happening to lowercase first.
+ */
+function stripHostingPrefix(value: string, field: 'name' | 'slug'): string {
+  const lower = value.toLowerCase();
+  for (const p of HOSTING_PREFIXES) {
+    if (p.field === field && lower.startsWith(p.prefix)) return value.slice(p.prefix.length);
+  }
+  return value;
+}
+
+/**
  * Find a server by name, slug, or fuzzy match.
  *
  * Lookup priority:
@@ -95,23 +177,37 @@ export function findServerByNameOrSlug(
   //    Score: exact word boundary > prefix > early position > late position
   //    Within each tier, sort by popularity (use_count)
   const pattern = `%${query}%`;
+  // Candidate selection has to use the same criterion as the scoring below,
+  // otherwise fifty popular `io.github.*` rows matching on nothing but their
+  // hosting prefix fill the window and push out the row we are looking for.
+  // Rows whose stripped name/slug matches therefore sort first; rows matching
+  // only through the prefix stay eligible (so a literal `io.github.foo` lookup
+  // still resolves) but can never take a slot from a real match. With that
+  // ordering the 50-row window is only ever consumed by genuine matches, so it
+  // stays at 50 rather than being widened.
+  const strippedMatch =
+    `${hostingPrefixSql('name', 'name')} LIKE @pattern` +
+    ` OR ${hostingPrefixSql('slug', 'slug')} LIKE @pattern`;
   const rows = db
     .prepare(
       `SELECT * FROM servers
-       WHERE name LIKE ? COLLATE NOCASE
-          OR slug LIKE ? COLLATE NOCASE
-       ORDER BY use_count DESC
+       WHERE name LIKE @pattern COLLATE NOCASE
+          OR slug LIKE @pattern COLLATE NOCASE
+       ORDER BY CASE WHEN ${strippedMatch} THEN 0 ELSE 1 END,
+                use_count DESC
        LIMIT 50`,
     )
-    .all(pattern, pattern) as unknown as McpServer[];
+    .all({ pattern }) as unknown as McpServer[];
 
   if (rows.length > 0) {
     const qLower = query.toLowerCase();
 
     // Score each match — lower is better
     const scored = rows.map((r) => {
-      const nameLower = (r.name || '').toLowerCase();
-      const slugLower = (r.slug || '').toLowerCase();
+      // Scored on the hosting-prefix-stripped forms for the same reason the FTS
+      // boost is: `io-github-` in a slug is provenance, not a match on "github".
+      const nameLower = stripHostingPrefix(r.name || '', 'name').toLowerCase();
+      const slugLower = stripHostingPrefix(r.slug || '', 'slug').toLowerCase();
 
       // Check both name and slug, take best score
       let score = 1000;
@@ -219,30 +315,6 @@ export function searchServers(
     .replace(/[^\w\s-]/g, ' ')
     .split(/\s+/)
     .filter((w) => w.length > 1);
-  const nameMatchClauses = nameMatchTerms.map((_, i) => 
-    `CASE WHEN LOWER(s.name) LIKE @nm${i} THEN 5.0 ELSE 0 END`
-  ).join(' + ');
-
-  // Multi-factor ranking:
-  // - Name match boost (huge): does the query term appear in server NAME?
-  // - FTS5 rank for text relevance
-  // - log(use_count + 1) for popularity  
-  // - Official registry boost
-  let sql = `
-    SELECT s.*,
-           (rank * -1) as fts_relevance,
-           (
-             (${nameMatchClauses || '0'}) +
-             (rank * -1) * 0.3 +
-             (CASE WHEN s.use_count > 0 THEN log(s.use_count + 1) ELSE 0 END) * 0.2 +
-             (CASE WHEN s.sources LIKE '%official%' THEN 3.0
-              WHEN s.verified = 1 THEN 1.5
-              ELSE 0 END) * 0.15
-           ) as combined_score
-    FROM servers_fts fts
-    JOIN servers s ON s.rowid = fts.rowid
-    WHERE servers_fts MATCH @query
-  `;
 
   const params: Record<string, unknown> = { query: sanitized, limit };
 
@@ -251,22 +323,99 @@ export function searchServers(
     params[`nm${i}`] = `%${term.toLowerCase()}%`;
   });
 
+  // Filters narrow the candidate set, so they belong inside the CTE — every row
+  // they drop is a row we neither strip nor score.
+  let filterSql = '';
+
   if (filters?.transportType && filters.transportType !== 'any') {
-    sql += ' AND s.transport_type = @transportType';
+    filterSql += ' AND s.transport_type = @transportType';
     params.transportType = filters.transportType;
   }
 
   if (filters?.registryType && filters.registryType !== 'any') {
-    sql += ' AND s.registry_type = @registryType';
+    filterSql += ' AND s.registry_type = @registryType';
     params.registryType = filters.registryType;
   }
 
   if (filters?.registrySource && filters.registrySource !== 'any') {
-    sql += ' AND s.sources LIKE @registrySource';
+    filterSql += ' AND s.sources LIKE @registrySource';
     params.registrySource = `%${filters.registrySource}%`;
   }
 
-  sql += ' ORDER BY combined_score DESC LIMIT @limit';
+  // The boost tests the name with its hosting prefix cut off — see
+  // HOSTING_PREFIXES for why the leading namespace is not a capability.
+  // The CTE gives that value a single *name*, so the expression is written
+  // once here instead of once per term. It is not computed once per row: the
+  // CTE is deliberately left inlinable, so the planner re-derives match_name
+  // at each reference. That is the cheaper of the two plans for realistic term
+  // counts — the measurements behind that choice are on the query below.
+  const nameMatchClauses = nameMatchTerms.map((_, i) =>
+    `CASE WHEN h.match_name LIKE @nm${i} THEN 5.0 ELSE 0 END`
+  ).join(' + ');
+
+  // A query whose every word is a single character leaves no terms to boost by,
+  // and then nothing downstream reads match_name. Don't strip and lower-case a
+  // name for all 19k hits of a broad query so that the outer SELECT can ignore
+  // it — the column is only projected when a term will actually test it.
+  const matchNameSql = nameMatchTerms.length
+    ? `,\n             LOWER(${hostingPrefixSql('s.name', 'name')}) AS match_name`
+    : '';
+
+  // Multi-factor ranking:
+  // - Name match boost (huge): does the query term appear in server NAME?
+  // - FTS5 rank for text relevance
+  // - log(use_count + 1) for popularity
+  // - Official registry boost
+  //
+  // `NOT MATERIALIZED` is a measurement, not a style choice. Timings on the
+  // production snapshot (89,840 rows, node:sqlite, min of 9 runs), by number of
+  // name-match terms — 1 and 2 terms are the alias-expanded shapes of the two
+  // most common real queries:
+  //
+  //   query           | terms | MATERIALIZED | NOT MATERIALIZED | no hint
+  //   ----------------+-------+--------------+------------------+--------
+  //   github          |     1 |        56 ms |            39 ms |   40 ms
+  //   git             |     2 |        62 ms |            48 ms |   49 ms
+  //   pg fs           |     4 |        29 ms |            27 ms |   25 ms
+  //   pg fs js ml     |     8 |        40 ms |            46 ms |   46 ms
+  //
+  // Read each row across, never down: the rows are different queries matching
+  // different numbers of FTS hits, so the four-term row being faster than the
+  // one-term row says nothing about term count — "github" alone matches 19,129
+  // rows. What the table does show is that the winner flips somewhere between
+  // the four- and eight-term query.
+  //
+  // The mechanism behind that flip: materializing forces the strip over every
+  // FTS hit when the outer query keeps 10, a fixed cost paid once; inlining
+  // re-derives match_name at each term reference, a cost that grows with the
+  // term count. The dominant query is one word, so inlining wins where it
+  // matters. No hint measures the
+  // same — SQLite flattens a singly-referenced CTE by default — but the hint is
+  // written out to state the intent: both forms are advisory, so this records
+  // which plan was measured rather than guaranteeing the planner picks it.
+  // Results are byte-identical across all three variants.
+  const sql = `
+    WITH hits AS NOT MATERIALIZED (
+      SELECT s.rowid AS server_rowid,
+             (rank * -1) AS fts_relevance${matchNameSql}
+      FROM servers_fts fts
+      JOIN servers s ON s.rowid = fts.rowid
+      WHERE servers_fts MATCH @query${filterSql}
+    )
+    SELECT s.*,
+           h.fts_relevance,
+           (
+             (${nameMatchClauses || '0'}) +
+             h.fts_relevance * 0.3 +
+             (CASE WHEN s.use_count > 0 THEN log(s.use_count + 1) ELSE 0 END) * 0.2 +
+             (CASE WHEN s.sources LIKE '%official%' THEN 3.0
+              WHEN s.verified = 1 THEN 1.5
+              ELSE 0 END) * 0.15
+           ) as combined_score
+    FROM hits h
+    JOIN servers s ON s.rowid = h.server_rowid
+    ORDER BY combined_score DESC LIMIT @limit
+  `;
 
   const rows = db.prepare(sql).all(params as Record<string, SqlParam>) as unknown as (McpServer & {
     fts_relevance: number;
